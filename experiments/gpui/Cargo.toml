@@ -1,0 +1,13 @@
+[package]
+name = "fuwa-gpui-prototype"
+version = "0.0.1"
+edition = "2024"
+publish = false
+
+[dependencies]
+gpui-kit = "0.7.0"
+gpui = { package = "gpui-pre", version = "=0.3.7" }
+
+# This crate is intentionally isolated from the shipping Swift application.
+# The first milestone validates GPUI window behavior before porting Fuwa's
+# ScreenCaptureKit and Accessibility adapters.
