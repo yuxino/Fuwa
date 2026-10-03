@@ -10,14 +10,14 @@ struct MainView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 28) {
                 HStack(spacing: 10) {
                     Image(nsImage: NSApp.applicationIconImage)
-                        .resizable().frame(width: 38, height: 38)
+                        .resizable().frame(width: 30, height: 30)
                         .accessibilityHidden(true)
-                    Text("Fuwa").font(.title2.weight(.semibold))
+                    Text("Fuwa").font(.system(size: 18, weight: .semibold))
                 }
-                VStack(spacing: 6) {
+                VStack(spacing: 4) {
                     navigation(copy.text(.pins), symbol: "pin", selected: !settingsSelected) {
                         settingsSelected = false
                     }
@@ -27,13 +27,17 @@ struct MainView: View {
                     .keyboardShortcut(",", modifiers: .command)
                 }
                 Spacer()
-                Text(copy.pinsCount(model.pins.count))
-                    .font(.caption).foregroundStyle(.secondary)
-                Text("\(copy.text(.version)) \(model.version)")
-                    .font(.caption2).foregroundStyle(.tertiary)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(copy.pinsCount(model.pins.count))
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text("\(copy.text(.version)) \(model.version)")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 8)
             }
-            .padding(20)
-            .frame(width: 174)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 22)
+            .frame(width: 164)
             .frame(maxHeight: .infinity)
             .background(FuwaAppearance.sidebar)
             Divider()
@@ -41,7 +45,7 @@ struct MainView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(copy.text(settingsSelected ? .settings : .manageWindows))
-                            .font(.title2.weight(.semibold))
+                            .font(.system(size: 18, weight: .semibold))
                         Spacer()
                         if !settingsSelected {
                             Button { choosingWindow = true } label: {
@@ -64,7 +68,8 @@ struct MainView: View {
                             .textSelection(.enabled)
                     }
                 }
-                .padding(24)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 18)
                 if let notice = model.notice {
                     FuwaNoticeView(notice: notice, copy: copy, onDismiss: model.dismissNotice)
                         .padding(.horizontal, 24).padding(.bottom, 16)
@@ -72,7 +77,6 @@ struct MainView: View {
                 Divider()
                 if settingsSelected {
                     SettingsView(model: model)
-                        .padding(.horizontal, 10)
                 } else {
                     PinsView(model: model, showsPinAction: false)
                     Spacer(minLength: 0)
@@ -96,18 +100,36 @@ struct MainView: View {
 
     private func navigation(_ title: String, symbol: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: symbol)
-                .font(.body.weight(selected ? .semibold : .regular))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
-                .overlay(alignment: .leading) {
-                    if selected {
-                        RoundedRectangle(cornerRadius: 1.5)
-                            .fill(Color.primary).frame(width: 3, height: 18)
-                    }
-                }
+            HStack(spacing: 10) {
+                Image(systemName: symbol)
+                    .font(.system(size: 14))
+                    .frame(width: 18)
+                    .foregroundStyle(selected ? Color.primary : Color.secondary)
+                Text(title)
+                    .font(.system(size: 13, weight: selected ? .medium : .regular))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .contentShape(RoundedRectangle(cornerRadius: 7))
         }
-        .buttonStyle(FuwaRowButtonStyle(selected: selected))
+        .buttonStyle(FuwaNavigationButtonStyle(selected: selected))
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+private struct FuwaNavigationButtonStyle: ButtonStyle {
+    let selected: Bool
+    @State private var isHovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color.primary)
+            .background(
+                Color.black.opacity(configuration.isPressed ? 0.10 : isHovered ? 0.075 : selected ? 0.055 : 0),
+                in: RoundedRectangle(cornerRadius: 7)
+            )
+            .modifier(FuwaKeyboardFocus(cornerRadius: 7))
+            .onHover { isHovered = $0 }
     }
 }

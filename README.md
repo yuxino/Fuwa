@@ -38,6 +38,7 @@ Real native interactions use English Fuwa UI and public sample documents, with C
 - Pin multiple windows and freeze frames.
 - Support for application windows and system previews of images and documents.
 - Customizable keyboard shortcut.
+- Choose whether Fuwa stays in the Dock. When off, its icon appears only while the main window is open; the menu bar remains available.
 - Mirrors pass mouse input through; `Reveal Source` activates and raises the real source window.
 - Window pixels and metadata stay on your computer, with no uploads, analytics, or telemetry.
 - Check, download, and install Ed25519-verified updates from Settings. No automatic background checks or installs.

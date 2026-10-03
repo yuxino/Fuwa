@@ -83,7 +83,7 @@ struct FuwaPlainButtonStyle: ButtonStyle {
     }
 }
 
-private struct FuwaKeyboardFocus: ViewModifier {
+struct FuwaKeyboardFocus: ViewModifier {
     @Environment(\.isFocused) private var isFocused
     @Environment(\.isEnabled) private var isEnabled
 

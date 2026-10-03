@@ -9,9 +9,9 @@ enum FuwaAppearance {
 }
 
 enum FuwaTypography {
-    static let settingTitle = Font.body.weight(.medium)
-    static let explanation = Font.callout
-    static let sectionTitle = Font.callout.weight(.semibold)
+    static let settingTitle = Font.body
+    static let explanation = Font.caption
+    static let sectionTitle = Font.caption.weight(.medium)
 }
 
 extension View {

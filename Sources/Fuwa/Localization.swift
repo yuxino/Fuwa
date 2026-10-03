@@ -74,6 +74,8 @@ enum FuwaString: String, CaseIterable, Sendable {
     case openSettings
     case screenRecordingNote
     case accessibilityNote
+    case keepInDock
+    case keepInDockNote
     case launchAtLogin
     case launchAtLoginApproval
     case openLoginItems
@@ -188,6 +190,8 @@ struct FuwaCopy: Sendable {
         .openSettings: "Open Settings",
         .screenRecordingNote: "Used only for windows you choose to pin. Frames stay on this Mac.",
         .accessibilityNote: "Lets Reveal Source bring the original window to the front.",
+        .keepInDock: "Keep in Dock",
+        .keepInDockNote: "When off, the Dock icon appears only while Fuwa’s main window is open. Fuwa remains available in the menu bar.",
         .launchAtLogin: "Launch at Login",
         .launchAtLoginApproval: "Approve Fuwa in System Settings → General → Login Items.",
         .openLoginItems: "Open Login Items",
@@ -277,6 +281,8 @@ struct FuwaCopy: Sendable {
         .openSettings: "打开设置",
         .screenRecordingNote: "用于显示你选择置顶的窗口画面，内容只在本机处理。",
         .accessibilityNote: "用于将原窗口带到前台，在“显示源窗口”时使用。",
+        .keepInDock: "保留 Dock 图标",
+        .keepInDockNote: "关闭后，仅在 Fuwa 主窗口打开时显示 Dock 图标。仍可从菜单栏打开 Fuwa。",
         .launchAtLogin: "登录时启动",
         .launchAtLoginApproval: "需要在“系统设置 → 通用 → 登录项”中批准 Fuwa。",
         .openLoginItems: "打开登录项",

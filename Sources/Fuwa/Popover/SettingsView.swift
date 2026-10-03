@@ -20,7 +20,7 @@ struct SettingsView: View {
                     openSettings: model.openScreenRecordingSettings
                 )
 
-                Divider().padding(.horizontal, 14)
+                Divider().opacity(0.5)
 
                 PermissionSettingsRow(
                     title: copy.text(.accessibility),
@@ -33,19 +33,10 @@ struct SettingsView: View {
                 sectionDivider
                 sectionTitle(copy.text(.general))
 
-                Picker(copy.text(.language), selection: Binding(
-                    get: { model.languagePreference },
-                    set: { model.setLanguage($0) }
-                )) {
-                    Text(copy.text(.systemLanguage)).tag(FuwaLanguagePreference.system)
-                    Text("简体中文").tag(FuwaLanguagePreference.simplifiedChinese)
-                    Text("English").tag(FuwaLanguagePreference.english)
-                }
-                .pickerStyle(.menu)
-                .font(FuwaTypography.settingTitle)
-                .padding(14)
+                languageControls
+                    .padding(.vertical, 12)
 
-                Divider().padding(.horizontal, 14)
+                Divider().opacity(0.5)
 
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) {
@@ -61,18 +52,35 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .padding(14)
+                .padding(.vertical, 12)
 
-                Divider().padding(.horizontal, 14)
+                Divider().opacity(0.5)
 
                 launchAtLoginControls
-                .padding(14)
+                .padding(.vertical, 12)
+
+                Divider().opacity(0.5)
+
+                HStack(spacing: 12) {
+                    Text(copy.text(.keepInDock))
+                        .font(FuwaTypography.settingTitle)
+                    Spacer(minLength: 8)
+                    Toggle(copy.text(.keepInDock), isOn: Binding(
+                        get: { model.keepInDock },
+                        set: { model.setKeepInDock($0) }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .help(copy.text(.keepInDockNote))
+                    .accessibilityHint(copy.text(.keepInDockNote))
+                }
+                .padding(.vertical, 12)
 
                 sectionDivider
                 sectionTitle(copy.text(.softwareUpdate))
                 softwareUpdateControls
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 14)
+                    .padding(.vertical, 12)
 
                 sectionDivider
 
@@ -94,10 +102,60 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding(14)
+                .padding(.vertical, 12)
             }
+            .padding(.horizontal, 24)
+            .padding(.top, 6)
+            .padding(.bottom, 12)
         }
         .scrollIndicators(.automatic)
+    }
+
+    private var languageControls: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) {
+                Text(copy.text(.language)).font(FuwaTypography.settingTitle)
+                Spacer(minLength: 12)
+                languageChoices
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text(copy.text(.language)).font(FuwaTypography.settingTitle)
+                languageChoices
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+    }
+
+    private var languageChoices: some View {
+        HStack(spacing: 2) {
+            languageChoice(.system, title: copy.text(.systemLanguage))
+            languageChoice(.simplifiedChinese, title: "简体中文")
+            languageChoice(.english, title: "English")
+        }
+        .fixedSize()
+        .padding(3)
+        .background(FuwaAppearance.sidebar, in: RoundedRectangle(cornerRadius: 6))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(copy.text(.language))
+    }
+
+    private func languageChoice(_ preference: FuwaLanguagePreference, title: String) -> some View {
+        let selected = model.languagePreference == preference
+        return Button { model.setLanguage(preference) } label: {
+            Text(title)
+                .font(.caption.weight(selected ? .medium : .regular))
+                .foregroundStyle(selected ? Color.primary : Color.secondary)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(selected ? Color.white : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(Color.black.opacity(selected ? 0.08 : 0), lineWidth: 1)
+                }
+        }
+        .buttonStyle(FuwaRowButtonStyle())
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityLabel("\(copy.text(.language)): \(title)")
     }
 
     private var appName: some View {
@@ -109,10 +167,17 @@ struct SettingsView: View {
     private var softwareUpdateControls: some View {
         let state = model.softwareUpdate
         VStack(alignment: .leading, spacing: 9) {
-            Text(updateStatusText(state))
-                .font(.callout)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityLabel(updateStatusText(state))
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 16) {
+                    updateStatus(state)
+                    Spacer(minLength: 8)
+                    updateActions(state)
+                }
+                VStack(alignment: .leading, spacing: 10) {
+                    updateStatus(state)
+                    updateActions(state)
+                }
+            }
 
             if let notes = state.releaseNotes,
                state.phase == .available || state.phase == .ready {
@@ -131,19 +196,28 @@ struct SettingsView: View {
             }
 
             updateProgress(state)
-
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 8) {
-                    updatePrimaryAction(state)
-                    updateSecondaryActions(state)
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    updatePrimaryAction(state)
-                    updateSecondaryActions(state)
-                }
-            }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    private func updateStatus(_ state: SoftwareUpdateState) -> some View {
+        Text(updateStatusText(state))
+            .font(FuwaTypography.settingTitle)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityLabel(updateStatusText(state))
+    }
+
+    private func updateActions(_ state: SoftwareUpdateState) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                updatePrimaryAction(state)
+                updateSecondaryActions(state)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                updatePrimaryAction(state)
+                updateSecondaryActions(state)
+            }
+        }
     }
 
     @ViewBuilder
@@ -263,7 +337,7 @@ struct SettingsView: View {
             Text(copy.text(.shortcutNote))
                 .font(FuwaTypography.explanation)
                 .foregroundStyle(FuwaAppearance.secondaryText)
-                .lineSpacing(3)
+                .lineSpacing(1)
                 .fixedSize(horizontal: false, vertical: true)
 
             if !model.shortcutIsActive {
@@ -278,21 +352,11 @@ struct SettingsView: View {
 
     private var launchAtLoginControls: some View {
         VStack(alignment: .leading, spacing: 7) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) {
-                    launchAtLoginToggle
-                    Spacer(minLength: 8)
-                    if model.launchAtLoginState == .requiresApproval {
-                        openLoginItemsButton
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    launchAtLoginToggle
-                    if model.launchAtLoginState == .requiresApproval {
-                        openLoginItemsButton
-                    }
-                }
+            HStack(spacing: 12) {
+                Text(copy.text(.launchAtLogin))
+                    .font(FuwaTypography.settingTitle)
+                Spacer(minLength: 8)
+                launchAtLoginToggle
             }
 
             if model.launchAtLoginState == .requiresApproval {
@@ -300,6 +364,10 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(Color.orange)
                     .fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Spacer()
+                    openLoginItemsButton
+                }
             }
         }
     }
@@ -312,6 +380,7 @@ struct SettingsView: View {
                 set: { model.setLaunchAtLogin($0) }
             )
         )
+        .labelsHidden()
         .toggleStyle(.switch)
         .font(FuwaTypography.settingTitle)
         .controlSize(.small)
@@ -329,16 +398,16 @@ struct SettingsView: View {
         Text(title)
             .font(FuwaTypography.sectionTitle)
             .foregroundStyle(FuwaAppearance.secondaryText)
-            .padding(.horizontal, 14)
-            .padding(.top, 16)
-            .padding(.bottom, 6)
+            .padding(.top, 14)
+            .padding(.bottom, 2)
             .accessibilityAddTraits(.isHeader)
     }
 
     private var sectionDivider: some View {
         Divider()
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .opacity(0.5)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
             .accessibilityHidden(true)
     }
 }
@@ -352,44 +421,41 @@ private struct PermissionSettingsRow: View {
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .center, spacing: 16) {
                 permissionDescription
                 Spacer(minLength: 12)
-                if state == .denied {
-                    openSettingsButton
-                }
+                permissionControls
             }
 
             VStack(alignment: .leading, spacing: 9) {
                 permissionDescription
-                if state == .denied {
-                    openSettingsButton
-                }
+                permissionControls
             }
         }
-        .padding(14)
+        .padding(.vertical, 12)
         .accessibilityElement(children: .contain)
     }
 
     private var permissionDescription: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) {
-                    Text(title).font(FuwaTypography.settingTitle)
-                    FuwaPermissionLabel(state: state, copy: copy)
-                }
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(title).font(FuwaTypography.settingTitle)
-                    FuwaPermissionLabel(state: state, copy: copy)
-                }
-            }
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(FuwaTypography.settingTitle)
 
             Text(note)
                 .font(FuwaTypography.explanation)
                 .foregroundStyle(FuwaAppearance.secondaryText)
-                .lineSpacing(3)
+                .lineSpacing(1)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var permissionControls: some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            FuwaPermissionLabel(state: state, copy: copy)
+            if state == .denied {
+                openSettingsButton
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var openSettingsButton: some View {
