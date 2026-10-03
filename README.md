@@ -39,7 +39,7 @@ Real native interactions use English Fuwa UI and public sample documents, with C
 - Support for application windows and system previews of images and documents.
 - Customizable keyboard shortcut.
 - Choose whether Fuwa stays in the Dock. When off, its icon appears only while the main window is open; the menu bar remains available.
-- Mirrors pass mouse input through; `Reveal Source` activates and raises the real source window.
+- Mirrors pass mouse input through; `Go to Original Window` activates and raises the real source window.
 - Window pixels and metadata stay on your computer, with no uploads, analytics, or telemetry.
 - Check, download, and install Ed25519-verified updates from Settings. No automatic background checks or installs.
 
@@ -47,7 +47,7 @@ Real native interactions use English Fuwa UI and public sample documents, with C
 
 - macOS 14 or later; the release archive includes arm64 (Apple silicon) and x86_64 (Intel). Physical Intel Mac acceptance is still pending.
 - Screen Recording permission, requested only on the first pin attempt.
-- Accessibility permission, requested only for `Reveal Source`.
+- Accessibility permission, requested only for `Go to Original Window`.
 
 ## Install
 
