@@ -9,11 +9,11 @@ struct FuwaPrimaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(compact ? .callout.weight(.medium) : .body.weight(.semibold))
+            .font(compact ? .caption.weight(.medium) : .body.weight(.semibold))
             .foregroundStyle(.white)
             .frame(maxWidth: expands ? .infinity : nil)
-            .padding(.vertical, compact ? 7 : 10)
-            .padding(.horizontal, 14)
+            .padding(.vertical, compact ? 6 : 10)
+            .padding(.horizontal, compact ? 10 : 14)
             .background {
                 RoundedRectangle(cornerRadius: compact ? 7 : 9, style: .continuous)
                     .fill(FuwaAppearance.ink)

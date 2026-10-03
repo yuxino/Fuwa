@@ -35,9 +35,12 @@ struct PresentationTests {
         let closed = pin(.frozen(.sourceClosed))
         model.updatePins([closed])
         let submenu = try #require(controller.makeQuickMenu().items.first(where: { $0.submenu != nil })?.submenu)
-        #expect(submenu.items.first(where: { $0.title == "Reveal Source" })?.isEnabled == false)
+        #expect(!submenu.items.contains(where: { $0.title == "Go to Original Window" }))
         #expect(submenu.items.contains(where: { $0.title == "Unpin" && $0.isEnabled }))
         #expect(!submenu.items.contains(where: { $0.title == "Resume" }))
+        model.updatePins([pin(.live)])
+        let liveMenu = try #require(controller.makeQuickMenu().items.first(where: { $0.submenu != nil })?.submenu)
+        #expect(liveMenu.items.contains(where: { $0.title == "Go to Original Window" && $0.isEnabled }))
     }
 
     @Test func clearAllPreventsConcurrentPinCommands() async {

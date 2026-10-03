@@ -31,15 +31,15 @@ enum FuwaPopoverLayout {
         } else if dynamicTypeSize >= .xxLarge {
             metrics = (396, 360, 180, 96, 600, 120, 16)
         } else {
-            metrics = (364, 224, 162, 80, 480, 104, 24)
+            metrics = (300, 148, 128, 48, 360, 104, 24)
         }
 
         if route == .settings {
-            return NSSize(width: metrics.width, height: max(520, metrics.maximum))
+            return NSSize(width: max(364, metrics.width), height: max(520, metrics.maximum))
         }
         let baseHeight = pinCount <= 0 ? metrics.empty
             : min(metrics.maximum, metrics.chrome + CGFloat(pinCount) * metrics.row
-                + CGFloat(max(0, min(pinCount, actionRowCount))) * metrics.row * 0.35)
+                + CGFloat(max(0, min(pinCount, actionRowCount))) * metrics.row * 0.60)
         return NSSize(
             width: metrics.width,
             height: baseHeight + (hasNotice ? metrics.notice : 0)
@@ -62,7 +62,7 @@ struct FuwaPopoverView: View {
     @ObservedObject var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .headline) private var headerTitleSize = 15
+    @ScaledMetric(relativeTo: .headline) private var headerTitleSize = 13
     @ScaledMetric(relativeTo: .body) private var navigationButtonSize = 24
     @ScaledMetric(relativeTo: .body) private var moreButtonWidth = 24
     @ScaledMetric(relativeTo: .body) private var moreButtonHeight = 20
@@ -113,10 +113,10 @@ struct FuwaPopoverView: View {
             }
         }
         .frame(
-            minWidth: 320,
+            minWidth: 280,
             idealWidth: preferredContentSize.width,
             maxWidth: .infinity,
-            minHeight: isCompactEmpty ? 0 : 240,
+            minHeight: model.route == .settings ? 240 : 0,
             idealHeight: preferredContentSize.height,
             maxHeight: .infinity,
             // Keep the header and primary action at the top when the view is
@@ -147,24 +147,15 @@ struct FuwaPopoverView: View {
                 .accessibilityLabel(copy.text(.back))
             }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(model.route == .pins ? copy.text(.appName) : copy.text(.settings))
-                    .font(.system(size: headerTitleSize, weight: .semibold))
-                    .accessibilityAddTraits(.isHeader)
-
-                if model.route == .pins {
-                    Text(copy.text(.appTagline))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+            Text(model.route == .pins ? copy.text(.appName) : copy.text(.settings))
+                .font(.system(size: headerTitleSize, weight: .semibold))
+                .accessibilityAddTraits(.isHeader)
 
             Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 12)
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
     }
 
     private var footer: some View {
@@ -222,9 +213,9 @@ struct FuwaPopoverView: View {
             .help(copy.text(.moreActions))
             .accessibilityLabel(copy.text(.moreActions))
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 7)
-        .frame(minHeight: 38)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 3)
+        .frame(minHeight: 32)
     }
 
     private var settingsButtonLabel: String {

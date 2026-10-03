@@ -48,12 +48,14 @@ struct PinActionsView: View {
                 }
                 .disabled(busy)
             }
-            Button {
-                model.revealSource(pin.id)
-            } label: {
-                Label(model.copy.text(.revealSource), systemImage: "arrow.up.forward.app")
+            if pin.canUseSource {
+                Button {
+                    model.revealSource(pin.id)
+                } label: {
+                    Label(model.copy.text(.revealSource), systemImage: "arrow.up.forward.app")
+                }
+                .disabled(busy)
             }
-            .disabled(busy || !pin.canUseSource)
             Spacer(minLength: 0)
             Button {
                 model.unpin(pin.id)

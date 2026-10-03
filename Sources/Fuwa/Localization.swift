@@ -37,7 +37,6 @@ enum FuwaString: String, CaseIterable, Sendable {
     case noWindowsFound
     case openFuwa
     case emptyTitle
-    case mirrorExplanation
     case removeExplanation
     case manageWindows
     case appTagline
@@ -152,8 +151,7 @@ struct FuwaCopy: Sendable {
         .refreshWindows: "Refresh Windows",
         .noWindowsFound: "No matching windows. Open a window, then refresh.",
         .openFuwa: "Open Fuwa",
-        .emptyTitle: "Keep a window on top",
-        .mirrorExplanation: "Fuwa keeps a live view of the window on top. To edit or click inside it, choose Reveal Source.",
+        .emptyTitle: "No pinned windows",
         .removeExplanation: "Removing a pin leaves the original window open.",
         .manageWindows: "Your windows",
         .appTagline: "Keep the window you need on top.",
@@ -175,7 +173,7 @@ struct FuwaCopy: Sendable {
         .freeze: "Freeze",
         .resume: "Resume",
         .interact: "Interact",
-        .revealSource: "Reveal Source",
+        .revealSource: "Go to Original Window",
         .unpin: "Unpin",
         .clearAll: "Unpin All",
         .settings: "Settings",
@@ -189,7 +187,7 @@ struct FuwaCopy: Sendable {
         .permissionUnknown: "Not used yet",
         .openSettings: "Open Settings",
         .screenRecordingNote: "Used only for windows you choose to pin. Frames stay on this Mac.",
-        .accessibilityNote: "Lets Reveal Source bring the original window to the front.",
+        .accessibilityNote: "Lets Go to Original Window bring the original window to the front.",
         .keepInDock: "Keep in Dock",
         .keepInDockNote: "When off, the Dock icon appears only while Fuwa’s main window is open. Fuwa remains available in the menu bar.",
         .launchAtLogin: "Launch at Login",
@@ -243,8 +241,7 @@ struct FuwaCopy: Sendable {
         .refreshWindows: "刷新窗口列表",
         .noWindowsFound: "没有匹配的窗口。打开窗口后刷新列表。",
         .openFuwa: "打开 Fuwa",
-        .emptyTitle: "把需要的窗口置顶",
-        .mirrorExplanation: "Fuwa 将窗口的实时画面置顶显示。需要点击或编辑里面的内容时，选择“显示源窗口”。",
+        .emptyTitle: "暂无固定窗口",
         .removeExplanation: "取消固定不会关闭原窗口。",
         .manageWindows: "你的窗口",
         .appTagline: "把需要的窗口置顶，方便随时查看。",
@@ -266,7 +263,7 @@ struct FuwaCopy: Sendable {
         .freeze: "冻结",
         .resume: "恢复实时",
         .interact: "交互",
-        .revealSource: "显示源窗口",
+        .revealSource: "回到原窗口",
         .unpin: "取消固定",
         .clearAll: "全部取消固定",
         .settings: "设置",
@@ -280,7 +277,7 @@ struct FuwaCopy: Sendable {
         .permissionUnknown: "尚未使用",
         .openSettings: "打开设置",
         .screenRecordingNote: "用于显示你选择置顶的窗口画面，内容只在本机处理。",
-        .accessibilityNote: "用于将原窗口带到前台，在“显示源窗口”时使用。",
+        .accessibilityNote: "用于将原窗口带到前台，在“回到原窗口”时使用。",
         .keepInDock: "保留 Dock 图标",
         .keepInDockNote: "关闭后，仅在 Fuwa 主窗口打开时显示 Dock 图标。仍可从菜单栏打开 Fuwa。",
         .launchAtLogin: "开机启动",

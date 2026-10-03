@@ -211,7 +211,7 @@ enum FuwaErrorMessage {
         case .raiseUnsupported:
             return "这个源窗口不支持通过辅助功能显示。"
         case .raiseFailed(let code):
-            return "macOS 无法显示源窗口（辅助功能错误 \(code)）。"
+            return "macOS 无法切换到原窗口（辅助功能错误 \(code)）。"
         }
     }
 
