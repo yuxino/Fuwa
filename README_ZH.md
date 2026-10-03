@@ -1,7 +1,7 @@
 <div align="center">
   <img src="docs/images/app-icon.png" width="112" alt="Fuwa 应用图标">
   <h1>Fuwa</h1>
-  <p>把需要的窗口留在最前面。</p>
+  <p>把需要的窗口固定在最前面。</p>
   <p>
     <a href="https://fuwa.yuxino.cn"><strong>官方网站</strong></a>
     · <a href="https://github.com/yuxino/fuwa/releases"><strong>查看发布版本</strong></a>
@@ -17,15 +17,7 @@
   </p>
 </div>
 
-Fuwa 是 macOS 窗口置顶工具。把参考图片、文档或教程窗口放在最上方，回到其他应用后也能继续查看，不用反复切换窗口。置顶画面不拦截鼠标，你可以照常操作下方的应用。
-
-## 完整功能演示
-
-109 秒 · 4K · 60 帧 · 中文女声旁白。对照要求写拍摄清单、保留教程参数、同时查阅多份资料，以及看参考图写设计说明。
-
-https://github.com/user-attachments/assets/8a218239-7d7c-4585-b7d6-33f57094e961
-
-实际录制英文界面的 Fuwa 和公开示例文档，分别配有中英文旁白及字幕，访达控件保留系统中文。[录制说明](docs/demos/fuwa-full-tour-provenance.json)列出了录制副本的调整；也可以[观看英文版](README.md#full-feature-tour)。
+Fuwa 是 macOS 窗口置顶工具。把图片、文档或教程窗口固定在最前面，切换到其他应用也能继续查看。置顶画面不会挡住鼠标操作。
 
 ## 使用
 

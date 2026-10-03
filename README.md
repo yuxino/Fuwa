@@ -1,7 +1,7 @@
 <div align="center">
   <img src="docs/images/app-icon.png" width="112" alt="Fuwa app icon">
   <h1>Fuwa</h1>
-  <p>Keep the window you need in front.</p>
+  <p>Pin windows on your Mac.</p>
   <p>
     <a href="https://fuwa.yuxino.cn"><strong>Official website</strong></a>
     · <a href="https://github.com/yuxino/fuwa/releases"><strong>View releases</strong></a>
@@ -17,15 +17,7 @@
   </p>
 </div>
 
-Fuwa keeps the window you need on top of other apps on your Mac. Keep a reference image, document, or tutorial visible while you work, without switching back and forth. The pinned view lets clicks pass through to the app underneath.
-
-## Full feature tour
-
-109 seconds · 4K · 60 fps · English female narration. Draft a shot list from a brief, keep tutorial settings in view, compare references, and write design notes beside an image.
-
-https://github.com/user-attachments/assets/2643e8a5-dc40-4334-8395-cd7783c8a74a
-
-Real native interactions use English Fuwa UI and public sample documents, with Chinese and English narration and captions. Finder controls retain the system's Chinese language. [Capture notes](docs/demos/fuwa-full-tour-provenance.json) describe the recording-copy adaptations; [watch the Chinese version](README_ZH.md#完整功能演示).
+Fuwa is a macOS window pinning app. Keep a live view of an image, document, or tutorial on top while you work in another app. The pinned view lets clicks pass through to the app underneath.
 
 ## Use
 
