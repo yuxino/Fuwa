@@ -30,7 +30,7 @@ struct PresentationTests {
         let controller = StatusBarController(model: model)
         defer { controller.invalidate() }
         let empty = controller.makeQuickMenu()
-        #expect(empty.items.first(where: { $0.title == "Clear All" })?.isEnabled == false)
+        #expect(empty.items.first(where: { $0.title == "Unpin All" })?.isEnabled == false)
         #expect(empty.items.contains(where: { $0.title == "Quit Fuwa" && $0.isEnabled }))
         let closed = pin(.frozen(.sourceClosed))
         model.updatePins([closed])
