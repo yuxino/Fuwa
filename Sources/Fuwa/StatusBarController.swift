@@ -89,7 +89,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         popover.contentSize = FuwaPopoverLayout.preferredContentSize(
             route: model.route,
-            hasPins: !model.pins.isEmpty,
+            pinCount: model.pins.count,
+            actionRowCount: FuwaPopoverLayout.actionRowCount(in: model.pins),
             hasNotice: model.notice != nil,
             hasPermissionWarning: model.hasPermissionWarning,
             dynamicTypeSize: .large
@@ -136,7 +137,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         applyPreferredContentSize(
             FuwaPopoverLayout.preferredContentSize(
                 route: model.route,
-                hasPins: !model.pins.isEmpty,
+                pinCount: model.pins.count,
+                actionRowCount: FuwaPopoverLayout.actionRowCount(in: model.pins),
                 hasNotice: model.notice != nil,
                 hasPermissionWarning: model.hasPermissionWarning,
                 dynamicTypeSize: .large
@@ -201,7 +203,9 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             let available = !model.busyPinIDs.contains(pin.id) && !model.isClearingAll
             if pin.canFreeze { submenu.addItem(item(.freeze, #selector(quickFreeze(_:)), enabled: available, id: pin.id)) }
             if pin.canResume { submenu.addItem(item(.resume, #selector(quickResume(_:)), enabled: available, id: pin.id)) }
-            submenu.addItem(item(.revealSource, #selector(quickReveal(_:)), enabled: available && pin.canUseSource, id: pin.id))
+            if pin.canUseSource {
+                submenu.addItem(item(.revealSource, #selector(quickReveal(_:)), enabled: available, id: pin.id))
+            }
             submenu.addItem(.separator())
             submenu.addItem(item(.unpin, #selector(quickUnpin(_:)), enabled: available, id: pin.id))
             row.submenu = submenu

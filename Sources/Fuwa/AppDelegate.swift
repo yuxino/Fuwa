@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindowController: MainWindowController?
     private var softwareUpdateController: SoftwareUpdateController?
     private var isTerminating = false
+    private var mainWindowPresented = false
     private var preparedPopoverIntent = PreparedIntentSlot<
         Result<TargetIntentSnapshot, Error>
     >()
@@ -60,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let model = AppModel(
             languagePreference: settingsStore.language,
+            keepInDock: settingsStore.keepInDock,
             version: Self.version,
             shortcut: activeShortcut,
             shortcutIsActive: hotKey.currentShortcut != nil,
@@ -72,6 +74,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.settingsStore.language = preference
             guard let model else { return }
             NSApp.mainMenu = FuwaApplicationMenu.make(quitTitle: model.copy.text(.quit))
+        }
+        model.onKeepInDockChanged = { [weak self] enabled in
+            guard let self else { return }
+            settingsStore.keepInDock = enabled
+            updateDockPresence()
         }
         pinCoordinator.presentationModel = model
         NSApp.mainMenu = FuwaApplicationMenu.make(quitTitle: model.copy.text(.quit))
@@ -101,7 +108,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         )
         self.statusBarController = statusBarController
-        mainWindowController = MainWindowController(model: model)
+        mainWindowController = MainWindowController(model: model) { [weak self] presented in
+            guard let self else { return }
+            mainWindowPresented = presented
+            updateDockPresence()
+        }
         let launchEvent = NSAppleEventManager.shared().currentAppleEvent
         let launchedAtLogin = launchEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue
             == keyAELaunchedAsLogInItem
@@ -111,6 +122,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let shortcutLaunchError {
             model.report(shortcutLaunchError)
         }
+    }
+
+    private func updateDockPresence() {
+        let visible = settingsStore.keepInDock || mainWindowPresented
+        NSApp.setActivationPolicy(visible ? .regular : .accessory)
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

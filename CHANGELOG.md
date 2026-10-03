@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-03
+
+### English
+
+- Add a persistent Keep in Dock preference in Settings. When turned off, the Dock icon appears only while Fuwa's main window is open; Fuwa remains available in the menu bar. Existing installations keep the Dock icon by default.
+- Refine the management window and Settings layout, and make the menu-bar panel smaller with tighter spacing. Fit pinned rows to the available space and keep larger lists scrollable.
+- Rename Clear All to Unpin All and Reveal Source to Go to Original Window. Hide the original-window action when its source has closed, and simplify the panel's explanatory text.
+- Requires macOS 14 or later. Use Check for Updates, or quit Fuwa and replace the app in Applications. The universal Apple Silicon/Intel package retains the existing local signature and signed updater; it is not Apple Developer ID signed or notarized. macOS may require approval in Privacy & Security on first installation; do not disable Gatekeeper.
+- Strict builds, logic and native regression tests, English/Chinese offscreen component layouts, and package signing/framework-loading checks passed on Apple Silicon. Offscreen rendering does not prove interactive capture or permission behavior. Intel hardware, fresh permission prompts, live capture, and the complete updater installation were not revalidated for this release.
+
+### 中文
+
+- 在设置中新增可保存的“保留 Dock 图标”选项。关闭后，仅在 Fuwa 主窗口打开时显示 Dock 图标，仍可从菜单栏打开 Fuwa。已有安装默认保留 Dock 图标。
+- 调整管理窗口和设置页布局，缩小菜单栏面板并收紧间距。固定窗口行随可用空间调整，较长列表保持可滚动。
+- 将“全部清除”改为“全部取消固定”，“显示源窗口”改为“回到原窗口”。源窗口关闭后隐藏对应操作，并精简面板说明文字。
+- 需要 macOS 14 或更新版本。可使用“检查更新”，或退出 Fuwa 后替换“应用程序”中的应用。Apple Silicon/Intel Universal 包沿用现有本地签名和签名更新源，未使用 Apple Developer ID 签名或 Apple 公证。首次安装可能需要在“隐私与安全性”中批准；不要关闭 Gatekeeper。
+- 已在 Apple Silicon 上通过严格构建、逻辑及原生回归测试、中英文组件离屏布局检查，以及安装包签名和框架加载检查。离屏渲染不代表采集交互或权限行为验收通过。本次未重新验证 Intel 实机、首次权限弹窗、实时采集和完整更新安装流程。
+
 ## [1.0.1] - 2026-09-23
 
 ### English

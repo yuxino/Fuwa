@@ -5,7 +5,7 @@ struct PinsView: View {
     @ObservedObject var model: AppModel
     var showsPinAction = true
     @FocusState private var pinButtonFocused: Bool
-    @ScaledMetric(relativeTo: .body) private var rowDividerIndent = 54
+    @ScaledMetric(relativeTo: .body) private var rowDividerIndent = 52
 
     private var copy: FuwaCopy { model.copy }
 
@@ -13,8 +13,8 @@ struct PinsView: View {
         VStack(spacing: 0) {
             if showsPinAction {
                 pinButton
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
             }
 
             if !model.pins.isEmpty {
@@ -37,26 +37,19 @@ struct PinsView: View {
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
                 Text(copy.text(.emptyTitle)).font(.title3.weight(.semibold))
-                Text(copy.text(.mirrorExplanation))
-                    .font(.callout).foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 320)
+                    .help(copy.text(.noPinsBody))
             }
             .padding(28)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            VStack(alignment: .leading, spacing: 12) {
-                Label(copy.text(.emptyTitle), systemImage: "macwindow.on.rectangle")
-                    .font(.headline)
-                Text(copy.text(.noPinsBody))
-                    .font(.callout)
-                Text(copy.text(.mirrorExplanation))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
+            Text(copy.text(.emptyTitle))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .help(copy.text(.noPinsBody))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
         }
     }
 
@@ -81,7 +74,7 @@ struct PinsView: View {
                     .opacity(model.shortcutIsActive ? 0.72 : 0.35)
             }
         }
-        .buttonStyle(FuwaPrimaryButtonStyle())
+        .buttonStyle(FuwaPrimaryButtonStyle(compact: true))
         .disabled(model.isPinningFrontWindow || model.isClearingAll)
         .focused($pinButtonFocused)
         .help(pinButtonHint)
@@ -98,26 +91,27 @@ struct PinsView: View {
         VStack(spacing: 0) {
             HStack {
                 Text(copy.text(.pins))
-                    .font(.caption.weight(.semibold))
+                    .font(.caption.weight(.medium))
                 Spacer()
-                Text(copy.pinsCount(model.pins.count))
+                Text(showsPinAction ? String(model.pins.count) : copy.pinsCount(model.pins.count))
+                    .accessibilityLabel(copy.pinsCount(model.pins.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
+            .padding(.horizontal, showsPinAction ? 12 : 16)
+            .padding(.vertical, showsPinAction ? 5 : 8)
 
-            Divider()
+            Divider().opacity(0.5)
 
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(model.pins.enumerated()), id: \.element.id) { index, pin in
-                        PinRowView(model: model, pin: pin)
-                            .padding(.horizontal, 14)
+                        PinRowView(model: model, pin: pin, compact: showsPinAction)
+                            .padding(.horizontal, showsPinAction ? 12 : 16)
 
                         if index < model.pins.count - 1 {
-                            Divider()
-                                .padding(.leading, rowDividerIndent)
+                            Divider().opacity(0.5)
+                                .padding(.leading, showsPinAction ? rowDividerIndent - 10 : rowDividerIndent)
                         }
                     }
                 }

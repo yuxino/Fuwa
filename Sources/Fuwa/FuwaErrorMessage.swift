@@ -125,7 +125,7 @@ enum FuwaErrorMessage {
             case .requiresApproval:
                 return "请在“系统设置 → 通用 → 登录项”中批准 Fuwa。"
             case .serviceUnavailable:
-                return "当前这份 Fuwa 无法设置登录时启动。请先将它移到“应用程序”文件夹。"
+                return "当前这份 Fuwa 无法设置开机启动。请先将它移到“应用程序”文件夹。"
             }
         }
         if let error = error as? PinCoordinatorError {
@@ -211,7 +211,7 @@ enum FuwaErrorMessage {
         case .raiseUnsupported:
             return "这个源窗口不支持通过辅助功能显示。"
         case .raiseFailed(let code):
-            return "macOS 无法显示源窗口（辅助功能错误 \(code)）。"
+            return "macOS 无法切换到原窗口（辅助功能错误 \(code)）。"
         }
     }
 
