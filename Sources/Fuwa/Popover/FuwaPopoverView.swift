@@ -1,7 +1,12 @@
 import AppKit
 import SwiftUI
+import FuwaCore
 
 enum FuwaPopoverLayout {
+    static func actionRowCount(in pins: [PinSnapshot]) -> Int {
+        pins.filter { $0.canFreeze || $0.canResume || $0.canUseSource }.count
+    }
+
     static func isCompactEmpty(
         route: FuwaPopoverRoute,
         hasPins: Bool
@@ -11,50 +16,42 @@ enum FuwaPopoverLayout {
 
     static func preferredContentSize(
         route: FuwaPopoverRoute,
-        hasPins: Bool,
+        pinCount: Int,
+        actionRowCount: Int = 0,
         hasNotice: Bool,
         hasPermissionWarning: Bool,
         dynamicTypeSize: DynamicTypeSize
     ) -> NSSize {
-        let compact = isCompactEmpty(
-            route: route,
-            hasPins: hasPins
-        )
-
+        let metrics: (width: CGFloat, empty: CGFloat, chrome: CGFloat, row: CGFloat,
+                      maximum: CGFloat, notice: CGFloat, warning: CGFloat)
         if dynamicTypeSize >= .accessibility3 {
-            return NSSize(
-                width: 472,
-                height: compact
-                    ? (hasNotice ? 720 : 540) + (hasPermissionWarning ? 40 : 0)
-                    : 720
-            )
+            metrics = (472, 540, 240, 130, 720, 160, 40)
+        } else if dynamicTypeSize.isAccessibilitySize {
+            metrics = (436, 460, 210, 116, 660, 140, 28)
+        } else if dynamicTypeSize >= .xxLarge {
+            metrics = (396, 360, 180, 96, 600, 120, 16)
+        } else {
+            metrics = (364, 224, 162, 80, 480, 104, 24)
         }
-        if dynamicTypeSize.isAccessibilitySize {
-            return NSSize(
-                width: 436,
-                height: compact
-                    ? (hasNotice ? 660 : 460) + (hasPermissionWarning ? 28 : 0)
-                    : 660
-            )
+
+        if route == .settings {
+            return NSSize(width: metrics.width, height: max(520, metrics.maximum))
         }
-        if dynamicTypeSize >= .xxLarge {
-            return NSSize(
-                width: 396,
-                height: compact
-                    ? (hasNotice ? 480 : 360) + (hasPermissionWarning ? 16 : 0)
-                    : 600
-            )
-        }
+        let baseHeight = pinCount <= 0 ? metrics.empty
+            : min(metrics.maximum, metrics.chrome + CGFloat(pinCount) * metrics.row
+                + CGFloat(max(0, min(pinCount, actionRowCount))) * metrics.row * 0.35)
         return NSSize(
-            width: 364,
-            height: compact ? (hasNotice ? 400 : 300) : 520
+            width: metrics.width,
+            height: baseHeight + (hasNotice ? metrics.notice : 0)
+                + (hasPermissionWarning ? metrics.warning : 0)
         )
     }
 }
 
 private struct FuwaPopoverLayoutSignature: Equatable {
     let route: FuwaPopoverRoute
-    let hasPins: Bool
+    let pinCount: Int
+    let actionRowCount: Int
     let noticeID: UUID?
     let hasPermissionWarning: Bool
     let dynamicTypeSize: DynamicTypeSize
@@ -65,6 +62,7 @@ struct FuwaPopoverView: View {
     @ObservedObject var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .headline) private var headerTitleSize = 15
     @ScaledMetric(relativeTo: .body) private var navigationButtonSize = 24
     @ScaledMetric(relativeTo: .body) private var moreButtonWidth = 24
     @ScaledMetric(relativeTo: .body) private var moreButtonHeight = 20
@@ -118,7 +116,7 @@ struct FuwaPopoverView: View {
             minWidth: 320,
             idealWidth: preferredContentSize.width,
             maxWidth: .infinity,
-            minHeight: isCompactEmpty ? 0 : 360,
+            minHeight: isCompactEmpty ? 0 : 240,
             idealHeight: preferredContentSize.height,
             maxHeight: .infinity,
             // Keep the header and primary action at the top when the view is
@@ -151,7 +149,7 @@ struct FuwaPopoverView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.route == .pins ? copy.text(.appName) : copy.text(.settings))
-                    .font(.headline)
+                    .font(.system(size: headerTitleSize, weight: .semibold))
                     .accessibilityAddTraits(.isHeader)
 
                 if model.route == .pins {
@@ -163,24 +161,9 @@ struct FuwaPopoverView: View {
             }
 
             Spacer()
-
-            if model.route == .pins {
-                Text(model.shortcut.displayString)
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .opacity(model.shortcutIsActive ? 1 : 0.45)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color.primary.opacity(0.055))
-                    }
-                    .help(shortcutAccessibilityText)
-                    .accessibilityLabel(shortcutAccessibilityText)
-            }
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 13)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
         .padding(.bottom, 12)
     }
 
@@ -233,7 +216,7 @@ struct FuwaPopoverView: View {
                 Image(systemName: "ellipsis")
                     .frame(width: moreButtonWidth, height: moreButtonHeight)
             }
-            .menuStyle(.borderedButton)
+            .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
             .help(copy.text(.moreActions))
@@ -250,16 +233,11 @@ struct FuwaPopoverView: View {
             : copy.text(.settings)
     }
 
-    private var shortcutAccessibilityText: String {
-        model.shortcutIsActive
-            ? "\(copy.text(.shortcut)): \(model.shortcut.displayString)"
-            : copy.text(.shortcutInactive)
-    }
-
     private var preferredContentSize: NSSize {
         FuwaPopoverLayout.preferredContentSize(
             route: model.route,
-            hasPins: !model.pins.isEmpty,
+            pinCount: model.pins.count,
+            actionRowCount: FuwaPopoverLayout.actionRowCount(in: model.pins),
             hasNotice: model.notice != nil,
             hasPermissionWarning: model.hasPermissionWarning,
             dynamicTypeSize: dynamicTypeSize
@@ -276,7 +254,8 @@ struct FuwaPopoverView: View {
     private var layoutSignature: FuwaPopoverLayoutSignature {
         FuwaPopoverLayoutSignature(
             route: model.route,
-            hasPins: !model.pins.isEmpty,
+            pinCount: model.pins.count,
+            actionRowCount: FuwaPopoverLayout.actionRowCount(in: model.pins),
             noticeID: model.notice?.id,
             hasPermissionWarning: model.hasPermissionWarning,
             dynamicTypeSize: dynamicTypeSize

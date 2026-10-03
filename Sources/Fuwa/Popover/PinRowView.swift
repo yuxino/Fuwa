@@ -5,57 +5,81 @@ import SwiftUI
 struct PinRowView: View {
     @ObservedObject var model: AppModel
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .body) private var detailsIndent = 40
-    @ScaledMetric(relativeTo: .body) private var progressSize = 22
+    @ScaledMetric(relativeTo: .body) private var detailsIndent = 36
     let pin: PinSnapshot
 
     private var copy: FuwaCopy { model.copy }
-    private var isBusy: Bool { model.busyPinIDs.contains(pin.id) }
+    private var isBusy: Bool { model.busyPinIDs.contains(pin.id) || model.isClearingAll }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 10) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .center, spacing: 10) {
                 FuwaApplicationIcon(
                     bundleIdentifier: pin.bundleIdentifier,
-                    applicationName: pin.applicationName
+                    applicationName: pin.applicationName,
+                    size: 26
                 )
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Button { model.showControls(pin.id) } label: {
-                        Text(pin.windowTitle).padding(.horizontal, 4).frame(minHeight: 28)
+                        Text(pin.windowTitle)
+                            .frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
+                            .contentShape(Rectangle())
                     }
-                        .buttonStyle(FuwaRowButtonStyle())
-                        .fuwaLinkCursor()
-                        .disabled(!pin.canShowControls)
-                        .accessibilityHint(copy.text(.showControls))
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                        .truncationMode(.middle)
-                        .help("\(copy.text(.showControls)): \(pin.windowTitle)")
+                    .buttonStyle(FuwaRowButtonStyle())
+                    .fuwaLinkCursor()
+                    .disabled(!pin.canShowControls)
+                    .accessibilityHint(copy.text(.showControls))
+                    .font(.callout.weight(.medium))
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                    .truncationMode(.middle)
+                    .help("\(copy.text(.showControls)): \(pin.windowTitle)")
 
                     HStack(spacing: 5) {
-                        Text(pin.applicationName)
-                        Text("·")
-                            .accessibilityHidden(true)
-                        Text(stateTitle)
+                        if pin.windowTitle != pin.applicationName {
+                            Text(pin.applicationName)
+                            Text("·").accessibilityHidden(true)
+                        }
+                        Text(pin.stateTitle(copy))
                     }
                     .font(.caption)
                     .foregroundStyle(stateIsFailure ? Color.red : Color.secondary)
                     .lineLimit(1)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer(minLength: 6)
-
-                if isBusy {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(width: progressSize, height: progressSize)
-                        .accessibilityLabel(stateTitle)
-                }
+                FuwaIconButton(
+                    symbol: "pin.slash",
+                    label: copy.text(.unpin),
+                    isBusy: isBusy
+                ) { model.unpin(pin.id) }
+                .disabled(isBusy)
+                .help("\(copy.text(.unpin)) · \(copy.text(.removeExplanation))")
             }
 
-            PinActionsView(model: model, pin: pin)
-                .padding(.leading, detailsIndent)
+            if pin.canFreeze || pin.canResume || pin.canUseSource {
+                HStack(spacing: 6) {
+                    if pin.canFreeze || pin.canResume {
+                        Button {
+                            if pin.canFreeze { model.freeze(pin.id) } else { model.resume(pin.id) }
+                        } label: {
+                            Label(copy.text(pin.canFreeze ? .freeze : .resume),
+                                  systemImage: pin.canFreeze ? "pause" : "play")
+                        }
+                    }
+                    if pin.canUseSource {
+                        Button { model.revealSource(pin.id) } label: {
+                            Label(copy.text(.revealSource), systemImage: "arrow.up.forward.app")
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .buttonStyle(FuwaPlainButtonStyle())
+                .disabled(isBusy)
+                .padding(.leading, detailsIndent - 6)
+            }
 
             if let detailMessage {
                 Text(detailMessage)
@@ -65,12 +89,10 @@ struct PinRowView: View {
                     .padding(.leading, detailsIndent)
             }
         }
-        .padding(.vertical, 11)
+        .padding(.vertical, 12)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(pin.applicationName), \(pin.windowTitle), \(stateTitle)")
+        .accessibilityLabel("\(pin.applicationName), \(pin.windowTitle), \(pin.stateTitle(copy))")
     }
-
-    private var stateTitle: String { pin.stateTitle(copy) }
 
     private var stateIsFailure: Bool {
         if case .failed = pin.state { return true }
@@ -78,12 +100,8 @@ struct PinRowView: View {
     }
 
     private var detailMessage: String? {
-        if let errorMessage = pin.errorMessage, !errorMessage.isEmpty {
-            return errorMessage
-        }
-        if case .unavailable(let message) = model.interactionStates[pin.id] {
-            return message
-        }
+        if let errorMessage = pin.errorMessage, !errorMessage.isEmpty { return errorMessage }
+        if case .unavailable(let message) = model.interactionStates[pin.id] { return message }
         return nil
     }
 }

@@ -5,7 +5,7 @@ struct PinsView: View {
     @ObservedObject var model: AppModel
     var showsPinAction = true
     @FocusState private var pinButtonFocused: Bool
-    @ScaledMetric(relativeTo: .body) private var rowDividerIndent = 54
+    @ScaledMetric(relativeTo: .body) private var rowDividerIndent = 52
 
     private var copy: FuwaCopy { model.copy }
 
@@ -13,8 +13,8 @@ struct PinsView: View {
         VStack(spacing: 0) {
             if showsPinAction {
                 pinButton
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
             }
 
             if !model.pins.isEmpty {
@@ -49,11 +49,9 @@ struct PinsView: View {
                 Label(copy.text(.emptyTitle), systemImage: "macwindow.on.rectangle")
                     .font(.headline)
                 Text(copy.text(.noPinsBody))
-                    .font(.callout)
-                Text(copy.text(.mirrorExplanation))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .help(copy.text(.mirrorExplanation))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
@@ -81,7 +79,7 @@ struct PinsView: View {
                     .opacity(model.shortcutIsActive ? 0.72 : 0.35)
             }
         }
-        .buttonStyle(FuwaPrimaryButtonStyle())
+        .buttonStyle(FuwaPrimaryButtonStyle(compact: true))
         .disabled(model.isPinningFrontWindow || model.isClearingAll)
         .focused($pinButtonFocused)
         .help(pinButtonHint)
@@ -98,25 +96,25 @@ struct PinsView: View {
         VStack(spacing: 0) {
             HStack {
                 Text(copy.text(.pins))
-                    .font(.caption.weight(.semibold))
+                    .font(.caption.weight(.medium))
                 Spacer()
                 Text(copy.pinsCount(model.pins.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
 
-            Divider()
+            Divider().opacity(0.5)
 
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(model.pins.enumerated()), id: \.element.id) { index, pin in
                         PinRowView(model: model, pin: pin)
-                            .padding(.horizontal, 14)
+                            .padding(.horizontal, 16)
 
                         if index < model.pins.count - 1 {
-                            Divider()
+                            Divider().opacity(0.5)
                                 .padding(.leading, rowDividerIndent)
                         }
                     }

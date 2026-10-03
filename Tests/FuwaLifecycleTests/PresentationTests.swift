@@ -113,6 +113,24 @@ struct PresentationTests {
         #expect(visibility == [true, false, true, false])
     }
 
+    @Test func popoverFitsSmallListsAndKeepsLargeListsBounded() {
+        func size(_ count: Int, route: FuwaPopoverRoute = .pins,
+                  notice: Bool = false, type: DynamicTypeSize = .large, actions: Int = 0) -> NSSize {
+            FuwaPopoverLayout.preferredContentSize(route: route, pinCount: count, actionRowCount: actions,
+                hasNotice: notice, hasPermissionWarning: false, dynamicTypeSize: type)
+        }
+        #expect(size(2, actions: 2).height > size(2).height)
+        #expect(size(8, actions: 8) == size(12, actions: 12))
+        #expect(size(1).height < size(2).height)
+        #expect(size(2).height < size(8).height)
+        #expect(size(8) == size(12))
+        #expect(size(2).height < size(2, route: .settings).height)
+        #expect(size(0, route: .settings) == size(8, route: .settings))
+        #expect(size(2, notice: true).height > size(2).height)
+        #expect(size(2, type: .accessibility3).width > size(2).width)
+        #expect(size(2, type: .accessibility3).height > size(2).height)
+    }
+
     @Test func allCopyKeysHaveBothLanguages() {
         for language in [FuwaLanguage.english, .simplifiedChinese] {
             let copy = FuwaCopy(language: language)

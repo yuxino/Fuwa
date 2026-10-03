@@ -89,7 +89,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         popover.contentSize = FuwaPopoverLayout.preferredContentSize(
             route: model.route,
-            hasPins: !model.pins.isEmpty,
+            pinCount: model.pins.count,
+            actionRowCount: FuwaPopoverLayout.actionRowCount(in: model.pins),
             hasNotice: model.notice != nil,
             hasPermissionWarning: model.hasPermissionWarning,
             dynamicTypeSize: .large
@@ -136,7 +137,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         applyPreferredContentSize(
             FuwaPopoverLayout.preferredContentSize(
                 route: model.route,
-                hasPins: !model.pins.isEmpty,
+                pinCount: model.pins.count,
+                actionRowCount: FuwaPopoverLayout.actionRowCount(in: model.pins),
                 hasNotice: model.notice != nil,
                 hasPermissionWarning: model.hasPermissionWarning,
                 dynamicTypeSize: .large

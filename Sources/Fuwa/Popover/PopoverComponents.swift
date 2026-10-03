@@ -3,23 +3,24 @@ import SwiftUI
 
 struct FuwaPrimaryButtonStyle: ButtonStyle {
     var expands = true
+    var compact = false
     @Environment(\.isEnabled) private var isEnabled
     @State private var isHovered = false
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.body.weight(.semibold))
+            .font(compact ? .callout.weight(.medium) : .body.weight(.semibold))
             .foregroundStyle(.white)
             .frame(maxWidth: expands ? .infinity : nil)
-            .padding(.vertical, 10)
+            .padding(.vertical, compact ? 7 : 10)
             .padding(.horizontal, 14)
             .background {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: compact ? 7 : 9, style: .continuous)
                     .fill(FuwaAppearance.ink)
             }
             .opacity(opacity(isPressed: configuration.isPressed))
             .contentShape(Rectangle())
-            .modifier(FuwaKeyboardFocus(cornerRadius: 9))
+            .modifier(FuwaKeyboardFocus(cornerRadius: compact ? 7 : 9))
             .onHover { isHovered = $0 }
     }
 
@@ -201,6 +202,12 @@ struct FuwaApplicationIcon: View {
 
     let bundleIdentifier: String?
     let applicationName: String
+
+    init(bundleIdentifier: String?, applicationName: String, size: CGFloat = 30) {
+        self.bundleIdentifier = bundleIdentifier
+        self.applicationName = applicationName
+        _iconSize = ScaledMetric(wrappedValue: size, relativeTo: .body)
+    }
 
     var body: some View {
         Image(nsImage: icon)
