@@ -27,7 +27,7 @@ func init() {
 		go func() {
 			time.Sleep(3 * time.Second)
 			windows := mygo.Windows()
-			if len(windows) != 1 || windows[0].NativeHandle() == nil || windows[0].Page() != nil || !windows[0].IsVisible() {
+			if len(windows) != 1 || windows[0].NativeHandle() == 0 || windows[0].Page() != nil || !windows[0].IsVisible() {
 				smokeFail("native main window was not ready")
 				return
 			}
