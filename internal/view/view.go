@@ -67,6 +67,7 @@ func (m *Model) Explain(code string) string {
 		"invalid_shortcut":         {"Use a key with Command, Control or Option, for example Cmd+Alt+P.", "请使用带 Command、Control 或 Option 的组合键，例如 Cmd+Alt+P。"},
 		"shortcut_conflict":        {"That shortcut is unavailable. Your previous shortcut is still active.", "该快捷键不可用，原快捷键仍然有效。"},
 		"shortcut_inactive":        {"The saved shortcut could not be registered. Choose another in Settings.", "保存的快捷键注册失败，请在设置中更换。"},
+		"shortcut_fallback":        {"The saved shortcut is unavailable. Cmd+Alt+P is active instead.", "保存的快捷键不可用，已改用 Cmd+Alt+P。"},
 		"pin_limit":                {"Up to eight windows can be pinned at once.", "最多同时置顶 8 个窗口。"},
 		"login_failed":             {"Login registration failed. Move this app to Applications and check Login Items.", "登录启动设置失败。请将应用移到 Applications 并检查登录项。"},
 		"preview_updates":          {"Signed MyGo updates are not configured for this preview. It will never install an unsigned package or the Swift release.", "本预览版尚未配置签名的 MyGo 更新，不会安装未签名包或旧 Swift 正式版。"},
@@ -198,6 +199,9 @@ func (m *Model) controls(c *ui.Context, p core.Session, compact bool) {
 }
 func (m *Model) Controls(token uint64) func(*ui.Context) {
 	return func(c *ui.Context) {
+		if c.Shortcut(0, ui.KeyEscape) {
+			m.Send(Action{Name: "hide-controls", Token: token})
+		}
 		ui.Column(c).Fill().Padding(12).Gap(10).Children(func() {
 			for _, p := range m.Pins {
 				if p.Token == token {

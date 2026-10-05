@@ -31,3 +31,14 @@ func TestCancellingUpdateCannotStartAnother(t *testing.T) {
 		t.Fatal("cancelling UI admitted another operation")
 	}
 }
+
+func TestControlsEscapeDismissesOnlyThisPin(t *testing.T) {
+	m := fixture()
+	var got Action
+	m.OnAction = func(a Action) { got = a }
+	tt := ui.NewTester(m.Controls(2), 450, 130)
+	tt.Key(0, ui.KeyEscape)
+	if got.Name != "hide-controls" || got.Token != 2 {
+		t.Fatal("Escape did not dismiss the controls", got)
+	}
+}

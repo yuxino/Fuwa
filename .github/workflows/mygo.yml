@@ -39,6 +39,23 @@ jobs:
           go vet ./...
       - name: Build both architectures and isolated app bundle
         run: ./scripts/build-mygo.sh
+      - name: Native presentation parity without capture permission
+        env:
+          FUWA_SMOKE_OUTPUT: ${{ github.workspace }}/build/artifacts/parity
+        run: |
+          go build -tags fuwa_parity_qa -o build/fuwa-parity-qa .
+          mkdir -p "$FUWA_SMOKE_OUTPUT"
+          python3 - <<'PYQA'
+          import pathlib, subprocess
+          result = subprocess.run(
+              ['build/fuwa-parity-qa', '--fuwa-parity-smoke'],
+              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=45,
+          )
+          pathlib.Path('build/artifacts/native-parity.txt').write_text(result.stdout)
+          print(result.stdout)
+          result.check_returncode()
+          assert 'PASS native parity complete:' in result.stdout
+          PYQA
       - name: Launch packaged native app without capture permission
         env:
           FUWA_SMOKE_OUTPUT: ${{ github.workspace }}/build/artifacts/screenshots

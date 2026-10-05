@@ -70,6 +70,13 @@ int fw_screen_allowed(void) { return CGPreflightScreenCaptureAccess(); }
 int fw_request_screen(void) { return CGRequestScreenCaptureAccess(); }
 int fw_ax_allowed(void) { return AXIsProcessTrusted(); }
 
+// MyGo exposes floating/normal, but management must sit one level above the
+// floating mirrors while Fuwa is active. Hide/deactivate never reopens it.
+void fw_management_active(uintptr_t host, int active) {
+    NSWindow *window=(__bridge NSWindow *)(void *)host;
+    window.level=active && window.visible ? NSFloatingWindowLevel+1 : NSNormalWindowLevel;
+}
+
 @interface FMSurface : NSView
 @property(nonatomic,strong) AVSampleBufferDisplayLayer *video;
 @property(nonatomic,strong) CALayer *still;

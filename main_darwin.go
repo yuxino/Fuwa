@@ -39,6 +39,7 @@ type application struct {
 	updateSerial  uint64
 	done          chan struct{}
 	quitting      bool
+	binding       core.ShortcutBinding
 }
 
 func main() {
@@ -87,27 +88,45 @@ func (a *application) ready() {
 			a.dock()
 		}
 	})
-	a.main.OnHide(a.dock)
-	mygo.App.SetMenu(mygo.NewMenu([]*mygo.MenuItem{
-		{Role: mygo.RoleAppMenu},
-		{Label: "Fuwa", Submenu: []*mygo.MenuItem{
-			a.item(a.model.T("Show Fuwa", "显示 Fuwa"), func() { a.showMain() }),
-			a.item(a.model.T("Pin front window", "置顶前方窗口"), func() { a.front(false) }),
-			a.item(a.model.T("Clear all pins", "全部取消置顶"), func() { a.clear(); a.publish() }),
-		}},
-		{Role: mygo.RoleEditMenu}, {Role: mygo.RoleWindowMenu},
-	}))
+	a.main.OnHide(func() { a.managementActive(false); a.dock() })
+	mygo.App.OnDidBecomeActive(func() { a.managementActive(true) })
+	mygo.App.OnDidResignActive(func() {
+		a.managementActive(false)
+		for _, p := range a.pins {
+			if p.controls != nil {
+				p.controls.Hide()
+			}
+		}
+	})
+	a.updateMenus()
 	var err error
 	a.tray, err = mygo.NewTray(mygo.TrayOptions{Icon: trayIcon(), IconIsTemplate: true, ToolTip: "Fuwa MyGo"})
 	if err != nil {
 		a.model.Notice = a.model.T("The menu bar icon could not be created. Keep this window open.", "菜单栏图标创建失败，请保留此窗口。")
 	}
-	if err = mygo.GlobalShortcut.Register(a.model.Settings.Shortcut, func() { a.front(false) }); err != nil {
+	a.binding = core.ShortcutBinding{
+		Register:   func(value string) error { return mygo.GlobalShortcut.Register(value, func() { a.front(false) }) },
+		Unregister: mygo.GlobalShortcut.Unregister,
+	}
+	if err = a.binding.Start(a.model.Settings.Shortcut); err != nil {
 		a.model.Notice = "shortcut_inactive"
+		if a.binding.Active != "" {
+			a.model.Notice = "shortcut_fallback"
+			s := a.model.Settings
+			s.Shortcut = a.binding.Active
+			a.save(s)
+			// The fallback is active in this process even if persistence failed.
+			a.model.Settings = s
+			a.model.ShortcutDraft = s.Shortcut
+		}
 	}
 	mygo.Power.OnSuspend(func() { a.privacy() })
 	mygo.Power.OnLockScreen(func() { a.privacy() })
-	mygo.Screen.OnDisplaysChanged(func() { a.lastInventory = time.Time{}; a.tick() })
+	mygo.Screen.OnDisplaysChanged(func() {
+		a.reconcileDisplays(workAreas())
+		a.lastInventory = time.Time{}
+		a.tick()
+	})
 	a.permissions()
 	a.publish()
 	if !mygo.App.WasOpenedAtLogin() || a.tray == nil {
@@ -144,9 +163,15 @@ func (a *application) showMain() {
 	}
 	mygo.App.SetActivationPolicy(mygo.ActivationPolicyRegular)
 	a.main.Show()
+	a.managementActive(true)
 	a.main.Focus()
 	a.permissions()
 	a.publish()
+}
+func (a *application) managementActive(active bool) {
+	if a.main != nil {
+		native.ManagementActive(uintptr(a.main.NativeHandle()), active)
+	}
 }
 func (a *application) dock() {
 	regular := a.model.Settings.KeepDock || (a.main != nil && a.main.IsVisible())
@@ -199,7 +224,7 @@ func (a *application) publish() {
 	if len(a.pins) > 0 {
 		items = append(items, a.item(m.T("Clear all", "全部取消"), func() { a.clear(); a.publish() }))
 	}
-	items = append(items, mygo.Separator(), a.item(m.T("Settings…", "设置…"), func() { m.Route = "settings"; a.showMain() }), &mygo.MenuItem{Role: mygo.RoleQuit})
+	items = append(items, mygo.Separator(), a.item(m.T("Settings…", "设置…"), func() { m.Route = "settings"; a.showMain() }), &mygo.MenuItem{Role: mygo.RoleQuit, Label: m.T("Quit Fuwa", "退出 Fuwa")})
 	a.tray.SetMenu(mygo.NewMenu(items))
 	a.tray.SetToolTip(fmt.Sprintf("Fuwa MyGo · %d", len(a.pins)))
 }
@@ -300,6 +325,35 @@ func (a *application) add(w core.Window) {
 func rect(r core.Rect) mygo.Rectangle {
 	return mygo.Rectangle{X: int(math.Round(r.X)), Y: int(math.Round(r.Y)), Width: int(math.Round(r.Width)), Height: int(math.Round(r.Height))}
 }
+func coreRect(r mygo.Rectangle) core.Rect {
+	return core.Rect{X: float64(r.X), Y: float64(r.Y), Width: float64(r.Width), Height: float64(r.Height)}
+}
+func workAreas() []core.Rect {
+	var areas []core.Rect
+	for _, display := range mygo.Screen.Displays() {
+		areas = append(areas, coreRect(display.WorkArea))
+	}
+	return areas
+}
+func (a *application) reconcileDisplays(areas []core.Rect) {
+	for _, p := range a.pins {
+		if p.State == core.Frozen {
+			bounds := p.mirror.Bounds()
+			if recovered := rect(core.RecoverFrozenBounds(coreRect(bounds), areas)); recovered != bounds {
+				p.mirror.SetBounds(recovered)
+			}
+		}
+		a.positionControls(p, areas)
+	}
+}
+func (a *application) positionControls(p *pin, areas []core.Rect) {
+	if p.controls != nil {
+		bounds := rect(core.ControlsBounds(coreRect(p.mirror.Bounds()), 450, 130, areas))
+		if p.controls.Bounds() != bounds {
+			p.controls.SetBounds(bounds)
+		}
+	}
+}
 func (a *application) scale(r core.Rect) float64 {
 	return float64(mygo.Screen.DisplayMatching(rect(r)).ScaleFactor)
 }
@@ -376,13 +430,18 @@ func (a *application) resume(p *pin) {
 	native.Resize(p.Token, w.Bounds, p.scale)
 }
 func (a *application) controls(p *pin) {
-	if p == nil {
+	if p == nil || !p.mirror.IsVisible() {
 		return
 	}
 	if p.controls == nil {
-		p.controls = mygo.NewWindow(mygo.WindowOptions{Title: a.model.T("Pin controls", "置顶控制"), Content: ui.View(a.model.Controls(p.Token)), Width: 450, Height: 130, Hidden: true, AlwaysOnTop: true, DisableResize: true})
-		p.controls.OnClosed(func() { p.controls = nil })
+		controls := mygo.NewWindow(mygo.WindowOptions{Title: a.model.T("Pin controls", "置顶控制"), Content: ui.View(a.model.Controls(p.Token)), Width: 450, Height: 130, Hidden: true, AlwaysOnTop: true, DisableResize: true, Parent: p.mirror})
+		p.controls = controls
+		controls.SetContentProtection(true)
+		controls.SetVisibleOnAllWorkspaces(true)
+		controls.OnBlur(controls.Hide)
+		controls.OnClosed(func() { p.controls = nil })
 	}
+	a.reconcileDisplays(workAreas())
 	p.controls.Show()
 	p.controls.Focus()
 }
@@ -405,21 +464,18 @@ func (a *application) shortcut(value string) {
 		a.model.Notice = "invalid_shortcut"
 		return
 	}
-	previous := a.model.Settings.Shortcut
-	if strings.EqualFold(value, previous) {
-		return
-	}
-	if err := mygo.GlobalShortcut.Register(value, func() { a.front(false) }); err != nil {
-		a.model.Notice = "shortcut_conflict"
-		return
-	}
 	s := a.model.Settings
 	s.Shortcut = value
-	if !a.save(s) {
-		mygo.GlobalShortcut.Unregister(value)
+	a.model.Notice = ""
+	if !a.binding.Replace(value, func() bool { return a.save(s) }) {
+		if a.model.Notice == "" {
+			a.model.Notice = "shortcut_conflict"
+			if a.binding.Active == "" {
+				a.model.Notice = "shortcut_inactive"
+			}
+		}
 		return
 	}
-	mygo.GlobalShortcut.Unregister(previous)
 	a.model.ShortcutDraft = value
 	a.model.Notice = ""
 }
@@ -442,6 +498,10 @@ func (a *application) act(action view.Action) {
 		a.resume(p)
 	case "controls":
 		a.controls(p)
+	case "hide-controls":
+		if p != nil && p.controls != nil {
+			p.controls.Hide()
+		}
 	case "reveal":
 		if p != nil && !p.Closed {
 			if err := native.Reveal(p.Source); err != nil {
@@ -458,7 +518,14 @@ func (a *application) act(action view.Action) {
 	case "language":
 		s := a.model.Settings
 		s.Language = action.Value
-		a.save(s)
+		if a.save(s) {
+			a.updateMenus()
+			for _, p := range a.pins {
+				if p.controls != nil {
+					p.controls.SetTitle(a.model.T("Pin controls", "置顶控制"))
+				}
+			}
+		}
 	case "shortcut":
 		a.shortcut(action.Value)
 	case "login":
@@ -577,23 +644,7 @@ func (a *application) tick() {
 						dirty = true
 						continue
 					}
-					p.Missing = 0
-					if !w.Onscreen && p.State == core.Live {
-						a.freeze(p)
-						p.Error = "capture_interrupted"
-						dirty = true
-						continue
-					}
-					if w.Title != p.Source.Title {
-						dirty = true
-					}
-					scale := a.scale(w.Bounds)
-					if w.Bounds != p.Source.Bounds || scale != p.scale {
-						p.mirror.SetBounds(rect(w.Bounds))
-						native.Resize(p.Token, w.Bounds, scale)
-						p.scale = scale
-					}
-					p.Source = w
+					dirty = a.trackWindow(p, w, a.scale(w.Bounds)) || dirty
 				}
 			}
 		}
@@ -601,6 +652,21 @@ func (a *application) tick() {
 	if dirty {
 		a.publish()
 	}
+}
+
+// Visibility is not liveness: moving to another Space or minimizing a source
+// must not turn a healthy desktop-independent capture into a manual freeze.
+func (a *application) trackWindow(p *pin, w core.Window, scale float64) bool {
+	p.Missing = 0
+	dirty := w.Title != p.Source.Title
+	if w.Bounds != p.Source.Bounds || scale != p.scale {
+		p.mirror.SetBounds(rect(w.Bounds))
+		a.positionControls(p, workAreas())
+		native.Resize(p.Token, w.Bounds, scale)
+		p.scale = scale
+	}
+	p.Source = w
+	return dirty
 }
 func trayIcon() []byte {
 	img := image.NewNRGBA(image.Rect(0, 0, 32, 32))

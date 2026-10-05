@@ -8,6 +8,7 @@ char *fw_events(void);
 int fw_screen_allowed(void);
 int fw_request_screen(void);
 int fw_ax_allowed(void);
+void fw_management_active(uintptr_t host, int active);
 void fw_start(uint64_t token, uint64_t generation, uint32_t window_id,
               int32_t pid, double birth, uintptr_t host);
 char *fw_freeze(uint64_t token);

@@ -27,8 +27,15 @@ func init() {
 		go func() {
 			time.Sleep(3 * time.Second)
 			windows := mygo.Windows()
-			if len(windows) != 1 || windows[0].NativeHandle() == 0 || windows[0].Page() != nil || !windows[0].IsVisible() {
-				smokeFail("native main window was not ready")
+			if len(windows) != 1 {
+				for _, w := range windows {
+					fmt.Printf("window %d title=%q visible=%t\n", w.ID(), w.Title(), w.IsVisible())
+				}
+				smokeFail(fmt.Sprintf("expected one main window, got %d", len(windows)))
+				return
+			}
+			if windows[0].NativeHandle() == 0 || windows[0].Page() != nil || !windows[0].IsVisible() {
+				smokeFail(fmt.Sprintf("main readiness: native=%t page=%t visible=%t", windows[0].NativeHandle() != 0, windows[0].Page() != nil, windows[0].IsVisible()))
 				return
 			}
 			data, err := windows[0].CapturePage()

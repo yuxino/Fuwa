@@ -45,6 +45,13 @@ func Events() ([]Event, error) {
 func ScreenAllowed() bool        { return C.fw_screen_allowed() != 0 }
 func RequestScreen() bool        { return C.fw_request_screen() != 0 }
 func AccessibilityAllowed() bool { return C.fw_ax_allowed() != 0 }
+func ManagementActive(host uintptr, active bool) {
+	v := 0
+	if active {
+		v = 1
+	}
+	C.fw_management_active(C.uintptr_t(host), C.int(v))
+}
 func Start(token, generation uint64, w core.Window, host uintptr) {
 	C.fw_start(C.uint64_t(token), C.uint64_t(generation), C.uint32_t(w.ID), C.int32_t(w.PID), C.double(w.Birth), C.uintptr_t(host))
 }
