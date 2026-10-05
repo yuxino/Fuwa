@@ -19,7 +19,7 @@ static char *JSON(id object) {
     if (!out) return NULL;
     memcpy(out, data.bytes, data.length); out[data.length] = 0; return out;
 }
-static NSDictionary *Rect(CGRect r) {
+static NSDictionary *FMRectJSON(CGRect r) {
     return @{ @"X":@(r.origin.x), @"Y":@(r.origin.y), @"Width":@(r.size.width), @"Height":@(r.size.height) };
 }
 static double Birth(NSRunningApplication *app) { return app.launchDate ? app.launchDate.timeIntervalSince1970 : 0; }
@@ -30,7 +30,7 @@ static NSDictionary *Descriptor(NSDictionary *entry) {
     CGRectMakeWithDictionaryRepresentation((__bridge CFDictionaryRef)entry[(id)kCGWindowBounds], &bounds);
     return @{ @"id":entry[(id)kCGWindowNumber] ?: @0, @"pid":pid ?: @0, @"birth":@(Birth(app)),
        @"app":app.localizedName ?: entry[(id)kCGWindowOwnerName] ?: @"App", @"bundle":app.bundleIdentifier ?: @"",
-       @"title":entry[(id)kCGWindowName] ?: @"", @"bounds":Rect(bounds),
+       @"title":entry[(id)kCGWindowName] ?: @"", @"bounds":FMRectJSON(bounds),
        @"alpha":entry[(id)kCGWindowAlpha] ?: @0, @"onscreen":entry[(id)kCGWindowIsOnscreen] ?: @NO };
 }
 static NSDictionary *Exact(uint32_t wid, int32_t pid, double birth) {
@@ -51,7 +51,7 @@ char *fw_inventory(void) {
         CGDirectDisplayID ids[32]; uint32_t count = 0;
         NSMutableArray *displays = [NSMutableArray array];
         if (CGGetActiveDisplayList(32, ids, &count) == kCGErrorSuccess)
-            for (uint32_t i=0; i<count; i++) [displays addObject:Rect(CGDisplayBounds(ids[i]))];
+            for (uint32_t i=0; i<count; i++) [displays addObject:FMRectJSON(CGDisplayBounds(ids[i]))];
         return JSON(@{ @"windows":windows, @"displays":displays, @"self":@(getpid()),
            @"front":@(NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier) });
     }
@@ -307,7 +307,7 @@ void fw_resize(uint64_t token,double width,double height,double scale) {FMCaptur
 static CFTypeRef AXCopy(AXUIElementRef element,CFStringRef attribute) {
     CFTypeRef result=NULL; if (AXUIElementCopyAttributeValue(element,attribute,&result)!=kAXErrorSuccess) return NULL; return result;
 }
-static NSString *Normalize(NSString *s) {return [[s stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] foldingWithOptions:NSCaseInsensitiveSearch|NSDiacriticInsensitiveSearch|NSWidthInsensitiveSearch locale:nil];}
+static NSString *Normalize(NSString *s) {return [[s stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] stringByFoldingWithOptions:NSCaseInsensitiveSearch|NSDiacriticInsensitiveSearch|NSWidthInsensitiveSearch locale:nil];}
 char *fw_reveal(uint32_t wid,int32_t pid,double birth) {
     if (!AXIsProcessTrusted()) { NSDictionary *options=@{(__bridge NSString *)kAXTrustedCheckOptionPrompt:@YES}; AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);return strdup("accessibility_permission"); }
     NSDictionary *entry=Exact(wid,pid,birth); if (!entry) return strdup("source_closed");
@@ -317,9 +317,13 @@ char *fw_reveal(uint32_t wid,int32_t pid,double birth) {
     CFTypeRef raw=AXCopy(app,kAXWindowsAttribute);
     if (!raw || CFGetTypeID(raw)!=CFArrayGetTypeID()) {if(raw)CFRelease(raw);CFRelease(app);return strdup("source_uncontrollable");}
     NSArray *windows=(__bridge NSArray *)raw;AXUIElementRef match=NULL;NSUInteger matches=0;
+    // A partial scan cannot prove uniqueness. Fail closed instead of raising
+    // the first matching window when another candidate may remain unseen.
+    if (windows.count>32) {CFRelease(raw);CFRelease(app);return strdup("ambiguous_source");}
+    BOOL incomplete=NO;
     CFAbsoluteTime deadline=CFAbsoluteTimeGetCurrent()+2;
     for (NSUInteger i=0;i<MIN(windows.count,32);i++) {
-        if (CFAbsoluteTimeGetCurrent()>deadline) break;
+        if (CFAbsoluteTimeGetCurrent()>deadline) {incomplete=YES;break;}
         AXUIElementRef w=(__bridge AXUIElementRef)windows[i];pid_t owner=0;AXUIElementGetPid(w,&owner);if(owner!=pid)continue;
         AXUIElementSetMessagingTimeout(w,0.15);
         CFTypeRef pos=AXCopy(w,kAXPositionAttribute),size=AXCopy(w,kAXSizeAttribute),name=AXCopy(w,kAXTitleAttribute);
@@ -335,13 +339,13 @@ char *fw_reveal(uint32_t wid,int32_t pid,double birth) {
         if(pos)CFRelease(pos);if(size)CFRelease(size);if(name)CFRelease(name);
     }
     char *error=NULL;
-    if(matches!=1 || !Exact(wid,pid,birth)) error=strdup(matches>1?"ambiguous_source":"source_uncontrollable");
+    if(incomplete || matches!=1 || !Exact(wid,pid,birth)) error=strdup((incomplete||matches>1)?"ambiguous_source":"source_uncontrollable");
     else {
         AXUIElementSetAttributeValue(match,kAXMinimizedAttribute,kCFBooleanFalse);
         if(AXUIElementPerformAction(match,kAXRaiseAction)!=kAXErrorSuccess) error=strdup("source_uncontrollable");
         else {
             AXUIElementSetAttributeValue(app,kAXFrontmostAttribute,kCFBooleanTrue);
-            [[NSRunningApplication runningApplicationWithProcessIdentifier:pid] activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+            [[NSRunningApplication runningApplicationWithProcessIdentifier:pid] activateWithOptions:0];
         }
     }
     CFRelease(raw);CFRelease(app);return error;

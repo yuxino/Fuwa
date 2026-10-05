@@ -7,6 +7,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+defaults:
+  run:
+    shell: bash
 concurrency:
   group: mygo-${{ github.ref }}
   cancel-in-progress: true
@@ -21,7 +24,9 @@ jobs:
           go-version: '1.27.1'
           cache: false
       - name: Resolve pinned modules
-        run: go mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
       - name: Format check
         run: test -z "$(gofmt -l main_darwin.go internal/)"
       - name: Unit, race, and native UI tests
@@ -30,7 +35,7 @@ jobs:
           CGO_ENABLED: '1'
         run: |
           mkdir -p build/artifacts
-          go test -race -count=1 -v ./... | tee build/artifacts/tests.txt
+          go test -race -count=1 -v ./... 2>&1 | tee build/artifacts/tests.txt
           go vet ./...
       - name: Build both architectures and isolated app bundle
         run: ./scripts/build-mygo.sh
