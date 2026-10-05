@@ -1,0 +1,51 @@
+name: MyGo rewrite
+on:
+  push:
+    branches: [rewrite/mygo]
+  pull_request:
+    paths: ['**.go', '**.m', '**.h', 'go.mod', 'go.sum', 'Resources/**', 'scripts/build-mygo.sh', '.github/workflows/mygo.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mygo-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Resolve pinned modules
+        run: go mod tidy
+      - name: Format check
+        run: test -z "$(gofmt -l main_darwin.go internal/)"
+      - name: Unit, race, and native UI tests
+        env:
+          FUWA_SCREENSHOTS: ${{ github.workspace }}/build/artifacts/screenshots
+          CGO_ENABLED: '1'
+        run: |
+          mkdir -p build/artifacts
+          go test -race -count=1 -v ./... | tee build/artifacts/tests.txt
+          go vet ./...
+      - name: Build both architectures and isolated app bundle
+        run: ./scripts/build-mygo.sh
+      - name: Record immutable build inputs
+        if: always()
+        run: |
+          mkdir -p build/artifacts
+          cp go.mod build/artifacts/
+          test ! -f go.sum || cp go.sum build/artifacts/
+          git rev-parse HEAD > build/artifacts/commit.txt
+          go version > build/artifacts/toolchain.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Fuwa-MyGo-preview
+          path: build/artifacts/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,3 +1,5 @@
+/build/
+/.mygo/
 .DS_Store
-.build/
-dist/
+*.test
+mygo-update.key

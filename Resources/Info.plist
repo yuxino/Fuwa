@@ -1,54 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleExecutable</key>
-    <string>Fuwa</string>
-    <key>CFBundleDisplayName</key>
-    <string>Fuwa</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>CFBundleIdentifier</key>
-    <string>app.yuxino.fuwa</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>Fuwa</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.1.0</string>
-    <key>CFBundleVersion</key>
-    <string>22</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>14.0</string>
-    <key>LSApplicationCategoryType</key>
-    <string>public.app-category.utilities</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
-    <key>SUAllowsAutomaticUpdates</key>
-    <false/>
-    <key>SUAutomaticallyUpdate</key>
-    <false/>
-    <key>SUEnableAutomaticChecks</key>
-    <false/>
-    <key>SUFeedURL</key>
-    <string>https://github.com/yuxino/fuwa/releases/latest/download/appcast.xml</string>
-    <key>SUPublicEDKey</key>
-    <string>8qWUhz/r6J3c6fVw9NVEmqvWcF4oVKwAtLFm9AkA1ZA=</string>
-    <key>SURequireSignedFeed</key>
-    <true/>
-    <key>SUSignedFeedFailureExpirationInterval</key>
-    <integer>0</integer>
-    <key>SUVerifyUpdateBeforeExtraction</key>
-    <true/>
-    <key>NSScreenCaptureUsageDescription</key>
-    <string>Fuwa captures only the window you choose so it can keep a private, live mirror visible on your Mac.</string>
-    <key>NSHumanReadableCopyright</key>
-    <string>Copyright © 2026 yuxino and Fuwa contributors. MIT License.</string>
-</dict>
-</plist>
+<plist version="1.0"><dict>
+<key>CFBundleDevelopmentRegion</key><string>en</string>
+<key>CFBundleExecutable</key><string>FuwaMyGo</string>
+<key>CFBundleDisplayName</key><string>Fuwa MyGo</string>
+<key>CFBundleName</key><string>Fuwa MyGo</string>
+<key>CFBundleIdentifier</key><string>app.yuxino.fuwa.mygo</string>
+<key>CFBundleIconFile</key><string>AppIcon</string>
+<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>1.1.0</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>LSMinimumSystemVersion</key><string>14.0</string>
+<key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
+<key>NSHighResolutionCapable</key><true/>
+<key>NSPrincipalClass</key><string>NSApplication</string>
+<key>NSScreenCaptureUsageDescription</key><string>Fuwa MyGo captures only the window you select to keep a private live mirror on this Mac.</string>
+<key>NSHumanReadableCopyright</key><string>Copyright © 2026 yuxino and Fuwa contributors. MIT License.</string>
+</dict></plist>
