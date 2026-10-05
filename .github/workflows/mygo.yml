@@ -28,7 +28,7 @@ jobs:
           go mod tidy
           git diff --exit-code -- go.mod go.sum
       - name: Format check
-        run: test -z "$(gofmt -l main_darwin.go internal/)"
+        run: test -z "$(gofmt -l *.go internal/)"
       - name: Unit, race, and native UI tests
         env:
           FUWA_SCREENSHOTS: ${{ github.workspace }}/build/artifacts/screenshots
@@ -39,6 +39,21 @@ jobs:
           go vet ./...
       - name: Build both architectures and isolated app bundle
         run: ./scripts/build-mygo.sh
+      - name: Launch packaged native app without capture permission
+        env:
+          FUWA_SMOKE_OUTPUT: ${{ github.workspace }}/build/artifacts/screenshots
+        run: |
+          python3 - <<'PYSMOKE'
+          import pathlib, subprocess
+          result = subprocess.run(
+              ['build/Fuwa MyGo.app/Contents/MacOS/FuwaMyGo', '--fuwa-smoke'],
+              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=45,
+          )
+          pathlib.Path('build/artifacts/native-startup.txt').write_text(result.stdout)
+          print(result.stdout)
+          result.check_returncode()
+          assert 'PASS native startup:' in result.stdout
+          PYSMOKE
       - name: Record immutable build inputs
         if: always()
         run: |

@@ -51,7 +51,7 @@ func (m *Model) Send(a Action) {
 func (m *Model) Explain(code string) string {
 	messages := map[string][2]string{
 		"no_window":                {"Bring the window you want to pin to the front, then press the shortcut.", "请先切到要置顶的窗口，再按快捷键。"},
-		"source_closed":            {"The source window has closed. Its last complete frame is kept.", "原窗口已关闭，保留最后一帧。"},
+		"source_closed":            {"The source window has closed. Any previously captured still is kept.", "原窗口已关闭；如果已有冻结画面，会继续保留。"},
 		"screen_permission":        {"Screen Recording permission is required. Enable it in System Settings, then pin again.", "需要录屏权限。请在系统设置中允许后重新置顶。"},
 		"accessibility_permission": {"Accessibility permission is needed only to go to the original window.", "仅在跳转原窗口时需要辅助功能权限。"},
 		"no_complete_frame":        {"A complete frame has not arrived yet.", "尚未收到完整画面。"},
@@ -81,6 +81,9 @@ func (m *Model) Explain(code string) string {
 }
 func (m *Model) state(p core.Session) string {
 	if p.Closed {
+		if !p.HasFrame {
+			return m.T("Source closed", "原窗口已关闭")
+		}
 		return m.T("Source closed · still kept", "原窗口已关闭 · 保留画面")
 	}
 	switch p.State {
@@ -312,11 +315,13 @@ func (m *Model) settings(c *ui.Context) {
 		ui.Text(c, m.T("Available: ", "可更新版本：")+m.UpdateVersion)
 	case "installing":
 		ui.Text(c, fmt.Sprintf(m.T("Downloading and verifying… %.0f%%", "正在下载并验证… %.0f%%"), m.Progress*100))
+	case "cancelling":
+		ui.Text(c, m.T("Cancelling…", "正在取消…"))
 	case "cancelled":
 		ui.Text(c, m.T("Update cancelled.", "更新已取消。"))
 	}
 	ui.Row(c).Gap(8).Wrap().Children(func() {
-		busy := m.UpdatePhase == "checking" || m.UpdatePhase == "installing"
+		busy := m.UpdatePhase == "checking" || m.UpdatePhase == "installing" || m.UpdatePhase == "cancelling"
 		if ui.Button(c, m.T("Check for updates", "检查更新")).Disabled(busy).Clicked() {
 			m.Send(Action{Name: "check-update"})
 		}
@@ -326,7 +331,7 @@ func (m *Model) settings(c *ui.Context) {
 			}
 		}
 		if busy {
-			if ui.Button(c, m.T("Cancel update", "取消更新")).Clicked() {
+			if ui.Button(c, m.T("Cancel update", "取消更新")).Disabled(m.UpdatePhase == "cancelling").Clicked() {
 				m.Send(Action{Name: "cancel-update"})
 			}
 		}
