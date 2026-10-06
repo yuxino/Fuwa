@@ -56,3 +56,32 @@ func TestShortcutReplacementRollback(t *testing.T) {
 		t.Fatal("reapplying an active shortcut removed it")
 	}
 }
+
+func TestShortcutAliasEditDoesNotRegisterTwice(t *testing.T) {
+	for _, value := range []string{"Option+Command+p", " alt + META + P ", "Alt+Super+P"} {
+		t.Run(value, func(t *testing.T) {
+			b := ShortcutBinding{
+				Active: DefaultShortcut,
+				Register: func(string) error {
+					t.Fatal("equivalent shortcut was registered a second time")
+					return nil
+				},
+				Unregister: func(string) { t.Fatal("equivalent shortcut was unregistered") },
+			}
+			if b.Replace(value, func() bool { return false }) || b.Active != DefaultShortcut {
+				t.Fatal("failed save changed the active shortcut", b.Active)
+			}
+			if !b.Replace(value, func() bool { return true }) || b.Active != value {
+				t.Fatal("equivalent shortcut edit was not saved", b.Active)
+			}
+		})
+	}
+}
+
+func TestShortcutDefaultAliasDoesNotRetryTheSameConflict(t *testing.T) {
+	calls := 0
+	b := ShortcutBinding{Register: func(string) error { calls++; return errors.New("conflict") }}
+	if b.Start("Option+Command+P") == nil || calls != 1 || b.Active != "" {
+		t.Fatal("startup fallback retried the same unavailable combination", calls, b.Active)
+	}
+}

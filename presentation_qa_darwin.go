@@ -29,6 +29,7 @@ func init() {
 	}
 	mygo.App.SetName("Fuwa MyGo Parity QA")
 	mygo.App.SetVersion(core.Version)
+	mygo.Theme.SetSource(mygo.ThemeLight)
 	settings := core.Defaults()
 	settings.Language = "en"
 	settings.Shortcut = "Cmd+Alt+Shift+F19"
@@ -120,6 +121,7 @@ func (a *application) presentationQA(dir string) {
 		// removal by shrinking the supplied work-area inventory instead.
 		area := workAreas()[0]
 		bounds := p.mirror.Bounds()
+		bounds.Width = int(area.Width / 3)
 		bounds.X = int(area.X + area.Width - float64(bounds.Width))
 		p.mirror.SetBounds(bounds)
 		before := p.mirror.Bounds()
@@ -140,12 +142,44 @@ func (a *application) presentationQA(dir string) {
 	step(func() {
 		titles := native.QAMenuTitles()
 		qaRequire(slices.Contains(titles, "Edit") && slices.Contains(titles, "Quit Fuwa") && !slices.Contains(titles, "编辑"), "native menu switches back to English")
+		// Exercise the production Go event consumer with this owned fixture.
+		// No capture stream or foreign window is used for these race scenarios.
+		p.Session = core.NewSession(p.Token, p.Source)
+		p.Generation = 20
+		p.mirror.Hide()
+		a.consumeEvents([]native.Event{{Token: p.Token, Generation: 19, Kind: "live"}})
+		qaRequire(!p.mirror.IsVisible() && p.State == core.Starting, "old generation cannot reveal a mirror")
+		a.consumeEvents([]native.Event{{Token: p.Token, Generation: 20, Kind: "frozen", Message: "capture_interrupted"}})
+		qaRequire(p.mirror.IsVisible() && p.State == core.Frozen && p.HasFrame, "native independent still is visible even before the Go live event")
+		p.State, p.Generation = core.Starting, 21
+		a.consumeEvents([]native.Event{{Token: p.Token, Generation: 21, Kind: "failed", Message: "capture_start_failed"}})
+		qaRequire(!p.mirror.IsVisible() && p.State == core.Failed && !p.HasFrame && !p.controls.IsVisible(), "no-frame failure hides mirror and controls and remains retryable")
+		qaRequire(p.CanRetry(), "failed source can retry without unpinning")
+		p.State, p.Generation = core.Starting, 22
+		a.prepared.Replace(p.Source, nil)
+		a.model.Choices = []core.Window{p.Source}
+		a.consumeEvents([]native.Event{
+			{Token: p.Token, Generation: 22, Kind: "live"},
+			{Kind: "privacy", Message: "privacy_cleared"},
+		})
+		_, _, prepared := a.prepared.Consume()
+		qaRequire(len(a.pins) == 0 && len(a.model.Choices) == 0 && !prepared, "privacy wins the whole batch and clears targets as well as pixels")
+	})
+	step(func() {
+		for _, result := range native.QACaptureLifecycle() {
+			qaRequire(result.OK, result.Name)
+		}
 		a.clear()
 		a.publish()
+		a.prepared.Replace(core.Window{ID: 42}, nil)
 		a.main.Hide()
 		a.managementActive(true)
 		state := native.QAPresentation(uintptr(a.main.NativeHandle()))
 		qaRequire(!state.Visible && state.Level == 0, "hidden management stays hidden and normal")
+	})
+	step(func() {
+		_, _, prepared := a.prepared.Consume()
+		qaRequire(!prepared, "hiding management consumes no stale prepared target")
 		a.showMain()
 	})
 	step(func() {

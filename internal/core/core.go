@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-const Version = "1.1.0-mygo.1"
+const Version = "1.1.0-mygo.2"
 const MaxPins = 8
 const DefaultShortcut = "Cmd+Alt+P"
 
@@ -150,6 +150,16 @@ type Session struct {
 func NewSession(token uint64, w Window) Session {
 	return Session{Token: token, Generation: 1, Source: w, State: Starting}
 }
+
+// Action availability is shared by management, the menu bar, and controls.
+// Starting captures remain cancellable, but cannot be frozen or manipulated
+// as if their first frame had already arrived.
+func (s Session) CanFreeze() bool       { return s.State == Live && s.HasFrame && !s.Closed }
+func (s Session) CanResume() bool       { return s.State == Frozen && s.HasFrame && !s.Closed }
+func (s Session) CanRetry() bool        { return s.State == Failed && !s.Closed }
+func (s Session) CanReveal() bool       { return !s.Closed && (s.State == Live || s.State == Frozen) }
+func (s Session) CanShowControls() bool { return s.HasFrame && (s.State == Live || s.State == Frozen) }
+
 func (s *Session) ReceiveFrame(g uint64) bool {
 	if s.State != Starting || g != s.Generation {
 		return false
@@ -171,6 +181,20 @@ func (s *Session) Resume(w Window) error {
 	if s.State != Frozen {
 		return ErrTransition
 	}
+	return s.restart(w)
+}
+
+// Retry reconnects a failed initial capture to the exact same source. Failed
+// attempts keep their token, so retrying neither consumes another pin slot nor
+// lets a stale completion from the previous attempt revive the wrong stream.
+func (s *Session) Retry(w Window) error {
+	if s.State != Failed {
+		return ErrTransition
+	}
+	return s.restart(w)
+}
+
+func (s *Session) restart(w Window) error {
 	if s.Closed || !s.Source.Same(w) {
 		return ErrClosed
 	}

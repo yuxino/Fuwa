@@ -5,24 +5,17 @@ package native
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc -fblocks -mmacosx-version-min=14.0
 #cgo LDFLAGS: -lobjc
-#cgo LDFLAGS: -framework Cocoa -framework ScreenCaptureKit -framework AVFoundation -framework CoreMedia -framework CoreVideo -framework CoreGraphics -framework ApplicationServices -framework QuartzCore -framework ServiceManagement
+#cgo LDFLAGS: -framework Cocoa -framework ScreenCaptureKit -framework AVFoundation -framework CoreMedia -framework CoreVideo -framework CoreGraphics -framework ApplicationServices -framework QuartzCore -framework ServiceManagement -framework VideoToolbox
 #include "bridge_darwin.h"
 #include <stdlib.h>
 */
 import "C"
 import (
-	"encoding/json"
 	"errors"
-	"github.com/yuxino/Fuwa/internal/core"
 	"unsafe"
-)
 
-type Event struct {
-	Token      uint64 `json:"token"`
-	Generation uint64 `json:"generation"`
-	Kind       string `json:"kind"`
-	Message    string `json:"message"`
-}
+	"github.com/yuxino/Fuwa/internal/core"
+)
 
 func take(p *C.char) string {
 	if p == nil {
@@ -33,14 +26,10 @@ func take(p *C.char) string {
 }
 func Initialize() { C.fw_initialize() }
 func Inventory() (core.Inventory, error) {
-	var v core.Inventory
-	err := json.Unmarshal([]byte(take(C.fw_inventory())), &v)
-	return v, err
+	return decodeInventory([]byte(take(C.fw_inventory())))
 }
 func Events() ([]Event, error) {
-	var v []Event
-	err := json.Unmarshal([]byte(take(C.fw_events())), &v)
-	return v, err
+	return decodeEvents([]byte(take(C.fw_events())))
 }
 func ScreenAllowed() bool        { return C.fw_screen_allowed() != 0 }
 func RequestScreen() bool        { return C.fw_request_screen() != 0 }
@@ -54,6 +43,9 @@ func ManagementActive(host uintptr, active bool) {
 }
 func Start(token, generation uint64, w core.Window, host uintptr) {
 	C.fw_start(C.uint64_t(token), C.uint64_t(generation), C.uint32_t(w.ID), C.int32_t(w.PID), C.double(w.Birth), C.uintptr_t(host))
+}
+func Presented(token, generation uint64) {
+	C.fw_presented(C.uint64_t(token), C.uint64_t(generation))
 }
 func Freeze(token uint64) error {
 	if s := take(C.fw_freeze(C.uint64_t(token))); s != "" {

@@ -3,7 +3,7 @@ on:
   push:
     branches: [rewrite/mygo]
   pull_request:
-    paths: ['**.go', '**.m', '**.h', 'go.mod', 'go.sum', 'Resources/**', 'scripts/build-mygo.sh', '.github/workflows/mygo.yml']
+    paths: ['**.go', '**.m', '**.h', 'go.mod', 'go.sum', 'Resources/**', 'scripts/**', '.github/workflows/mygo.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,74 +15,115 @@ concurrency:
   cancel-in-progress: true
 jobs:
   macos:
-    runs-on: macos-15
+    name: macos (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: amd64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
+    env:
+      CGO_ENABLED: '1'
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The downloadable preview must correspond to the reviewed commit,
+          # rather than an ephemeral refs/pull/N/merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.27.1'
+          go-version-file: go.mod
           cache: false
+      - name: Confirm native architecture and deployment target
+        run: |
+          test "$(go env GOARCH)" = '${{ matrix.arch }}'
+          minimum=$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' Resources/Info.plist)
+          printf 'MACOSX_DEPLOYMENT_TARGET=%s\n' "$minimum" >> "$GITHUB_ENV"
       - name: Resolve pinned modules
         run: |
           go mod tidy
+          go mod verify
           git diff --exit-code -- go.mod go.sum
       - name: Format check
-        run: test -z "$(gofmt -l *.go internal/)"
+        run: |
+          test -z "$(gofmt -l *.go internal/)"
+          bash -n scripts/build-mygo.sh
+          python3 - <<'PY'
+          import ast, pathlib
+          for path in pathlib.Path('scripts').glob('*.py'):
+              ast.parse(path.read_text(), filename=str(path))
+          PY
       - name: Unit, race, and native UI tests
         env:
           FUWA_SCREENSHOTS: ${{ github.workspace }}/build/artifacts/screenshots
-          CGO_ENABLED: '1'
         run: |
           mkdir -p build/artifacts
           go test -race -count=1 -v ./... 2>&1 | tee build/artifacts/tests.txt
           go vet ./...
+          go vet -tags fuwa_parity_qa ./...
       - name: Build both architectures and isolated app bundle
         run: ./scripts/build-mygo.sh
       - name: Native presentation parity without capture permission
         env:
           FUWA_SMOKE_OUTPUT: ${{ github.workspace }}/build/artifacts/parity
         run: |
-          go build -tags fuwa_parity_qa -o build/fuwa-parity-qa .
+          go build -mod=readonly -tags fuwa_parity_qa -o build/fuwa-parity-qa .
           mkdir -p "$FUWA_SMOKE_OUTPUT"
-          python3 - <<'PYQA'
-          import pathlib, subprocess
-          result = subprocess.run(
-              ['build/fuwa-parity-qa', '--fuwa-parity-smoke'],
-              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=45,
-          )
-          pathlib.Path('build/artifacts/native-parity.txt').write_text(result.stdout)
-          print(result.stdout)
-          result.check_returncode()
-          assert 'PASS native parity complete:' in result.stdout
-          PYQA
-      - name: Launch packaged native app without capture permission
+          python3 scripts/run-mygo-smoke.py \
+            --log build/artifacts/native-parity.txt \
+            --expect 'PASS native parity complete:' \
+            -- build/fuwa-parity-qa --fuwa-parity-smoke
+      - name: Verify shipped archive and extracted signature
+        run: |
+          archive=$(cat build/package-path.txt)
+          python3 scripts/verify-mygo-package.py "$archive" \
+            --extract-to build/unpacked \
+            --report build/artifacts/package-verification.json
+      - name: Launch extracted native app without capture permission
         env:
           FUWA_SMOKE_OUTPUT: ${{ github.workspace }}/build/artifacts/screenshots
         run: |
-          python3 - <<'PYSMOKE'
-          import pathlib, subprocess
-          result = subprocess.run(
-              ['build/Fuwa MyGo.app/Contents/MacOS/FuwaMyGo', '--fuwa-smoke'],
-              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=45,
-          )
-          pathlib.Path('build/artifacts/native-startup.txt').write_text(result.stdout)
-          print(result.stdout)
-          result.check_returncode()
-          assert 'PASS native startup:' in result.stdout
-          PYSMOKE
+          python3 scripts/run-mygo-smoke.py \
+            --log build/artifacts/native-startup.txt \
+            --expect 'PASS native startup:' \
+            -- 'build/unpacked/Fuwa MyGo.app/Contents/MacOS/FuwaMyGo' --fuwa-smoke
       - name: Record immutable build inputs
         if: always()
+        env:
+          FUWA_REQUESTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          FUWA_RUNNER_ARCH: ${{ runner.arch }}
         run: |
           mkdir -p build/artifacts
           cp go.mod build/artifacts/
           test ! -f go.sum || cp go.sum build/artifacts/
           git rev-parse HEAD > build/artifacts/commit.txt
           go version > build/artifacts/toolchain.txt
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          report = {
+              'requested_head': os.environ['FUWA_REQUESTED_HEAD'],
+              'build_commit': git('rev-parse', 'HEAD'),
+              'build_tree': git('rev-parse', 'HEAD^{tree}'),
+              'tracked_changes': git('status', '--porcelain', '--untracked-files=no'),
+              'runner_arch': os.environ['FUWA_RUNNER_ARCH'],
+              'deployment_target': os.environ.get('MACOSX_DEPLOYMENT_TARGET'),
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+          }
+          pathlib.Path('build/artifacts/provenance.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Fuwa-MyGo-preview
+          name: Fuwa-MyGo-preview-${{ matrix.arch }}
           path: build/artifacts/
           if-no-files-found: error
           retention-days: 14

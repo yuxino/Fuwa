@@ -26,25 +26,29 @@ type pin struct {
 	scale            float64
 }
 type application struct {
-	model         *view.Model
-	main          *mygo.Window
-	tray          *mygo.Tray
-	pins          []*pin
-	next          uint64
-	settingsPath  string
-	prepared      *core.Window
-	lastInventory time.Time
-	updater       *mygo.Update
-	updateCancel  context.CancelFunc
-	updateSerial  uint64
-	done          chan struct{}
-	quitting      bool
-	binding       core.ShortcutBinding
+	model               *view.Model
+	main                *mygo.Window
+	tray                *mygo.Tray
+	pins                []*pin
+	next                uint64
+	settingsPath        string
+	prepared            core.PreparedIntentSlot
+	lastInventory       time.Time
+	lastPermissions     time.Time
+	fastTrackingUntil   time.Time
+	operationGeneration uint64
+	updater             *mygo.Update
+	updateCancel        context.CancelFunc
+	updateSerial        uint64
+	done                chan struct{}
+	quitting            bool
+	binding             core.ShortcutBinding
 }
 
 func main() {
 	mygo.App.SetName("Fuwa MyGo")
 	mygo.App.SetVersion(core.Version)
+	mygo.Theme.SetSource(mygo.ThemeLight)
 	path, err := mygo.App.Path(mygo.PathUserData)
 	if err != nil {
 		log.Fatal("Cannot open Fuwa MyGo preferences directory")
@@ -88,9 +92,10 @@ func (a *application) ready() {
 			a.dock()
 		}
 	})
-	a.main.OnHide(func() { a.managementActive(false); a.dock() })
+	a.main.OnHide(func() { a.prepared.Clear(); a.managementActive(false); a.dock() })
 	mygo.App.OnDidBecomeActive(func() { a.managementActive(true) })
 	mygo.App.OnDidResignActive(func() {
+		a.prepared.Clear()
 		a.managementActive(false)
 		for _, p := range a.pins {
 			if p.controls != nil {
@@ -125,6 +130,7 @@ func (a *application) ready() {
 	mygo.Screen.OnDisplaysChanged(func() {
 		a.reconcileDisplays(workAreas())
 		a.lastInventory = time.Time{}
+		a.fastTrackingUntil = time.Now().Add(400 * time.Millisecond)
 		a.tick()
 	})
 	a.permissions()
@@ -154,12 +160,11 @@ func (a *application) showMain() {
 	if a.main == nil || a.quitting {
 		return
 	}
-	if inv, err := native.Inventory(); err == nil && inv.Front != inv.Self {
-		if w, e := core.Intent(inv); e == nil {
-			a.prepared = &w
-		} else {
-			a.prepared = nil
-		}
+	if inv, err := native.Inventory(); err != nil {
+		a.prepared.Replace(core.Window{}, fmt.Errorf("capture_unavailable"))
+	} else if inv.Front != inv.Self {
+		w, intentErr := core.Intent(inv)
+		a.prepared.Replace(w, intentErr)
 	}
 	mygo.App.SetActivationPolicy(mygo.ActivationPolicyRegular)
 	a.main.Show()
@@ -209,17 +214,23 @@ func (a *application) publish() {
 		token := p.Token
 		mode := m.T("Freeze", "冻结画面")
 		action := "freeze"
-		disabled := p.State != core.Live
+		disabled := !p.CanFreeze()
 		if p.State == core.Frozen {
 			mode = m.T("Resume", "恢复实时")
 			action = "resume"
-			disabled = p.Closed
+			disabled = !p.CanResume()
+		} else if p.State == core.Failed {
+			mode = m.T("Retry capture", "重试捕获")
+			action = "retry"
+			disabled = !p.CanRetry()
 		}
 		control := a.item(mode, func() { a.act(view.Action{Name: action, Token: token}) })
 		control.Disabled = disabled
 		reveal := a.item(m.T("Go to original", "跳转原窗口"), func() { a.act(view.Action{Name: "reveal", Token: token}) })
-		reveal.Disabled = p.Closed
-		items = append(items, &mygo.MenuItem{Label: p.Source.App + " — " + p.Source.Name(), Submenu: []*mygo.MenuItem{control, reveal, a.item(m.T("Controls", "控制面板"), func() { a.act(view.Action{Name: "controls", Token: token}) }), a.item(m.T("Unpin", "取消置顶"), func() { a.act(view.Action{Name: "unpin", Token: token}) })}})
+		reveal.Disabled = !p.CanReveal()
+		controls := a.item(m.T("Controls", "控制面板"), func() { a.act(view.Action{Name: "controls", Token: token}) })
+		controls.Disabled = !p.CanShowControls()
+		items = append(items, &mygo.MenuItem{Label: p.Source.App + " — " + p.Source.Name(), Submenu: []*mygo.MenuItem{control, reveal, controls, a.item(m.T("Unpin", "取消置顶"), func() { a.act(view.Action{Name: "unpin", Token: token}) })}})
 	}
 	if len(a.pins) > 0 {
 		items = append(items, a.item(m.T("Clear all", "全部取消"), func() { a.clear(); a.publish() }))
@@ -237,20 +248,30 @@ func (a *application) save(s core.Settings) bool {
 	return true
 }
 func (a *application) front(usePrepared bool) {
-	inv, err := native.Inventory()
-	if err != nil {
-		a.model.Notice = "capture_unavailable"
-		a.publish()
+	if a.quitting {
 		return
 	}
+	// Claim before any permission UI can change focus or close management.
+	prepared, preparedErr, hasPrepared := a.prepared.Consume()
 	var w core.Window
-	if usePrepared && inv.Front == inv.Self && a.prepared != nil {
-		w = *a.prepared
+	var err error
+	if usePrepared {
+		if !hasPrepared {
+			err = core.ErrNoWindow
+		} else {
+			w, err = prepared, preparedErr
+		}
 	} else {
+		inv, inventoryErr := native.Inventory()
+		if inventoryErr != nil {
+			a.model.Notice = "capture_unavailable"
+			a.publish()
+			return
+		}
 		w, err = core.Intent(inv)
 	}
 	if err != nil {
-		a.model.Notice = "no_window"
+		a.model.Notice = err.Error()
 		a.publish()
 		return
 	}
@@ -265,6 +286,11 @@ func (a *application) front(usePrepared bool) {
 	a.add(w)
 }
 func (a *application) add(w core.Window) {
+	if a.quitting {
+		return
+	}
+	a.prepared.Clear()
+	operation := a.operationGeneration
 	if len(a.pins) >= core.MaxPins {
 		a.model.Notice = "pin_limit"
 		a.publish()
@@ -280,6 +306,9 @@ func (a *application) add(w core.Window) {
 			s := a.model.Settings
 			s.AskedScreen = true
 			a.save(s)
+			// Remember the request in this process even when the settings file
+			// could not be saved, so repeated clicks do not repeat the prompt.
+			a.model.Settings.AskedScreen = true
 			native.RequestScreen()
 		}
 		if !native.ScreenAllowed() {
@@ -288,6 +317,9 @@ func (a *application) add(w core.Window) {
 			a.publish()
 			return
 		}
+	}
+	if a.quitting || operation != a.operationGeneration {
+		return
 	}
 	inv, err := native.Inventory()
 	if err != nil {
@@ -301,8 +333,26 @@ func (a *application) add(w core.Window) {
 		a.publish()
 		return
 	}
-	if !core.Eligible(current, inv) {
-		a.model.Notice = "no_window"
+	// Eligibility selected the visual target before permission UI appeared.
+	// Revalidate its identity and geometry, without selecting again or rejecting
+	// the same window solely because it moved to another Space in the meantime.
+	if !captureBoundsValid(current.Bounds) {
+		a.model.Notice = "capture_unavailable"
+		a.publish()
+		return
+	}
+	// A native permission dialog may run a nested event loop. Recheck the
+	// reservation after it closes, including clears/quits during that dialog.
+	if a.quitting || operation != a.operationGeneration {
+		return
+	}
+	for _, existing := range a.pins {
+		if existing.Source.Same(current) {
+			return
+		}
+	}
+	if len(a.pins) >= core.MaxPins {
+		a.model.Notice = "pin_limit"
 		a.publish()
 		return
 	}
@@ -320,6 +370,7 @@ func (a *application) add(w core.Window) {
 	native.Start(p.Token, p.Generation, p.Source, uintptr(p.mirror.NativeHandle()))
 	native.Resize(p.Token, r, p.scale)
 	a.lastInventory = time.Time{}
+	a.fastTrackingUntil = time.Now().Add(400 * time.Millisecond)
 	a.publish()
 }
 func rect(r core.Rect) mygo.Rectangle {
@@ -355,7 +406,11 @@ func (a *application) positionControls(p *pin, areas []core.Rect) {
 	}
 }
 func (a *application) scale(r core.Rect) float64 {
-	return float64(mygo.Screen.DisplayMatching(rect(r)).ScaleFactor)
+	scale := float64(mygo.Screen.DisplayMatching(rect(r)).ScaleFactor)
+	if math.IsNaN(scale) || math.IsInf(scale, 0) || scale < 1 {
+		return 1
+	}
+	return scale
 }
 func (a *application) find(token uint64) *pin {
 	for _, p := range a.pins {
@@ -381,13 +436,20 @@ func (a *application) unpin(token uint64) {
 	}
 }
 func (a *application) clear() {
+	a.operationGeneration++
+	a.prepared.Clear()
 	for len(a.pins) > 0 {
 		a.unpin(a.pins[len(a.pins)-1].Token)
 	}
 }
-func (a *application) privacy() { a.clear(); a.model.Notice = "privacy_cleared"; a.publish() }
+func (a *application) privacy() {
+	a.clear()
+	a.model.Choices = nil
+	a.model.Notice = "privacy_cleared"
+	a.publish()
+}
 func (a *application) freeze(p *pin) {
-	if p == nil || p.State != core.Live {
+	if p == nil || !p.CanFreeze() {
 		return
 	}
 	if err := native.Freeze(p.Token); err != nil {
@@ -397,9 +459,18 @@ func (a *application) freeze(p *pin) {
 	_ = p.Freeze("")
 }
 func (a *application) resume(p *pin) {
-	if p == nil || p.State != core.Frozen || p.Closed {
+	if p == nil || !p.CanResume() {
 		return
 	}
+	a.restart(p, false)
+}
+func (a *application) retry(p *pin) {
+	if p == nil || !p.CanRetry() {
+		return
+	}
+	a.restart(p, true)
+}
+func (a *application) restart(p *pin, retry bool) {
 	if !native.ScreenAllowed() {
 		a.privacy()
 		a.model.Notice = "screen_permission"
@@ -416,11 +487,18 @@ func (a *application) resume(p *pin) {
 		p.Error = "source_closed"
 		return
 	}
-	if !w.Onscreen {
-		p.Error = "no_window"
+	if !captureBoundsValid(w.Bounds) {
+		p.Error = "capture_unavailable"
 		return
 	}
-	if err := p.Resume(w); err != nil {
+	// An exact source on another Space or minimized is still eligible for
+	// desktop-independent capture. ScreenCaptureKit confirms shareability.
+	if retry {
+		err = p.Retry(w)
+	} else {
+		err = p.Resume(w)
+	}
+	if err != nil {
 		a.model.Notice = err.Error()
 		return
 	}
@@ -428,6 +506,9 @@ func (a *application) resume(p *pin) {
 	p.scale = a.scale(w.Bounds)
 	native.Start(p.Token, p.Generation, w, uintptr(p.mirror.NativeHandle()))
 	native.Resize(p.Token, w.Bounds, p.scale)
+	a.lastInventory = time.Time{}
+	a.fastTrackingUntil = time.Now().Add(400 * time.Millisecond)
+	a.model.Notice = ""
 }
 func (a *application) controls(p *pin) {
 	if p == nil || !p.mirror.IsVisible() {
@@ -480,6 +561,9 @@ func (a *application) shortcut(value string) {
 	a.model.Notice = ""
 }
 func (a *application) act(action view.Action) {
+	if a.quitting {
+		return
+	}
 	p := a.find(action.Token)
 	switch action.Name {
 	case "pin-front":
@@ -496,6 +580,8 @@ func (a *application) act(action view.Action) {
 		a.freeze(p)
 	case "resume":
 		a.resume(p)
+	case "retry":
+		a.retry(p)
 	case "controls":
 		a.controls(p)
 	case "hide-controls":
@@ -503,7 +589,7 @@ func (a *application) act(action view.Action) {
 			p.controls.Hide()
 		}
 	case "reveal":
-		if p != nil && !p.Closed {
+		if p != nil && p.CanReveal() {
 			if err := native.Reveal(p.Source); err != nil {
 				a.model.Notice = err.Error()
 			}
@@ -560,46 +646,17 @@ func (a *application) tick() {
 		return
 	}
 	list, err := native.Events()
-	if err != nil {
+	dirty, cleared := a.consumeEvents(list)
+	if cleared {
 		return
 	}
-	// A privacy event dominates older queued live events: never re-show a cleared mirror.
-	for _, e := range list {
-		if e.Kind == "privacy" || e.Message == "screen_permission" {
-			a.privacy()
-			if e.Message == "screen_permission" {
-				a.model.Notice = "screen_permission"
-				a.publish()
-			}
-			return
-		}
+	if err != nil && a.model.Notice != "capture_unavailable" {
+		a.model.Notice = "capture_unavailable"
+		dirty = true
 	}
-	dirty := false
-	for _, e := range list {
-		p := a.find(e.Token)
-		if p == nil || p.Generation != e.Generation {
-			continue
-		}
-		switch e.Kind {
-		case "live":
-			if p.ReceiveFrame(e.Generation) {
-				p.mirror.ShowInactive()
-				dirty = true
-			}
-		case "failed", "frozen":
-			if e.Kind == "failed" {
-				p.HasFrame = false
-			}
-			if p.Fail(e.Generation, e.Message) {
-				dirty = true
-				if e.Message == "source_closed" {
-					p.Closed = true
-				}
-			}
-		}
-	}
-	if time.Since(a.lastInventory) >= 500*time.Millisecond {
-		a.lastInventory = time.Now()
+	now := time.Now()
+	if now.Sub(a.lastPermissions) >= 500*time.Millisecond {
+		a.lastPermissions = now
 		dirty = a.permissions() || dirty
 		if len(a.pins) > 0 && !a.model.Screen {
 			a.privacy()
@@ -607,45 +664,36 @@ func (a *application) tick() {
 			a.publish()
 			return
 		}
-		tracking := false
-		for _, p := range a.pins {
-			if p.State == core.Live || p.State == core.Starting {
-				tracking = true
-				break
+	}
+	if a.needsTracking() && now.Sub(a.lastInventory) >= a.inventoryInterval(now) {
+		a.lastInventory = now
+		inv, err := native.Inventory()
+		if err != nil {
+			// An unavailable inventory is not an empty one. Keep every exact
+			// source alive until WindowServer can provide a real observation.
+			if a.model.Notice != "capture_unavailable" {
+				a.model.Notice = "capture_unavailable"
+				dirty = true
 			}
-		}
-		if tracking {
-			inv, err := native.Inventory()
-			if err == nil {
-				for _, p := range a.pins {
-					if p.State != core.Live && p.State != core.Starting {
-						continue
-					}
-					w, ok := core.Exact(inv, p.Source)
-					if !ok {
-						p.Missing++
-						if p.Missing < 2 {
-							continue
-						}
-						if p.HasFrame {
-							if err := native.Freeze(p.Token); err == nil {
-								_ = p.Freeze("source_closed")
-							} else {
-								native.Stop(p.Token)
-								p.HasFrame = false
-								p.Fail(p.Generation, "source_closed")
-							}
-						}
-						if !p.HasFrame {
-							native.Stop(p.Token)
-							p.Fail(p.Generation, "source_closed")
-						}
-						p.Closed = true
-						dirty = true
-						continue
-					}
-					dirty = a.trackWindow(p, w, a.scale(w.Bounds)) || dirty
+		} else {
+			for _, p := range a.pins {
+				if p.State != core.Live && p.State != core.Starting {
+					continue
 				}
+				w, ok := core.Exact(inv, p.Source)
+				if !ok {
+					p.Missing++
+					if p.Missing >= 2 {
+						a.sourceClosed(p)
+						dirty = true
+					}
+					continue
+				}
+				scale := p.scale
+				if captureBoundsValid(w.Bounds) {
+					scale = a.scale(w.Bounds)
+				}
+				dirty = a.trackWindow(p, w, scale) || dirty
 			}
 		}
 	}
@@ -654,16 +702,115 @@ func (a *application) tick() {
 	}
 }
 
+// consumeEvents is shared by the real native event pump and owned-window QA.
+// Native frame ownership is authoritative; Go controls only presentation/state.
+func (a *application) consumeEvents(list []native.Event) (dirty, cleared bool) {
+	// A privacy event dominates older queued live events: never re-show a cleared mirror.
+	for _, e := range list {
+		if e.Kind == "privacy" || e.Message == "screen_permission" {
+			a.privacy()
+			if e.Message == "screen_permission" {
+				a.model.Notice = "screen_permission"
+				a.publish()
+			}
+			return true, true
+		}
+	}
+	for _, e := range list {
+		p := a.find(e.Token)
+		if p == nil || p.Generation != e.Generation || p.State == core.Stopped {
+			continue
+		}
+		switch e.Kind {
+		case "live":
+			if p.ReceiveFrame(e.Generation) {
+				p.mirror.ShowInactive()
+				native.Presented(p.Token, p.Generation)
+				dirty = true
+			}
+		case "failed", "frozen":
+			p.HasFrame = e.Kind == "frozen"
+			if p.Fail(e.Generation, e.Message) {
+				dirty = true
+				if e.Message == "source_closed" {
+					p.Closed = true
+				}
+				if p.HasFrame {
+					// A source can close between the native first frame and Go's
+					// first live event. Its independent still must remain visible.
+					p.mirror.ShowInactive()
+				} else {
+					p.mirror.Hide()
+					if p.controls != nil {
+						p.controls.Hide()
+					}
+				}
+			}
+		}
+	}
+	return dirty, false
+}
+
+func (a *application) sourceClosed(p *pin) {
+	if p.HasFrame && native.Freeze(p.Token) == nil {
+		_ = p.Freeze("source_closed")
+		p.mirror.ShowInactive()
+	} else {
+		native.Stop(p.Token)
+		p.HasFrame = false
+		p.Fail(p.Generation, "source_closed")
+		p.mirror.Hide()
+		if p.controls != nil {
+			p.controls.Hide()
+		}
+	}
+	p.Closed = true
+}
+
+func (a *application) needsTracking() bool {
+	for _, p := range a.pins {
+		if p.State == core.Starting || p.State == core.Live {
+			return true
+		}
+	}
+	return false
+}
+func (a *application) inventoryInterval(now time.Time) time.Duration {
+	if now.Before(a.fastTrackingUntil) {
+		return 100 * time.Millisecond
+	}
+	return 250 * time.Millisecond
+}
+func captureBoundsValid(r core.Rect) bool {
+	for _, value := range []float64{r.X, r.Y, r.Width, r.Height} {
+		if math.IsNaN(value) || math.IsInf(value, 0) {
+			return false
+		}
+	}
+	return r.Width > 0 && r.Height > 0
+}
+
 // Visibility is not liveness: moving to another Space or minimizing a source
 // must not turn a healthy desktop-independent capture into a manual freeze.
 func (a *application) trackWindow(p *pin, w core.Window, scale float64) bool {
+	if !p.Source.Same(w) {
+		return false
+	}
 	p.Missing = 0
-	dirty := w.Title != p.Source.Title
+	dirty := w.Title != p.Source.Title || w.App != p.Source.App
+	if !captureBoundsValid(w.Bounds) {
+		w.Bounds = p.Source.Bounds
+		scale = p.scale
+	}
+	if math.IsNaN(scale) || math.IsInf(scale, 0) || scale < 1 {
+		scale = p.scale
+	}
 	if w.Bounds != p.Source.Bounds || scale != p.scale {
 		p.mirror.SetBounds(rect(w.Bounds))
 		a.positionControls(p, workAreas())
 		native.Resize(p.Token, w.Bounds, scale)
 		p.scale = scale
+		a.fastTrackingUntil = time.Now().Add(400 * time.Millisecond)
 	}
 	p.Source = w
 	return dirty

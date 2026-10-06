@@ -4,9 +4,10 @@ package view
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/egoist/mygo/ui"
 	"github.com/yuxino/Fuwa/internal/core"
-	"strings"
 )
 
 type Action struct {
@@ -21,6 +22,7 @@ type Model struct {
 	Locale                     string
 	Pins                       []core.Session
 	Choices                    []core.Window
+	Search                     string
 	Route                      string
 	Notice                     string
 	Screen, Accessibility      bool
@@ -52,6 +54,7 @@ func (m *Model) Explain(code string) string {
 	messages := map[string][2]string{
 		"no_window":                {"Bring the window you want to pin to the front, then press the shortcut.", "请先切到要置顶的窗口，再按快捷键。"},
 		"source_closed":            {"The source window has closed. Any previously captured still is kept.", "原窗口已关闭；如果已有冻结画面，会继续保留。"},
+		"source_not_visible":       {"Bring the original window back onto a display, then try again.", "请先让原窗口回到可见屏幕，再重试。"},
 		"screen_permission":        {"Screen Recording permission is required. Enable it in System Settings, then pin again.", "需要录屏权限。请在系统设置中允许后重新置顶。"},
 		"accessibility_permission": {"Accessibility permission is needed only to go to the original window.", "仅在跳转原窗口时需要辅助功能权限。"},
 		"no_complete_frame":        {"A complete frame has not arrived yet.", "尚未收到完整画面。"},
@@ -73,6 +76,7 @@ func (m *Model) Explain(code string) string {
 		"preview_updates":          {"Signed MyGo updates are not configured for this preview. It will never install an unsigned package or the Swift release.", "本预览版尚未配置签名的 MyGo 更新，不会安装未签名包或旧 Swift 正式版。"},
 		"settings_failed":          {"Preferences could not be saved. Check access to the application support folder.", "偏好设置保存失败，请检查应用支持目录权限。"},
 		"settings_reset":           {"Invalid preferences were ignored; defaults are in use.", "偏好设置无效，已使用默认值。"},
+		"invalid_transition":       {"This pin changed while the action was running. Try again when it finishes connecting.", "置顶状态已变化，请等待连接完成后重试。"},
 		"update_failed":            {"Update failed. The installed application was not relaunched.", "更新失败，未重启应用。"},
 	}
 	if v, ok := messages[code]; ok {
@@ -93,6 +97,9 @@ func (m *Model) state(p core.Session) string {
 	case core.Live:
 		return m.T("Live · clicks pass through", "实时 · 鼠标穿透")
 	case core.Frozen:
+		if p.Error == "capture_interrupted" || p.Error == "capture_resize_failed" {
+			return m.T("Capture interrupted · still kept", "捕获中断 · 保留画面")
+		}
 		return m.T("Frozen", "已冻结")
 	case core.Failed:
 		return m.T("Capture failed", "捕获失败")
@@ -101,13 +108,14 @@ func (m *Model) state(p core.Session) string {
 	}
 }
 func (m *Model) Render(c *ui.Context) {
+	applyAppearance(c)
 	ui.Column(c).Fill().Padding(24).Gap(16).Children(func() {
 		ui.Row(c).Gap(12).Children(func() {
 			ui.Column(c).Gap(3).Grow(1).Children(func() {
 				ui.Text(c, "Fuwa").FontSize(30).Bold()
 				ui.Text(c, m.T("A little space for what matters.", "给重要的窗口，留一点位置。")).TextColor(c.Theme().TextMuted)
 			})
-			ui.Text(c, "MyGo preview").FontSize(12).TextColor(c.Theme().TextMuted)
+			ui.Text(c, m.T("MyGo preview", "MyGo 预览版")).FontSize(12).TextColor(c.Theme().TextMuted)
 		})
 		ui.Row(c).Gap(8).Children(func() {
 			for _, tab := range []struct{ id, en, zh string }{{"pins", "Pinned windows", "置顶窗口"}, {"picker", "Choose a window", "选择窗口"}, {"settings", "Settings", "设置"}} {
@@ -122,10 +130,22 @@ func (m *Model) Render(c *ui.Context) {
 		ui.Divider(c)
 		ui.Scroll(c).Grow(1).Gap(16).Children(func() {
 			if m.Notice != "" {
-				ui.Text(c, m.Explain(m.Notice))
-				if ui.Button(c, m.T("Dismiss", "关闭提示")).Clicked() {
-					m.Notice = ""
-				}
+				ui.Text(c, m.Explain(m.Notice)).Role(ui.RoleStatus)
+				ui.Row(c).Gap(8).Wrap().Children(func() {
+					if m.Notice == "screen_permission" {
+						if ui.Button(c, m.T("Screen Recording settings", "录屏权限设置")).Clicked() {
+							m.Send(Action{Name: "screen-settings"})
+						}
+					}
+					if m.Notice == "accessibility_permission" {
+						if ui.Button(c, m.T("Accessibility settings", "辅助功能设置")).Clicked() {
+							m.Send(Action{Name: "ax-settings"})
+						}
+					}
+					if ui.Button(c, m.T("Dismiss", "关闭提示")).Clicked() {
+						m.Notice = ""
+					}
+				})
 			}
 			switch m.Route {
 			case "settings":
@@ -158,12 +178,13 @@ func (m *Model) pins(c *ui.Context) {
 			ui.Text(c, m.T("The mirror stays above your work, while clicks reach the app underneath.", "镜像会浮在上方，点击仍然传到下方应用。")).TextColor(c.Theme().TextMuted)
 		})
 	}
-	if ui.PrimaryButton(c, m.T("Pin front window", "置顶前方窗口")).Disabled(len(m.Pins) >= core.MaxPins).Clicked() {
+	// This action also unpins its existing target, even when all slots are full.
+	if ui.PrimaryButton(c, m.T("Pin front window", "置顶前方窗口")).Clicked() {
 		m.Send(Action{Name: "pin-front"})
 	}
 	for _, p := range m.Pins {
-		ui.Column(c).Key(fmt.Sprint(p.Token)).Gap(8).Padding(12, 0).Children(func() {
-			ui.Text(c, p.Source.Name()).FontSize(16).Bold()
+		ui.Column(c).Key(fmt.Sprint(p.Token)).Label(p.Source.App+", "+p.Source.Name()+", "+m.state(p)).Gap(8).Padding(12, 0).Children(func() {
+			ui.Text(c, p.Source.Name()).FontSize(16).Bold().MaxLines(2)
 			ui.Text(c, p.Source.App+"  ·  "+m.state(p)).TextColor(c.Theme().TextMuted)
 			if p.Error != "" {
 				ui.Text(c, m.Explain(p.Error)).FontSize(12)
@@ -175,20 +196,24 @@ func (m *Model) pins(c *ui.Context) {
 }
 func (m *Model) controls(c *ui.Context, p core.Session, compact bool) {
 	ui.Row(c).Gap(6).Wrap().Children(func() {
-		if p.State == core.Frozen {
-			if ui.Button(c, m.T("Resume", "恢复实时")).Disabled(p.Closed).Clicked() {
+		if p.State == core.Failed {
+			if ui.Button(c, m.T("Retry capture", "重试捕获")).Disabled(!p.CanRetry()).Clicked() {
+				m.Send(Action{Name: "retry", Token: p.Token})
+			}
+		} else if p.State == core.Frozen {
+			if ui.Button(c, m.T("Resume", "恢复实时")).Disabled(!p.CanResume()).Clicked() {
 				m.Send(Action{Name: "resume", Token: p.Token})
 			}
 		} else {
-			if ui.Button(c, m.T("Freeze", "冻结画面")).Disabled(p.State != core.Live).Clicked() {
+			if ui.Button(c, m.T("Freeze", "冻结画面")).Disabled(!p.CanFreeze()).Clicked() {
 				m.Send(Action{Name: "freeze", Token: p.Token})
 			}
 		}
-		if ui.Button(c, m.T("Go to original", "跳转原窗口")).Disabled(p.Closed).Clicked() {
+		if ui.Button(c, m.T("Go to original", "跳转原窗口")).Disabled(!p.CanReveal()).Clicked() {
 			m.Send(Action{Name: "reveal", Token: p.Token})
 		}
 		if !compact {
-			if ui.Button(c, m.T("Controls", "控制面板")).Clicked() {
+			if ui.Button(c, m.T("Controls", "控制面板")).Disabled(!p.CanShowControls()).Clicked() {
 				m.Send(Action{Name: "controls", Token: p.Token})
 			}
 		}
@@ -199,13 +224,17 @@ func (m *Model) controls(c *ui.Context, p core.Session, compact bool) {
 }
 func (m *Model) Controls(token uint64) func(*ui.Context) {
 	return func(c *ui.Context) {
+		applyAppearance(c)
 		if c.Shortcut(0, ui.KeyEscape) {
 			m.Send(Action{Name: "hide-controls", Token: token})
 		}
 		ui.Column(c).Fill().Padding(12).Gap(10).Children(func() {
 			for _, p := range m.Pins {
 				if p.Token == token {
-					ui.Text(c, p.Source.Name()).Bold().SingleLine()
+					ui.Column(c).Gap(3).Children(func() {
+						ui.Text(c, p.Source.Name()).Bold().SingleLine()
+						ui.Text(c, m.state(p)).FontSize(11).TextColor(c.Theme().TextMuted).SingleLine().Role(ui.RoleStatus)
+					})
 					m.controls(c, p, true)
 					return
 				}
@@ -222,18 +251,36 @@ func (m *Model) picker(c *ui.Context) {
 		}
 	})
 	ui.Text(c, m.T("Only the window you choose will be captured. A protected window is never replaced with another.", "只捕获你选中的窗口，无法捕获时不会改选后面的窗口。")).TextColor(c.Theme().TextMuted)
+	ui.Column(c).Key("window-search").Children(func() {
+		ui.TextInput(c, &m.Search).Label(m.T("Search windows", "搜索窗口")).Placeholder(m.T("Search by window title or app", "按窗口标题或应用名搜索"))
+	})
+	if !m.Screen {
+		ui.Text(c, m.T("Screen Recording permission is needed to show other apps' window titles and capture your selection.", "需要录屏权限，才能显示其他应用的窗口标题并捕获选中的窗口。"))
+		if ui.Button(c, m.T("Screen Recording settings", "录屏权限设置")).Clicked() {
+			m.Send(Action{Name: "screen-settings"})
+		}
+	}
+	choices := m.filteredChoices()
 	if len(m.Choices) == 0 {
 		ui.Text(c, m.T("No eligible windows. Open a window in another app and refresh.", "没有可选窗口。请在其他应用打开窗口后刷新。"))
+	} else if len(choices) == 0 {
+		ui.Text(c, m.T("No windows match this search.", "没有符合搜索条件的窗口。"))
+		if ui.Button(c, m.T("Clear search", "清除搜索")).Clicked() {
+			m.Search = ""
+		}
 	}
-	for _, w := range m.Choices {
+	for _, w := range choices {
 		pinned := false
 		for _, p := range m.Pins {
 			if p.Source.Same(w) {
 				pinned = true
 			}
 		}
-		ui.Row(c).Key(fmt.Sprint(w.ID)).Gap(12).Padding(8, 0).Children(func() {
-			ui.Column(c).Grow(1).Gap(4).Children(func() { ui.Text(c, w.Name()).Bold(); ui.Text(c, w.App).TextColor(c.Theme().TextMuted) })
+		ui.Row(c).Key(fmt.Sprintf("%d:%d:%g", w.ID, w.PID, w.Birth)).Label(w.App+", "+w.Name()).Gap(12).Padding(8, 0).Children(func() {
+			ui.Column(c).Grow(1).Gap(4).Children(func() {
+				ui.Text(c, w.Name()).Bold().MaxLines(2)
+				ui.Text(c, w.App).TextColor(c.Theme().TextMuted).SingleLine()
+			})
 			label := m.T("Pin", "置顶")
 			if pinned {
 				label = m.T("Pinned", "已置顶")
@@ -244,6 +291,21 @@ func (m *Model) picker(c *ui.Context) {
 		})
 	}
 }
+
+func (m *Model) filteredChoices() []core.Window {
+	query := strings.ToLower(strings.TrimSpace(m.Search))
+	if query == "" {
+		return m.Choices
+	}
+	var choices []core.Window
+	for _, w := range m.Choices {
+		if strings.Contains(strings.ToLower(w.App+" "+w.Name()), query) {
+			choices = append(choices, w)
+		}
+	}
+	return choices
+}
+
 func (m *Model) settings(c *ui.Context) {
 	ui.Text(c, m.T("Preferences", "偏好设置")).FontSize(19).Bold()
 	dock := m.Settings.KeepDock
@@ -265,7 +327,9 @@ func (m *Model) settings(c *ui.Context) {
 	}
 	ui.Divider(c)
 	ui.Text(c, m.T("Pin / unpin shortcut", "置顶 / 取消置顶快捷键")).Bold()
-	ui.TextInput(c, &m.ShortcutDraft).Placeholder(core.DefaultShortcut)
+	ui.Column(c).Key("pin-shortcut").Children(func() {
+		ui.TextInput(c, &m.ShortcutDraft).Label(m.T("Pin / unpin shortcut", "置顶 / 取消置顶快捷键")).Placeholder(core.DefaultShortcut)
+	})
 	ui.Row(c).Gap(8).Children(func() {
 		if ui.Button(c, m.T("Save shortcut", "保存快捷键")).Clicked() {
 			m.Send(Action{Name: "shortcut", Value: m.ShortcutDraft})
