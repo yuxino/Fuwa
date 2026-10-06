@@ -3,7 +3,7 @@ on:
   push:
     branches: [rewrite/mygo]
   pull_request:
-    paths: ['**.go', '**.m', '**.h', 'go.mod', 'go.sum', 'Resources/**', 'scripts/**', '.github/workflows/mygo.yml']
+    paths: ['**.go', '**.m', '**.h', 'go.mod', 'go.sum', 'Resources/**', 'scripts/**', 'patches/**', '.github/workflows/mygo.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -50,10 +50,14 @@ jobs:
           go mod tidy
           go mod verify
           git diff --exit-code -- go.mod go.sum
+      - name: Prepare verified MyGo updater source patch
+        run: |
+          flags=$(./scripts/go-mygo.sh env GOFLAGS)
+          printf 'GOFLAGS=%s\n' "$flags" >> "$GITHUB_ENV"
       - name: Format check
         run: |
-          test -z "$(gofmt -l *.go internal/)"
-          bash -n scripts/build-mygo.sh
+          test -z "$(gofmt -l *.go internal/ scripts/qa/)"
+          for script in scripts/*.sh; do bash -n "$script"; done
           python3 - <<'PY'
           import ast, pathlib
           for path in pathlib.Path('scripts').glob('*.py'):
@@ -93,6 +97,17 @@ jobs:
             --log build/artifacts/native-startup.txt \
             --expect 'PASS native startup:' \
             -- 'build/unpacked/Fuwa MyGo.app/Contents/MacOS/FuwaMyGo' --fuwa-smoke
+      - name: Real updater with isolated signed fixtures
+        env:
+          FUWA_SMOKE_OUTPUT: ${{ github.workspace }}/build/artifacts/updater
+        run: |
+          go vet -tags fuwa_update_qa ./scripts/qa/updater
+          go build -mod=readonly -tags fuwa_update_qa -o build/fuwa-updater-qa ./scripts/qa/updater
+          python3 scripts/run-mygo-smoke.py \
+            --timeout 180 \
+            --log build/artifacts/native-updater.txt \
+            --expect 'PASS updater complete:' \
+            -- build/fuwa-updater-qa --fuwa-update-smoke
       - name: Record immutable build inputs
         if: always()
         env:
@@ -102,6 +117,12 @@ jobs:
           mkdir -p build/artifacts
           cp go.mod build/artifacts/
           test ! -f go.sum || cp go.sum build/artifacts/
+          if [[ -d build/mygo-overlay ]]; then
+            mkdir -p build/artifacts/mygo-overlay
+            for file in build/mygo-overlay/*.json build/mygo-overlay/*.mod build/mygo-overlay/*.sum build/mygo-overlay/*.patched build/mygo-overlay/MyGo-LICENSE; do
+              if [[ -f "$file" ]]; then cp "$file" build/artifacts/mygo-overlay/; fi
+            done
+          fi
           git rev-parse HEAD > build/artifacts/commit.txt
           go version > build/artifacts/toolchain.txt
           python3 - <<'PY'

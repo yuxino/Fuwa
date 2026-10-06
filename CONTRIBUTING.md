@@ -2,7 +2,9 @@
 
 This is `rewrite/mygo`, an experimental macOS branch. Do not merge or publish it without explicit review and the acceptance checks in [docs/mygo-rewrite.md](docs/mygo-rewrite.md).
 
-Use Go 1.27.1+ and Xcode Command Line Tools. Run `go mod tidy`, `gofmt -w main_darwin.go internal/`, `go test -race ./...`, `go vet ./...`, then `./scripts/build-mygo.sh` on macOS. Set `FUWA_SCREENSHOTS` to an absolute output folder to render native UI fixtures. Pure policy tests can run in `internal/core` with `GO111MODULE=off go test -race` where a suitable Go toolchain is available.
+Use Go 1.27.1+ and Xcode Command Line Tools. Run `go mod tidy`, `gofmt -w *.go internal/ scripts/qa/`, `./scripts/go-mygo.sh test -race ./...`, `./scripts/go-mygo.sh vet ./...`, then `./scripts/build-mygo.sh` on macOS. Set `FUWA_SCREENSHOTS` to an absolute output folder to render native UI fixtures. The policy, JSON boundary and headless view tests also run on Linux with `go test -race ./internal/...`.
+
+The wrapper validates and applies the pinned MyGo updater cancellation patch without editing module-cache files. See [patches/README.md](patches/README.md) before changing MyGo versions. CI runs the same overlay for tests, application builds and the temporary updater fixture. Direct `go build` omits that patch unless the overlay is already present in `GOFLAGS`.
 
 Keep UI/state in Go and MyGo. The native adapter is only for missing platform APIs; never reintroduce the Swift app as a helper. All native entry points and app state are main-thread confined. Preserve exact source identity, bounded frame queues, independent frozen pixels, and synchronous privacy teardown before asynchronous stream cleanup. Never log or persist captured content.
 

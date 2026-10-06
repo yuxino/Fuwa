@@ -27,7 +27,7 @@ key='8qWUhz/r6J3c6fVw9NVEmqvWcF4oVKwAtLFm9AkA1ZA='
 feed='https://github.com/yuxino/Fuwa/releases/download/mygo-v{version}/update-darwin-universal.json'
 flags="-s -w -X github.com/egoist/mygo.production=1 -X github.com/egoist/mygo.packageUpdateKey=$key -X github.com/egoist/mygo.packageUpdateFeed=$feed"
 for arch in arm64 amd64; do
-  CGO_ENABLED=1 GOOS=darwin GOARCH="$arch" CC=clang go build -mod=readonly -tags mygo_noinspector -trimpath -ldflags "$flags" -o "$out/bin/fuwa-$arch" .
+  CGO_ENABLED=1 GOOS=darwin GOARCH="$arch" CC=clang ./scripts/go-mygo.sh build -mod=readonly -tags mygo_noinspector -trimpath -ldflags "$flags" -o "$out/bin/fuwa-$arch" .
 done
 app="$out/Fuwa MyGo.app"
 # Assemble from an empty directory, so repeated local builds cannot retain an
@@ -46,7 +46,7 @@ done
 plutil -lint "$staged_app/Contents/Info.plist"
 codesign --force --sign - --timestamp=none "$staged_app"
 codesign --verify --all-architectures --strict --verbose=2 "$staged_app"
-lipo -verify_arch arm64 x86_64 "$staged_app/Contents/MacOS/FuwaMyGo"
+lipo "$staged_app/Contents/MacOS/FuwaMyGo" -verify_arch arm64 x86_64
 zip="$out/artifacts/Fuwa-MyGo-$version-universal.zip"
 ditto -c -k --sequesterRsrc --keepParent "$staged_app" "$zip"
 (cd "$out/artifacts" && shasum -a 256 "$(basename "$zip")" > "$(basename "$zip").sha256")

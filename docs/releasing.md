@@ -1,5 +1,9 @@
 # Fuwa Release Runbook
 
+> Historical Swift release instructions, retained for the stable `main` branch.
+> For this MyGo branch, use [the isolated build and acceptance instructions](mygo-rewrite.md).
+> The Swift/Sparkle scripts and release feed below do not apply to MyGo previews.
+
 Fuwa is maintained for macOS only. A release maintainer produces the universal
 archive on a trusted Mac holding Fuwa's stable local signing identity. GitHub
 Actions verifies the macOS build and logic tests, and the promotion workflow

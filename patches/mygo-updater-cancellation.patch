@@ -1,0 +1,63 @@
+--- a/updater.go
++++ b/updater.go
+@@ -175,6 +175,9 @@
+ // version current: from its delta for current when there is one, else, or
+ // when the delta fails, from its archive.
+ func installUpdate(ctx context.Context, m update.Manifest, key, current, target string, progress func(downloaded, total int64)) error {
++	if err := ctx.Err(); err != nil {
++		return err
++	}
+ 	pub, err := update.ParsePublicKey(key)
+ 	if err != nil {
+ 		return err
+@@ -193,11 +196,14 @@
+ 
+ 	if d := m.Delta(current); d != nil {
+ 		err := applyDelta(ctx, *d, pub, m.Version, target, work, unpacked, progress)
++		// Applying a delta is synchronous and may finish after cancellation.
++		// Once replacement starts, finish that transaction without reporting
++		// a cancellation after the installed application has already changed.
++		if cancelErr := ctx.Err(); cancelErr != nil {
++			return cancelErr
++		}
+ 		if err == nil {
+ 			return swap(unpacked, target)
+-		}
+-		if ctx.Err() != nil {
+-			return err
+ 		}
+ 		log.Printf("mygo: downloading the whole update, as its delta update failed: %v", err)
+ 		if err := os.RemoveAll(unpacked); err != nil {
+@@ -212,12 +218,22 @@
+ 	if err := download(ctx, m.URL, m.Size, m.Signature, pub, archive, progress); err != nil {
+ 		return err
+ 	}
++	// A progress callback can cancel on the final byte without making the
++	// completed HTTP read fail. Do not unpack or install that download.
++	if err := ctx.Err(); err != nil {
++		return err
++	}
+ 	f, err := os.Open(archive)
+ 	if err != nil {
+ 		return err
+ 	}
+ 	err = update.ExtractArchive(f, unpacked)
+ 	f.Close()
++	// Extraction does not take a context. Honor a cancellation received
++	// during it before entering the replacement transaction.
++	if cancelErr := ctx.Err(); cancelErr != nil {
++		return cancelErr
++	}
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -233,6 +249,9 @@
+ 	}
+ 	path := filepath.Join(work, "update.delta")
+ 	if err := download(ctx, d.URL, d.Size, d.Signature, pub, path, progress); err != nil {
++		return err
++	}
++	if err := ctx.Err(); err != nil {
+ 		return err
+ 	}
+ 	f, err := os.Open(path)
