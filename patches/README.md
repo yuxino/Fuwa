@@ -15,7 +15,7 @@ The upstream updater can finish a successful HTTP read even when its progress ca
 
 The patch adds cancellation checks before installation starts, after each download, after full archive extraction, and after delta application before the installed app is replaced. Cancellation returns the original context error, so `errors.Is(err, context.Canceled)` continues to work. Temporary staging files are removed by the upstream cleanup. Cancellation during a failed delta attempt stops the operation rather than initiating a full archive download.
 
-The replacement transaction itself completes once it starts. The patch does not report cancellation after changing the installed app, modify signature verification, accept unsigned archives, or introduce another update feed. Extraction and delta application are not interrupted halfway through; a cancellation received during either is honored when that staging operation returns, before replacement begins.
+Once filesystem replacement starts, later cancellation no longer interrupts the attempt; filesystem errors can still cause it to fail. The patch does not report cancellation after changing the installed app, modify signature verification, accept unsigned archives, or introduce another update feed. Extraction and delta application are not interrupted halfway through; a cancellation received during either is honored when that staging operation returns, before replacement begins.
 
 ## Build integration
 
@@ -43,6 +43,6 @@ The original copyright notice and license are retained in `MyGo-LICENSE`; the pa
 
 ## 中文
 
-锁定的 MyGo 更新器在下载最后一批字节的回调中收到取消时，HTTP 读取仍可能成功，随后继续解包并替换应用。补丁在下载、解包和增量包处理之后、替换应用之前检查取消状态；收到取消后保留原安装，返回可被 `errors.Is` 识别的 context 错误。真正开始替换后的事务会继续完成，避免出现已经换包却报告取消的结果。
+锁定的 MyGo 更新器在下载最后一批字节的回调中收到取消时，HTTP 读取仍可能成功，随后继续解包并替换应用。补丁在下载、解包和增量包处理之后、替换应用之前检查取消状态；收到取消后保留原安装，返回可被 `errors.Is` 识别的 context 错误。替换开始后不再因后续取消而中止，文件系统操作仍可能失败。
 
 构建通过临时 modfile 指向校验后的 MyGo 源码副本，再用 Go overlay 只替换这一份源文件。这是因为 Go 禁止直接 overlay 模块缓存中的文件。所有生成文件放在 `build/mygo-overlay`，不改仓库原有 `go.mod`/`go.sum` 或全局模块缓存，也不会把整个框架提交到仓库。源码副本采用版本和目录指纹命名、原子生成，复用时会核对完整内容；构建信息使用仓库内相对路径，避免把本机用户目录写入交付包。脚本严格核对原始与修改后的 SHA-256、补丁位置、依赖版本和 MIT 许可，任一不符都会停止构建。升级 MyGo 时需要重新审查，或在上游已修复后删除此补丁。真实更新器 QA 使用临时应用和临时测试密钥，覆盖成功更新、篡改拒绝、下载中取消、最后字节取消和离线失败。

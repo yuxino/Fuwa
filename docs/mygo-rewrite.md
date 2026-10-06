@@ -38,7 +38,7 @@ These checks do not request screen or Accessibility access and do not prove real
 
 ### Update cancellation and package acceptance
 
-The pinned MyGo installer previously continued to replace the app when cancellation arrived in the progress callback for the last downloaded byte. A small patch adds cancellation checks after downloading, after extraction, and after delta application, immediately before replacement. Once the atomic replacement begins, it is allowed to finish rather than reporting cancellation after already changing the app. The wrapper checks the exact upstream version and source SHA-256 before generating the overlay; a changed upstream source is an error, not a best-effort patch.
+The pinned MyGo installer previously continued to replace the app when cancellation arrived in the progress callback for the last downloaded byte. A small patch adds cancellation checks after downloading, after extraction, and after delta application, immediately before replacement. Once filesystem replacement starts, later cancellation no longer interrupts the attempt; filesystem errors can still cause it to fail. The wrapper checks the exact upstream version and source SHA-256 before generating the overlay; a changed upstream source is an error, not a best-effort patch.
 
 The opt-in `fuwa_update_qa` program in `scripts/qa/updater` uses the actual MyGo `Updater.Check` and `Update.Install`. It creates a temporary app, a loopback-only update server, and a fresh Ed25519 test key in memory. It checks a valid installation and relaunch, same-length archive tampering, cancellation during download, cancellation at the last byte, offline failure, unchanged original bytes on rejection and cleanup of staging files. On macOS it exercises the `.app` replacement path. It never uses the owner's private key, contacts the production feed, or touches an installed Fuwa app. This does not establish trust continuity with a future owner-signed release.
 
@@ -82,7 +82,7 @@ The screenshot artifact is a rendering of the implemented view with fixtures, no
 
 **本轮继续补齐：** 目标选择结果只消费一次，准备失败后再次点击不会改选后方窗口；已经确定的目标在授权期间换 Space 或缩小也不重新筛选。选择器支持按应用名/标题搜索，失败项目可直接重试，连接中的无效动作禁用，满 8 项仍能取消当前目标。恢复白底墨色外观，补权限设置入口及输入框辅助功能名称。窗口列表临时返回失败不会误判所有源关闭；移动时共享追踪切到 100ms，稳定后为 250ms。异步启动/尺寸更新期间取消会等待对应流完成清理，迟到帧不能重新显示；首帧过渡、独立冻结和源窗口 Retina 倍率也有专门处理。锁屏、屏幕/系统睡眠、会话切换和撤权同时清除实时、等待中及冻结图像。
 
-**更新取消修复：** 已用真实 MyGo 安装器复现“最后一个字节下载完后取消仍替换应用”。补丁在下载、解包及增量应用后、真正替换前检查取消；替换事务一旦开始会完成，不会在已换包后误报取消。构建入口先校验固定版本与上游源码 SHA-256，再通过 overlay 应用补丁，不改共享模块缓存。`fuwa_update_qa` 使用临时应用、本机回环服务和内存中新建的 Ed25519 测试密钥，验证真实安装/重启、同长度篡改拒绝、下载中及末字节取消、离线失败、失败后原包不变与暂存目录清理。它不使用现有私钥、不访问正式更新源、不触碰已安装应用，也不能替代未来正式签名身份的更新验收。
+**更新取消修复：** 已用真实 MyGo 安装器复现“最后一个字节下载完后取消仍替换应用”。补丁在下载、解包及增量应用后、真正替换前检查取消；替换开始后不再因后续取消而中止，文件系统操作仍可能失败。构建入口先校验固定版本与上游源码 SHA-256，再通过 overlay 应用补丁，不改共享模块缓存。`fuwa_update_qa` 使用临时应用、本机回环服务和内存中新建的 Ed25519 测试密钥，验证真实安装/重启、同长度篡改拒绝、下载中及末字节取消、离线失败、失败后原包不变与暂存目录清理。它不使用现有私钥、不访问正式更新源、不触碰已安装应用，也不能替代未来正式签名身份的更新验收。
 
 **构建验收：** CI 在 arm64 和 x86_64 macOS 环境分别运行，记录精确提交/代码树、工具链和补丁证据；对最终 ZIP 重新解压、校验两片 Mach-O、最低系统版本与签名，并启动解压后的应用。原预览包的实际最低版本为 15.0、却声明 14.0；现已统一编译和链接目标，并用产物检查防止回归。二进制最低版本检查不等于已经在实体 macOS 14 上完成验收。MyGo 当前的标签更新源忽略 GitHub draft/prerelease，未来发布前需要明确更新渠道。
 
