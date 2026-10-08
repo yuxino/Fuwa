@@ -1,11 +1,11 @@
 <div align="center">
   <img src="docs/images/app-icon.png" width="112" alt="Fuwa 应用图标">
   <h1>Fuwa</h1>
-  <p>把需要的窗口固定在最前面。</p>
+  <p>macOS 窗口置顶工具，把需要的窗口固定在最前面。</p>
   <p>
     <a href="https://fuwa.yuxino.cn"><strong>官方网站</strong></a>
     · <a href="https://github.com/yuxino/fuwa/releases"><strong>查看发布版本</strong></a>
-    · <a href="README.md">English</a>
+    · <a href="README_EN.md"><strong>English</strong></a>
   </p>
   <p>
     <a href="https://github.com/yuxino/fuwa/releases/latest"><img src="https://img.shields.io/github/v/release/yuxino/fuwa?style=flat&amp;logo=github&amp;logoColor=white" alt="最新版本"></a>
@@ -68,6 +68,8 @@ cd fuwa
 ## 平台范围
 
 Fuwa 现只维护 macOS，不再开发或发布 Windows 版本。旧 Windows 发布文件和 Git 历史保留供存档，不代表仍受支持；后续 macOS 发布不再提供 Windows 安装包或更新 feed。
+
+Windows development and releases have ended. See [platform scope in English](README_EN.md#platform-scope).
 
 Fuwa 显示的是镜像，不会修改其他 App 的真实窗口层级，也不会绕过系统安全边界或受保护内容的限制。
 
