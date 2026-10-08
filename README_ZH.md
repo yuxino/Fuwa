@@ -1,11 +1,11 @@
 <div align="center">
   <img src="docs/images/app-icon.png" width="112" alt="Fuwa 应用图标">
   <h1>Fuwa</h1>
-  <p>把需要的窗口固定在最前面。</p>
+  <p>macOS 窗口置顶工具，把需要的窗口固定在最前面。</p>
   <p>
     <a href="https://fuwa.yuxino.cn"><strong>官方网站</strong></a>
     · <a href="https://github.com/yuxino/fuwa/releases"><strong>查看发布版本</strong></a>
-    · <a href="README.md">English</a>
+    · <a href="README_EN.md"><strong>English</strong></a>
   </p>
   <p>
     <a href="https://github.com/yuxino/fuwa/releases/latest"><img src="https://img.shields.io/github/v/release/yuxino/fuwa?style=flat&amp;logo=github&amp;logoColor=white" alt="最新版本"></a>
