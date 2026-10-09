@@ -63,14 +63,6 @@ cd fuwa
 ./scripts/install-app.sh
 ```
 
-## 平台范围
-
-Fuwa 现只维护 macOS，不再开发或发布 Windows 版本。旧 Windows 发布文件和 Git 历史保留供存档，不代表仍受支持；后续 macOS 发布不再提供 Windows 安装包或更新 feed。
-
-Windows development and releases have ended. See [platform scope in English](README_EN.md#platform-scope).
-
-Fuwa 显示的是镜像，不会修改其他 App 的真实窗口层级，也不会绕过系统安全边界或受保护内容的限制。
-
 [隐私](PRIVACY.md) · [贡献](CONTRIBUTING.md) · [安全](SECURITY.md) · [独立实现说明](docs/independent-implementation.md)
 
 ## 许可证
