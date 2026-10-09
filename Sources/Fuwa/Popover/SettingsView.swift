@@ -1,36 +1,27 @@
 import FuwaCore
 import SwiftUI
 
+private struct CaptureQualityAnchor: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>? { nil }
+
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = nextValue() ?? value
+    }
+}
+
 @MainActor
 struct SettingsView: View {
     @ObservedObject var model: AppModel
+    @State private var showingCaptureQualityChoices = false
+    @FocusState private var focusedCaptureQuality: CaptureQuality?
+    @FocusState private var captureQualityPickerIsFocused: Bool
+    @ScaledMetric(relativeTo: .callout) private var captureQualityRowHeight = 30
 
     private var copy: FuwaCopy { model.copy }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                sectionTitle(copy.text(.permissions))
-
-                PermissionSettingsRow(
-                    title: copy.text(.screenRecording),
-                    note: copy.text(.screenRecordingNote),
-                    state: model.screenRecordingPermission,
-                    copy: copy,
-                    openSettings: model.openScreenRecordingSettings
-                )
-
-                Divider().opacity(0.5)
-
-                PermissionSettingsRow(
-                    title: copy.text(.accessibility),
-                    note: copy.text(.accessibilityNote),
-                    state: model.accessibilityPermission,
-                    copy: copy,
-                    openSettings: model.openAccessibilitySettings
-                )
-
-                sectionDivider
                 sectionTitle(copy.text(.general))
 
                 languageControls
@@ -83,6 +74,29 @@ struct SettingsView: View {
                 .padding(.vertical, 12)
 
                 sectionDivider
+                sectionTitle(copy.text(.permissions))
+
+                PermissionSettingsRow(
+                    title: copy.text(.screenRecording),
+                    note: copy.text(.screenRecordingNote),
+                    required: true,
+                    state: model.screenRecordingPermission,
+                    copy: copy,
+                    openSettings: model.openScreenRecordingSettings
+                )
+
+                Divider().opacity(0.5)
+
+                PermissionSettingsRow(
+                    title: copy.text(.accessibility),
+                    note: copy.text(.accessibilityNote),
+                    required: false,
+                    state: model.accessibilityPermission,
+                    copy: copy,
+                    openSettings: model.openAccessibilitySettings
+                )
+
+                sectionDivider
                 sectionTitle(copy.text(.softwareUpdate))
                 softwareUpdateControls
                     .padding(.vertical, 12)
@@ -114,6 +128,37 @@ struct SettingsView: View {
             .padding(.bottom, 12)
         }
         .scrollIndicators(.automatic)
+        .overlayPreferenceValue(CaptureQualityAnchor.self) { anchor in
+            if showingCaptureQualityChoices, let anchor {
+                GeometryReader { geometry in
+                    let bounds = geometry[anchor]
+                    let width = min(max(bounds.width, 184), geometry.size.width - 16)
+                    let height = captureQualityRowHeight * CGFloat(CaptureQuality.allCases.count) + 8
+                    let below = bounds.maxY + 4
+                    let y = below + height <= geometry.size.height - 8
+                        ? below : max(8, bounds.minY - height - 4)
+
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { showingCaptureQualityChoices = false }
+                        .accessibilityHidden(true)
+
+                    captureQualityChoices
+                        .frame(width: width)
+                        .offset(x: max(8, min(bounds.maxX - width, geometry.size.width - width - 8)), y: y)
+                }
+            }
+        }
+        .onDisappear { showingCaptureQualityChoices = false }
+        .onChange(of: showingCaptureQualityChoices) { _, isShowing in
+            if !isShowing {
+                focusedCaptureQuality = nil
+                captureQualityPickerIsFocused = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+            showingCaptureQualityChoices = false
+        }
     }
 
     private var languageControls: some View {
@@ -153,18 +198,82 @@ struct SettingsView: View {
     }
 
     private var captureQualityPicker: some View {
-        Picker(copy.text(.captureQuality), selection: Binding(
-            get: { model.captureQuality },
-            set: { model.setCaptureQuality($0) }
-        )) {
-            ForEach(CaptureQuality.allCases, id: \.self) { quality in
-                Text(copy.captureQualityLabel(quality)).tag(quality)
+        Button {
+            showingCaptureQualityChoices.toggle()
+        } label: {
+            HStack(spacing: 10) {
+                Text(copy.captureQualityLabel(model.captureQuality))
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
             }
         }
-        .labelsHidden()
-        .pickerStyle(.menu)
+        .buttonStyle(FuwaQuietButtonStyle())
+        .focusable()
+        .focused($captureQualityPickerIsFocused)
+        .anchorPreference(key: CaptureQualityAnchor.self, value: .bounds) { $0 }
         .help(copy.text(.captureQualityHelp))
+        .accessibilityLabel(copy.text(.captureQuality))
+        .accessibilityValue(copy.captureQualityLabel(model.captureQuality))
         .accessibilityHint(copy.text(.captureQualityHelp))
+    }
+
+    private var captureQualityChoices: some View {
+        VStack(spacing: 0) {
+            ForEach(CaptureQuality.allCases, id: \.self) { quality in
+                let selected = model.captureQuality == quality
+                Button {
+                    model.setCaptureQuality(quality)
+                    showingCaptureQualityChoices = false
+                } label: {
+                    HStack(spacing: 10) {
+                        Text(copy.captureQualityLabel(quality))
+                            .font(.callout.weight(selected ? .medium : .regular))
+                        Spacer(minLength: 0)
+                        Image(systemName: "checkmark")
+                            .font(.caption.weight(.semibold))
+                            .opacity(selected ? 1 : 0)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.horizontal, 9)
+                    .frame(height: captureQualityRowHeight)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(FuwaRowButtonStyle(selected: selected))
+                .focusable()
+                .focused($focusedCaptureQuality, equals: quality)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .padding(4)
+        .background(FuwaAppearance.canvas, in: RoundedRectangle(cornerRadius: 7))
+        .overlay {
+            RoundedRectangle(cornerRadius: 7)
+                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+        .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(copy.text(.captureQuality))
+        .onAppear { focusedCaptureQuality = model.captureQuality }
+        .onKeyPress(.downArrow) { moveCaptureQualityFocus(by: 1); return .handled }
+        .onKeyPress(.upArrow) { moveCaptureQualityFocus(by: -1); return .handled }
+        .onKeyPress(.return) {
+            if let focusedCaptureQuality { model.setCaptureQuality(focusedCaptureQuality) }
+            showingCaptureQualityChoices = false
+            return .handled
+        }
+        .onKeyPress(.escape) {
+            showingCaptureQualityChoices = false
+            return .handled
+        }
+    }
+
+    private func moveCaptureQualityFocus(by offset: Int) {
+        let choices = CaptureQuality.allCases
+        let current = choices.firstIndex(of: focusedCaptureQuality ?? model.captureQuality) ?? 0
+        focusedCaptureQuality = choices[(current + offset + choices.count) % choices.count]
     }
 
     private var languageChoices: some View {
@@ -456,6 +565,7 @@ struct SettingsView: View {
 private struct PermissionSettingsRow: View {
     let title: String
     let note: String
+    let required: Bool
     let state: FuwaPermissionState
     let copy: FuwaCopy
     let openSettings: () -> Void
@@ -479,7 +589,12 @@ private struct PermissionSettingsRow: View {
 
     private var permissionDescription: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(FuwaTypography.settingTitle)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title).font(FuwaTypography.settingTitle)
+                Text(copy.text(required ? .permissionRequired : .permissionOptional))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Text(note)
                 .font(FuwaTypography.explanation)
@@ -491,8 +606,11 @@ private struct PermissionSettingsRow: View {
 
     private var permissionControls: some View {
         VStack(alignment: .trailing, spacing: 6) {
-            FuwaPermissionLabel(state: state, copy: copy)
-            if state == .denied {
+            Label(copy.text(state == .granted ? .ready : .permissionNotEnabled),
+                  systemImage: state == .granted ? "checkmark.circle" : "minus.circle")
+                .font(.caption)
+                .foregroundStyle(state == .denied && required ? Color.orange : Color.secondary)
+            if state != .granted {
                 openSettingsButton
             }
         }

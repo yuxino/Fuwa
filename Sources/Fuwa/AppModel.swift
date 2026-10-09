@@ -157,7 +157,7 @@ final class AppModel: ObservableObject {
     }
 
     var hasPermissionWarning: Bool {
-        screenRecordingPermission == .denied || accessibilityPermission == .denied
+        screenRecordingPermission == .denied
     }
 
     var launchAtLogin: Bool {
