@@ -13,96 +13,76 @@ struct PinRowView: View {
     private var isBusy: Bool { model.busyPinIDs.contains(pin.id) || model.isClearingAll }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .center, spacing: compact ? 8 : 10) {
-                FuwaApplicationIcon(
-                    bundleIdentifier: pin.bundleIdentifier,
-                    applicationName: pin.applicationName,
-                    size: compact ? 22 : 26
-                )
-
-                VStack(alignment: .leading, spacing: compact ? 1 : 3) {
-                    Button { model.showControls(pin.id) } label: {
-                        Text(pin.windowTitle)
-                            .frame(maxWidth: .infinity, minHeight: compact ? 18 : 22, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(FuwaRowButtonStyle())
-                    .fuwaLinkCursor()
-                    .disabled(!pin.canShowControls)
-                    .accessibilityHint(copy.text(.showControls))
-                    .font(compact ? .caption.weight(.medium) : .callout.weight(.medium))
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                    .truncationMode(.middle)
-                    .help("\(copy.text(.showControls)): \(pin.windowTitle)")
-
-                    HStack(spacing: 5) {
-                        if pin.windowTitle != pin.applicationName {
-                            Text(pin.applicationName)
-                            Text("·").accessibilityHidden(true)
-                        }
-                        Text(pin.stateTitle(copy))
-                    }
-                    .font(compact ? .caption2 : .caption)
-                    .foregroundStyle(stateIsFailure ? Color.red : Color.secondary)
-                    .lineLimit(1)
+        VStack(alignment: .leading, spacing: 6) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 14) {
+                    windowDetails.frame(minWidth: compact ? 110 : 160, maxWidth: .infinity)
+                    actions
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                FuwaIconButton(
-                    symbol: "pin.slash",
-                    label: copy.text(.unpin),
-                    isBusy: isBusy
-                ) { model.unpin(pin.id) }
-                .disabled(isBusy)
-                .help("\(copy.text(.unpin)) · \(copy.text(.removeExplanation))")
-            }
-
-            if pin.canFreeze || pin.canResume || pin.canUseSource {
-                HStack(spacing: 6) {
-                    if pin.canFreeze || pin.canResume {
-                        Button {
-                            if pin.canFreeze { model.freeze(pin.id) } else { model.resume(pin.id) }
-                        } label: {
-                            Label(copy.text(pin.canFreeze ? .freeze : .resume),
-                                  systemImage: pin.canFreeze ? "pause" : "play")
-                        }
-                    }
-                    if pin.canUseSource {
-                        Button { model.revealSource(pin.id) } label: {
-                            Label(copy.text(.revealSource), systemImage: "arrow.up.forward.app")
-                        }
-                    }
-                    Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 8) {
+                    windowDetails
+                    HStack { Spacer(minLength: 0); actions }
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .buttonStyle(FuwaPlainButtonStyle())
-                .disabled(isBusy)
-                .padding(.leading, detailsIndent - (compact ? 12 : 6))
             }
-
-            if let detailMessage {
-                Text(detailMessage)
+            if let message = pin.errorMessage, !message.isEmpty {
+                Text(message)
                     .font(compact ? .caption2 : .caption)
                     .foregroundStyle(stateIsFailure ? Color.red : Color.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.leading, detailsIndent - (compact ? 6 : 0))
+                    .padding(.leading, detailsIndent)
             }
         }
-        .padding(.vertical, compact ? 6 : 12)
+        .padding(.vertical, compact ? 10 : 14)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(pin.applicationName), \(pin.windowTitle), \(pin.stateTitle(copy))")
+    }
+
+    private var windowDetails: some View {
+        HStack(spacing: 10) {
+            FuwaApplicationIcon(
+                bundleIdentifier: pin.bundleIdentifier,
+                applicationName: pin.applicationName,
+                size: compact ? 24 : 28
+            )
+            VStack(alignment: .leading, spacing: 4) {
+                Button { model.showControls(pin.id) } label: {
+                    Text(pin.windowTitle)
+                        .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(FuwaRowButtonStyle())
+                .fuwaLinkCursor()
+                .disabled(!pin.canShowControls)
+                .accessibilityHint(copy.text(.showControls))
+                .font(compact ? .caption.weight(.medium) : .callout.weight(.medium))
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 2)
+                .truncationMode(.middle)
+                .help("\(copy.text(.showControls)): \(pin.windowTitle)")
+                Text(pin.windowTitle == pin.applicationName
+                     ? pin.stateTitle(copy)
+                     : "\(pin.applicationName) · \(pin.stateTitle(copy))")
+                    .font(compact ? .caption2 : .caption)
+                    .foregroundStyle(stateIsFailure ? Color.red : Color.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var actions: some View {
+        HStack(spacing: 8) {
+            PinPlaybackButton(model: model, pin: pin)
+            FuwaIconButton(symbol: "pin.slash", label: copy.text(.unpin), isBusy: isBusy) {
+                model.unpin(pin.id)
+            }
+            .disabled(isBusy)
+            .help("\(copy.text(.unpin)) · \(copy.text(.removeExplanation))")
+        }
+        .fixedSize()
     }
 
     private var stateIsFailure: Bool {
         if case .failed = pin.state { return true }
         return false
-    }
-
-    private var detailMessage: String? {
-        if let errorMessage = pin.errorMessage, !errorMessage.isEmpty { return errorMessage }
-        if case .unavailable(let message) = model.interactionStates[pin.id] { return message }
-        return nil
     }
 }

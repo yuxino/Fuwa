@@ -15,20 +15,17 @@ enum FrameReceipt: Sendable {
 enum FrozenFrameError: LocalizedError {
     case noCompleteFrame
     case imageConversionFailed(OSStatus)
-    case invalidPixelDimensions
     case bitmapContextCreationFailed
     case bitmapImageCreationFailed
 
     var errorDescription: String? {
         switch self {
         case .noCompleteFrame:
-            "尚未收到可以冻结的完整画面。"
+            "尚未收到可以暂停的完整画面。"
         case .imageConversionFailed(let status):
             "无法读取最后一帧（VideoToolbox \(status)）。"
-        case .invalidPixelDimensions:
-            "最后一帧的尺寸无效。"
         case .bitmapContextCreationFailed, .bitmapImageCreationFailed:
-            "无法创建冻结画面。"
+            "无法保留当前画面。"
         }
     }
 }
@@ -115,7 +112,7 @@ final class CaptureView: NSView {
         return scale
     }
 
-    func makeFrozenImage(maxPixels: Int? = CaptureQuality.default.maximumPixelCount) throws -> CGImage {
+    func makeFrozenImage() throws -> CGImage {
         guard let pixelBuffer = latestCompletePixelBuffer else {
             throw FrozenFrameError.noCompleteFrame
         }
@@ -130,13 +127,6 @@ final class CaptureView: NSView {
             throw FrozenFrameError.imageConversionFailed(status)
         }
 
-        guard let dimensions = FrozenFrameSizing.fittedDimensions(
-            sourceWidth: convertedImage.width,
-            sourceHeight: convertedImage.height,
-            maxPixels: maxPixels
-        ) else {
-            throw FrozenFrameError.invalidPixelDimensions
-        }
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
             throw FrozenFrameError.bitmapContextCreationFailed
         }
@@ -145,8 +135,8 @@ final class CaptureView: NSView {
             | CGBitmapInfo.byteOrder32Big.rawValue
         guard let context = CGContext(
             data: nil,
-            width: dimensions.width,
-            height: dimensions.height,
+            width: convertedImage.width,
+            height: convertedImage.height,
             bitsPerComponent: 8,
             bytesPerRow: 0,
             space: colorSpace,
@@ -156,13 +146,11 @@ final class CaptureView: NSView {
         }
 
         context.setBlendMode(.copy)
-        context.interpolationQuality = dimensions.width == convertedImage.width
-            && dimensions.height == convertedImage.height
-            ? .none
-            : .high
+        // Copy the received frame without reducing it a second time.
+        context.interpolationQuality = .none
         context.draw(
             convertedImage,
-            in: CGRect(x: 0, y: 0, width: dimensions.width, height: dimensions.height)
+            in: CGRect(x: 0, y: 0, width: convertedImage.width, height: convertedImage.height)
         )
 
         guard let independentImage = context.makeImage() else {

@@ -7,26 +7,22 @@ import Testing
 
 @MainActor
 struct CaptureQualityTests {
-    @Test func streamConfigurationUsesTheSelectedPixelLimit() {
-        for (quality, width, height) in [
-            (CaptureQuality.fourMegapixels, 2_666, 1_500),
-            (.nineMegapixels, 4_000, 2_250),
-            (.sixteenMegapixels, 5_120, 2_880),
-            (.native, 5_120, 2_880)
-        ] {
+    @Test func streamConfigurationScalesNativePixels() throws {
+        for percentage in [25, 37, 50, 75, 100] {
+            let quality = try #require(CaptureQuality(percentage: percentage))
             let configuration = PinSession.makeConfiguration(
                 pointSize: CGSize(width: 2_560, height: 1_440), pointScale: 2,
                 captureQuality: quality
             )
-            #expect(configuration.width == width)
-            #expect(configuration.height == height)
+            #expect(configuration.width == 5_120 * percentage / 100)
+            #expect(configuration.height == 2_880 * percentage / 100)
             #expect(configuration.queueDepth == 3)
             #expect(configuration.minimumFrameInterval == CMTime(value: 1, timescale: 30))
             if quality == .native { #expect(configuration.captureResolution == .best) }
         }
     }
 
-    @Test func frozenImagePreservesNativePixelsAndHonorsTheSelectedLimit() throws {
+    @Test func pausedImageCopiesCapturedPixelsWithoutFurtherReduction() throws {
         _ = NSApplication.shared
         var pixelBuffer: CVPixelBuffer?
         #expect(CVPixelBufferCreate(nil, 3_840, 2_160, kCVPixelFormatType_32BGRA,
@@ -56,10 +52,6 @@ struct CaptureQualityTests {
         defer { view.clearAllPixels() }
         #expect(view.consume(buffer) != nil)
         let defaultImage = try view.makeFrozenImage()
-        #expect(defaultImage.width == 2_666 && defaultImage.height == 1_500)
-        for quality in [CaptureQuality.nineMegapixels, .sixteenMegapixels, .native] {
-            let image = try view.makeFrozenImage(maxPixels: quality.maximumPixelCount)
-            #expect(image.width == 3_840 && image.height == 2_160)
-        }
+        #expect(defaultImage.width == 3_840 && defaultImage.height == 2_160)
     }
 }

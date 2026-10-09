@@ -10,13 +10,6 @@ extension PinSnapshot {
         }
     }
 
-    var canUseSource: Bool {
-        switch state {
-        case .live, .frozen(.manual), .frozen(.captureInterrupted): true
-        default: false
-        }
-    }
-
     func stateTitle(_ copy: FuwaCopy) -> String {
         switch state {
         case .resolving: copy.text(.resolving)
@@ -32,6 +25,29 @@ extension PinSnapshot {
 }
 
 @MainActor
+struct PinPlaybackButton: View {
+    @ObservedObject var model: AppModel
+    let pin: PinSnapshot
+
+    var body: some View {
+        if pin.canFreeze || pin.canResume {
+            Button {
+                if pin.canFreeze { model.freeze(pin.id) } else { model.resume(pin.id) }
+            } label: {
+                Label(model.copy.text(pin.canFreeze ? .freeze : .resume),
+                      systemImage: pin.canFreeze ? "pause" : "play")
+                    .fixedSize()
+            }
+            .font(.caption)
+            .buttonStyle(FuwaQuietButtonStyle(focusColor: FuwaAppearance.ink.opacity(0.4)))
+            .disabled(model.busyPinIDs.contains(pin.id) || model.isClearingAll)
+            .help(model.copy.text(pin.canFreeze ? .freezeNote : .resumeNote))
+            .accessibilityHint(model.copy.text(pin.canFreeze ? .freezeNote : .resumeNote))
+        }
+    }
+}
+
+@MainActor
 struct PinActionsView: View {
     @ObservedObject var model: AppModel
     let pin: PinSnapshot
@@ -40,22 +56,7 @@ struct PinActionsView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            if pin.canFreeze || pin.canResume {
-                Button {
-                    if pin.canFreeze { model.freeze(pin.id) } else { model.resume(pin.id) }
-                } label: {
-                    Label(model.copy.text(pin.canFreeze ? .freeze : .resume), systemImage: pin.canFreeze ? "pause" : "play")
-                }
-                .disabled(busy)
-            }
-            if pin.canUseSource {
-                Button {
-                    model.revealSource(pin.id)
-                } label: {
-                    Label(model.copy.text(.revealSource), systemImage: "arrow.up.forward.app")
-                }
-                .disabled(busy)
-            }
+            PinPlaybackButton(model: model, pin: pin)
             Spacer(minLength: 0)
             Button {
                 model.unpin(pin.id)

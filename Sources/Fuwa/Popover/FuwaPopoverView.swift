@@ -3,10 +3,6 @@ import SwiftUI
 import FuwaCore
 
 enum FuwaPopoverLayout {
-    static func actionRowCount(in pins: [PinSnapshot]) -> Int {
-        pins.filter { $0.canFreeze || $0.canResume || $0.canUseSource }.count
-    }
-
     static func isCompactEmpty(
         route: FuwaPopoverRoute,
         hasPins: Bool
@@ -17,7 +13,6 @@ enum FuwaPopoverLayout {
     static func preferredContentSize(
         route: FuwaPopoverRoute,
         pinCount: Int,
-        actionRowCount: Int = 0,
         hasNotice: Bool,
         hasPermissionWarning: Bool,
         dynamicTypeSize: DynamicTypeSize
@@ -31,15 +26,14 @@ enum FuwaPopoverLayout {
         } else if dynamicTypeSize >= .xxLarge {
             metrics = (396, 360, 180, 96, 600, 120, 16)
         } else {
-            metrics = (300, 148, 128, 48, 360, 104, 24)
+            metrics = (364, 148, 128, 76, 480, 104, 24)
         }
 
         if route == .settings {
             return NSSize(width: max(364, metrics.width), height: max(520, metrics.maximum))
         }
         let baseHeight = pinCount <= 0 ? metrics.empty
-            : min(metrics.maximum, metrics.chrome + CGFloat(pinCount) * metrics.row
-                + CGFloat(max(0, min(pinCount, actionRowCount))) * metrics.row * 0.60)
+            : min(metrics.maximum, metrics.chrome + CGFloat(pinCount) * metrics.row)
         return NSSize(
             width: metrics.width,
             height: baseHeight + (hasNotice ? metrics.notice : 0)
@@ -51,7 +45,6 @@ enum FuwaPopoverLayout {
 private struct FuwaPopoverLayoutSignature: Equatable {
     let route: FuwaPopoverRoute
     let pinCount: Int
-    let actionRowCount: Int
     let noticeID: UUID?
     let hasPermissionWarning: Bool
     let dynamicTypeSize: DynamicTypeSize
@@ -229,7 +222,6 @@ struct FuwaPopoverView: View {
         FuwaPopoverLayout.preferredContentSize(
             route: model.route,
             pinCount: model.pins.count,
-            actionRowCount: FuwaPopoverLayout.actionRowCount(in: model.pins),
             hasNotice: model.notice != nil,
             hasPermissionWarning: model.hasPermissionWarning,
             dynamicTypeSize: dynamicTypeSize
@@ -247,7 +239,6 @@ struct FuwaPopoverView: View {
         FuwaPopoverLayoutSignature(
             route: model.route,
             pinCount: model.pins.count,
-            actionRowCount: FuwaPopoverLayout.actionRowCount(in: model.pins),
             noticeID: model.notice?.id,
             hasPermissionWarning: model.hasPermissionWarning,
             dynamicTypeSize: dynamicTypeSize

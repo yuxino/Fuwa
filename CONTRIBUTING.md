@@ -39,10 +39,9 @@ Contributions must preserve these boundaries:
 
 - Use public macOS APIs; no private WindowServer APIs, process injection, or SIP workarounds.
 - Keep captured pixels local and out of logs, fixtures, disk caches, analytics, and network requests.
-- Request Screen Recording only when the user pins and Accessibility only after an explicit interaction action.
+- Request Screen Recording only when the user pins. Fuwa does not request Accessibility permission.
 - Request each macOS privacy permission at most once; after a denial, keep the user in the existing Settings guidance instead of reopening the system prompt.
 - Preserve the bundle identifier, stable signing identity, and canonical install path across rebuilds and verify the full designated requirement before replacement.
-- `Interact` and `Reveal Source` may activate and raise the real source window, but must not inject, capture, or forward input.
 - Clear retained pixels synchronously on lock, sleep, user switch, and quit, and clear them when Screen Recording revocation is detected.
 - Treat Topit only as product research. Do not copy its AGPL-licensed source, assets, copy, tests, file structure, or implementation details into Fuwa. See [the independent implementation statement](docs/independent-implementation.md).
 

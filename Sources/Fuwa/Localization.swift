@@ -93,13 +93,10 @@ enum FuwaString: String, CaseIterable, Sendable {
     case captureInterrupted
     case failed
     case stopping
-    case viewOnly
-    case interacting
-    case interactionUnavailable
     case freeze
+    case freezeNote
     case resume
-    case interact
-    case revealSource
+    case resumeNote
     case unpin
     case clearAll
     case settings
@@ -107,25 +104,21 @@ enum FuwaString: String, CaseIterable, Sendable {
     case back
     case permissions
     case screenRecording
-    case accessibility
     case ready
     case permissionNeeded
     case permissionUnknown
     case permissionRequired
-    case permissionOptional
     case permissionNotEnabled
     case openSettings
     case screenRecordingNote
-    case accessibilityNote
     case keepInDock
     case keepInDockNote
     case captureQuality
     case captureQualityNote
     case captureQualityHelp
-    case qualityFourMillion
-    case qualityNineMillion
-    case qualitySixteenMillion
     case qualityNative
+    case qualityLower
+    case qualityHigher
     case launchAtLogin
     case launchAtLoginApproval
     case openLoginItems
@@ -166,18 +159,13 @@ enum FuwaString: String, CaseIterable, Sendable {
     case statusNoPins
     case permissionAttention
     case pinCountOne, pinCountMany
-    case accessibilityRationaleTitle, accessibilityRationaleNote, continueAction, notNow
     case errorUnavailable, errorPinIntentUnavailable, errorShortcutStart, errorShortcutRegister
     case errorLoginUnavailable, errorPinMissing, errorPinCancelled, errorPinLimit, errorRecordingRevoked
     case errorInventory, errorNoEligibleWindow, errorRecordingDenied, errorShareableContent
-    case errorSourceClosed, errorNotShareable, errorWindowMatch
+    case errorSourceClosed, errorNotShareable
     case errorPinState, errorCaptureStart, errorCaptureInterrupted, errorCaptureStopped
     case errorCaptureResume, errorFreeze, errorFrameMissing, errorDisplayInventory, errorUnknown
-    case errorAccessibilityRequired, errorSourceAppMissing, errorSourceWindowMissing, errorSourceAmbiguous
-    case errorActivationRejected, errorActivationTimeout, errorRestoreUnsupported, errorRestoreFailed
-    case errorRaiseUnsupported, errorRaiseFailed
 }
-
 struct FuwaCopy: Sendable {
     let language: FuwaLanguage
 
@@ -212,12 +200,7 @@ struct FuwaCopy: Sendable {
     }
 
     func captureQualityLabel(_ quality: CaptureQuality) -> String {
-        switch quality {
-        case .fourMegapixels: text(.qualityFourMillion)
-        case .nineMegapixels: text(.qualityNineMillion)
-        case .sixteenMegapixels: text(.qualitySixteenMillion)
-        case .native: text(.qualityNative)
-        }
+        quality == .native ? text(.qualityNative) : "\(quality.percentage)%"
     }
 
     private static let english: [FuwaString: String] = [
@@ -241,18 +224,15 @@ struct FuwaCopy: Sendable {
         .live: "Live",
         .starting: "Starting…",
         .resolving: "Finding window…",
-        .frozen: "Frozen",
+        .frozen: "Paused",
         .sourceClosed: "Source closed",
         .captureInterrupted: "Capture paused",
         .failed: "Failed",
         .stopping: "Removing…",
-        .viewOnly: "View only",
-        .interacting: "Interacting",
-        .interactionUnavailable: "Interaction unavailable",
-        .freeze: "Freeze",
+        .freeze: "Pause Picture",
+        .freezeNote: "Keep this picture still. The original window keeps running.",
         .resume: "Resume",
-        .interact: "Interact",
-        .revealSource: "Go to Original Window",
+        .resumeNote: "Show live updates from the original window again.",
         .unpin: "Unpin",
         .clearAll: "Unpin All",
         .settings: "Settings",
@@ -260,25 +240,21 @@ struct FuwaCopy: Sendable {
         .back: "Back",
         .permissions: "Permissions",
         .screenRecording: "Screen Recording",
-        .accessibility: "Accessibility",
         .ready: "Allowed",
         .permissionNeeded: "Permission needed",
         .permissionUnknown: "Not used yet",
         .permissionRequired: "Required",
-        .permissionOptional: "Optional",
         .permissionNotEnabled: "Not enabled",
         .openSettings: "Open Settings",
         .screenRecordingNote: "Fuwa needs to read a window’s picture to show it in a pinned view. Pictures stay on this Mac.",
-        .accessibilityNote: "Brings the original window to the front when you choose Go to Original Window. You can pin and freeze without it.",
         .keepInDock: "Keep in Dock",
         .keepInDockNote: "When off, the Dock icon appears only while Fuwa’s main window is open. Fuwa remains available in the menu bar.",
         .captureQuality: "Picture Quality",
-        .captureQualityNote: "MP means million pixels. Higher limits preserve more detail in large windows, but use more memory.",
-        .captureQualityHelp: "Native resolution keeps the window’s original pixel dimensions. Changes apply to live views and future frozen images. An already frozen image keeps its current detail until you resume and freeze it again.",
-        .qualityFourMillion: "4 million pixels (default)",
-        .qualityNineMillion: "9 million pixels",
-        .qualitySixteenMillion: "16 million pixels",
-        .qualityNative: "Native resolution",
+        .captureQualityNote: "Original clarity by default. Lower it to use less memory.",
+        .captureQualityHelp: "The percentage scales the captured width and height. Lower values blur text and details. Paused pictures keep their current detail until you resume and pause again.",
+        .qualityNative: "Original (100%)",
+        .qualityLower: "Less memory",
+        .qualityHigher: "Clearer picture",
         .launchAtLogin: "Launch at Login",
         .launchAtLoginApproval: "Approve Fuwa in System Settings → General → Login Items.",
         .openLoginItems: "Open Login Items",
@@ -333,32 +309,17 @@ struct FuwaCopy: Sendable {
         .errorShareableContent: "macOS did not provide a capturable window list. Try again.",
         .errorSourceClosed: "The front window closed before capture began.",
         .errorNotShareable: "This window is visible, but macOS does not allow it to be captured.",
-        .errorWindowMatch: "Fuwa could not safely confirm the source window, so the pin remains view-only.",
         .errorPinState: "This pinned window changed state. Try again.",
         .errorCaptureStart: "Fuwa could not start capturing this window.",
         .errorCaptureInterrupted: "Capture stopped while Fuwa was starting it.",
         .errorCaptureStopped: "Window capture stopped, so Fuwa stopped displaying that frame.",
-        .errorCaptureResume: "Fuwa could not resume live capture. The previous frozen frame is still visible.",
+        .errorCaptureResume: "Fuwa could not resume live updates. The paused picture is still visible.",
         .errorFreeze: "Fuwa could not preserve the last frame.",
-        .errorFrameMissing: "Fuwa has not received a complete frame to freeze yet.",
+        .errorFrameMissing: "No complete picture is available to pause yet.",
         .errorDisplayInventory: "Fuwa cannot read the current windows or display arrangement right now.",
         .errorUnknown: "Fuwa could not complete this action. Try again.",
-        .errorAccessibilityRequired: "Enable Accessibility permission to reveal and use the source window.",
-        .errorSourceAppMissing: "The source app has quit, so this pin remains view-only.",
-        .errorSourceWindowMissing: "Fuwa could not find the original source window, so this pin remains view-only.",
-        .errorSourceAmbiguous: "Several windows look alike, so Fuwa did not switch to a possibly wrong source.",
-        .errorActivationRejected: "macOS did not allow Fuwa to activate the source app.",
-        .errorActivationTimeout: "The source app did not become active in time, so this pin remains view-only.",
-        .errorRestoreUnsupported: "This minimized source window cannot be restored through Accessibility.",
-        .errorRestoreFailed: "macOS could not restore the minimized source window (Accessibility error {code}).",
-        .errorRaiseUnsupported: "This source window cannot be revealed through Accessibility.",
-        .errorRaiseFailed: "macOS could not reveal the source window (Accessibility error {code}).",
         .pinCountOne: "{count} pin",
         .pinCountMany: "{count} pins",
-        .accessibilityRationaleTitle: "Go to Original Window needs Accessibility",
-        .accessibilityRationaleNote: "This lets Fuwa bring the original window to the front so you can use it. You can still pin and freeze pictures without enabling it.",
-        .continueAction: "Continue",
-        .notNow: "Not Now"
     ]
 
     private static let simplifiedChinese: [FuwaString: String] = [
@@ -379,21 +340,18 @@ struct FuwaCopy: Sendable {
         .pinning: "正在固定…",
         .pins: "已固定",
         .noPinsBody: "打开要参考的图片、文档或教程窗口，再按快捷键置顶。",
-        .live: "实时",
+        .live: "实时画面",
         .starting: "正在启动…",
         .resolving: "正在查找窗口…",
-        .frozen: "已冻结",
+        .frozen: "已暂停",
         .sourceClosed: "源窗口已关闭",
         .captureInterrupted: "捕获已暂停",
         .failed: "失败",
         .stopping: "正在移除…",
-        .viewOnly: "仅查看",
-        .interacting: "正在交互",
-        .interactionUnavailable: "暂时无法交互",
-        .freeze: "冻结",
-        .resume: "恢复实时",
-        .interact: "交互",
-        .revealSource: "回到原窗口",
+        .freeze: "暂停画面",
+        .freezeNote: "让置顶画面停在这一刻，原窗口仍正常运行。",
+        .resume: "取消暂停",
+        .resumeNote: "让置顶画面重新跟随原窗口变化。",
         .unpin: "取消固定",
         .clearAll: "全部取消固定",
         .settings: "设置",
@@ -401,25 +359,21 @@ struct FuwaCopy: Sendable {
         .back: "返回",
         .permissions: "权限",
         .screenRecording: "屏幕录制",
-        .accessibility: "辅助功能",
         .ready: "已授权",
         .permissionNeeded: "需要授权",
         .permissionUnknown: "尚未使用",
         .permissionRequired: "必需",
-        .permissionOptional: "可选",
         .permissionNotEnabled: "未开启",
         .openSettings: "打开设置",
         .screenRecordingNote: "Fuwa 需要读取窗口画面，才能显示置顶浮窗。画面只在本机处理。",
-        .accessibilityNote: "点击「回到原窗口」时，把原窗口切到最前面。不开启也能置顶和冻结。",
         .keepInDock: "保留 Dock 图标",
         .keepInDockNote: "关闭后，仅在 Fuwa 主窗口打开时显示 Dock 图标。仍可从菜单栏打开 Fuwa。",
         .captureQuality: "画面清晰度",
-        .captureQualityNote: "MP 表示百万像素。上限越高，大窗口能保留更多细节，也会使用更多内存。",
-        .captureQualityHelp: "原生分辨率保留窗口的原始像素尺寸。设置用于实时画面和之后冻结的画面。已冻结的画面需先恢复实时，再重新冻结，才能使用新设置。",
-        .qualityFourMillion: "400 万像素（默认）",
-        .qualityNineMillion: "900 万像素",
-        .qualitySixteenMillion: "1600 万像素",
-        .qualityNative: "原生分辨率",
+        .captureQualityNote: "默认保留原始清晰度，调低可节省内存。",
+        .captureQualityHelp: "比例用于捕获画面的宽度和高度。调低后文字和细节会变模糊。已暂停的画面需先取消暂停，再重新暂停，才能使用新设置。",
+        .qualityNative: "原始（100%）",
+        .qualityLower: "更省内存",
+        .qualityHigher: "更清晰",
         .launchAtLogin: "开机启动",
         .launchAtLoginApproval: "需要在“系统设置 → 通用 → 登录项”中批准 Fuwa。",
         .openLoginItems: "打开登录项",
@@ -474,31 +428,16 @@ struct FuwaCopy: Sendable {
         .errorShareableContent: "macOS 暂时没有提供可捕获的窗口列表。",
         .errorSourceClosed: "前方窗口在捕获开始前已经关闭。",
         .errorNotShareable: "这个窗口可见，但 macOS 不允许捕获它。",
-        .errorWindowMatch: "Fuwa 无法安全地确认真实源窗口，因此保留为仅查看。",
         .errorPinState: "这个固定窗口的状态已经变化，请再试一次。",
         .errorCaptureStart: "Fuwa 无法开始捕获这个窗口。",
         .errorCaptureInterrupted: "捕获在启动过程中被中断。",
         .errorCaptureStopped: "窗口捕获已中断，Fuwa 已停止显示相关画面。",
-        .errorCaptureResume: "Fuwa 无法恢复实时捕获，之前的冻结画面仍然保留。",
+        .errorCaptureResume: "暂时无法取消暂停，仍显示暂停时的画面。",
         .errorFreeze: "Fuwa 无法保留最后一帧画面。",
-        .errorFrameMissing: "Fuwa 还没有收到可以冻结的完整画面。",
+        .errorFrameMissing: "还没有完整画面可以暂停。",
         .errorDisplayInventory: "Fuwa 暂时无法读取窗口或显示器信息。",
         .errorUnknown: "Fuwa 无法完成这次操作，请再试一次。",
-        .errorAccessibilityRequired: "需要开启辅助功能权限，才能显示并操作真实源窗口。",
-        .errorSourceAppMissing: "源应用已经退出，这个画面会保持仅查看。",
-        .errorSourceWindowMissing: "没有找到原来的源窗口，这个画面会保持仅查看。",
-        .errorSourceAmbiguous: "有多个相似窗口，Fuwa 无法安全确认原窗口，因此没有切换。",
-        .errorActivationRejected: "macOS 没有允许 Fuwa 激活源应用。",
-        .errorActivationTimeout: "源应用未能及时切换到前台，这个画面会保持仅查看。",
-        .errorRestoreUnsupported: "这个最小化的源窗口不支持通过辅助功能恢复。",
-        .errorRestoreFailed: "macOS 无法恢复最小化的源窗口（辅助功能错误 {code}）。",
-        .errorRaiseUnsupported: "这个源窗口不支持通过辅助功能显示。",
-        .errorRaiseFailed: "macOS 无法切换到原窗口（辅助功能错误 {code}）。",
         .pinCountOne: "{count} 个固定窗口",
         .pinCountMany: "{count} 个固定窗口",
-        .accessibilityRationaleTitle: "回到原窗口需要辅助功能权限",
-        .accessibilityRationaleNote: "开启后，Fuwa 可以把原窗口切到最前面，让你继续操作。不想开启也没关系，置顶和冻结画面仍然可用。",
-        .continueAction: "继续",
-        .notNow: "暂不"
     ]
 }

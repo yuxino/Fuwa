@@ -111,7 +111,7 @@ Installed: ${FUWA_OLD_REQUIREMENT:-<invalid or unsigned>}
 New:       ${FUWA_NEW_REQUIREMENT}
 
 A deliberate migration requires one run with FUWA_ALLOW_IDENTITY_CHANGE=1 and
-may require one final Screen Recording and Accessibility authorization.
+may require one final Screen Recording authorization.
 EOF
             exit 1
         fi

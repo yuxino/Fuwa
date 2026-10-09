@@ -67,21 +67,9 @@ struct SettingsView: View {
                 PermissionSettingsRow(
                     title: copy.text(.screenRecording),
                     note: copy.text(.screenRecordingNote),
-                    required: true,
                     state: model.screenRecordingPermission,
                     copy: copy,
                     openSettings: model.openScreenRecordingSettings
-                )
-
-                Divider().opacity(0.5)
-
-                PermissionSettingsRow(
-                    title: copy.text(.accessibility),
-                    note: copy.text(.accessibilityNote),
-                    required: false,
-                    state: model.accessibilityPermission,
-                    copy: copy,
-                    openSettings: model.openAccessibilitySettings
                 )
 
                 sectionDivider
@@ -135,30 +123,38 @@ struct SettingsView: View {
     }
 
     private var captureQualityControls: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    Text(copy.text(.captureQuality)).font(FuwaTypography.settingTitle)
-                    Spacer(minLength: 8)
-                    captureQualityPicker.fixedSize()
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(copy.text(.captureQuality)).font(FuwaTypography.settingTitle)
-                    captureQualityPicker
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(copy.text(.captureQuality)).font(FuwaTypography.settingTitle)
+                Spacer(minLength: 8)
+                Text(copy.captureQualityLabel(model.captureQuality))
+                    .font(.caption).monospacedDigit()
+                    .foregroundStyle(FuwaAppearance.secondaryText)
             }
+            Slider(value: Binding(
+                get: { Double(model.captureQuality.percentage) },
+                set: { value in
+                    if let quality = CaptureQuality(percentage: Int(value.rounded())) {
+                        model.setCaptureQuality(quality)
+                    }
+                }
+            ), in: Double(CaptureQuality.minimumPercentage)...100)
+            .tint(FuwaAppearance.ink)
+            .accessibilityLabel(copy.text(.captureQuality))
+            .accessibilityValue(copy.captureQualityLabel(model.captureQuality))
+            .help(copy.text(.captureQualityHelp))
+            HStack {
+                Text(copy.text(.qualityLower))
+                Spacer()
+                Text(copy.text(.qualityHigher))
+            }
+            .font(.caption2).foregroundStyle(.secondary)
+            .accessibilityHidden(true)
             Text(copy.text(.captureQualityNote))
                 .font(FuwaTypography.explanation)
                 .foregroundStyle(FuwaAppearance.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
-    }
-
-    private var captureQualityPicker: some View {
-        FuwaDropdown(title: copy.text(.captureQuality), options: CaptureQuality.allCases,
-            selection: Binding(get: { model.captureQuality }, set: { model.setCaptureQuality($0) }),
-            optionLabel: copy.captureQualityLabel, help: copy.text(.captureQualityHelp))
     }
 
     private var languageChoices: some View {
@@ -424,7 +420,6 @@ struct SettingsView: View {
 private struct PermissionSettingsRow: View {
     let title: String
     let note: String
-    let required: Bool
     let state: FuwaPermissionState
     let copy: FuwaCopy
     let openSettings: () -> Void
@@ -450,7 +445,7 @@ private struct PermissionSettingsRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(title).font(FuwaTypography.settingTitle)
-                Text(copy.text(required ? .permissionRequired : .permissionOptional))
+                Text(copy.text(.permissionRequired))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -468,7 +463,7 @@ private struct PermissionSettingsRow: View {
             Label(copy.text(state == .granted ? .ready : .permissionNotEnabled),
                   systemImage: state == .granted ? "checkmark.circle" : "minus.circle")
                 .font(.caption)
-                .foregroundStyle(state == .denied && required ? Color.orange : Color.secondary)
+                .foregroundStyle(state == .denied ? Color.orange : Color.secondary)
             if state != .granted {
                 openSettingsButton
             }
