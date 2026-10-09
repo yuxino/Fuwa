@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-10
+
+### English
+
+- Replace the menu-bar panel with a native menu. Pin a window, pause or resume its picture, and unpin directly from the menu; Settings and window selection open in the main window.
+- New pinned windows keep their original resolution. Use the gear beside a window to lower its picture quality independently and save memory.
+- Fix Keep in Dock so it controls only the Dock icon, without hiding the open Fuwa window. The choice survives restarting and reopening.
+- Rename Freeze to Pause Picture, simplify window controls, and move extra explanations into help tooltips. Remove Go to Original Window and its Accessibility permission requirement.
+- Add Traditional Chinese, Japanese, Korean, French and German alongside English and Simplified Chinese, with a consistent language dropdown.
+- Requires macOS 14 or later. Use Check for Updates, or quit Fuwa and replace the app in Applications. The Apple Silicon/Intel universal package keeps the existing local signature and signed updater; it is not Apple Developer ID signed or notarized.
+- Automated checks passed. The redesigned menu's interactive behavior, Intel hardware and a complete updater installation were not revalidated for this release.
+
+### 中文
+
+- 菜单栏改用系统原生菜单，可直接固定窗口、暂停或继续画面、取消固定；设置和窗口选择在主窗口中打开。
+- 新固定的窗口默认保留原始分辨率。点击窗口旁的齿轮，可单独调低这个窗口的清晰度，节省内存。
+- 修复“保留 Dock 图标”开关：只控制 Dock 图标，不会隐藏已打开的 Fuwa 窗口；重启和重新打开后仍保留选择。
+- 将“冻结”改为“暂停画面”，精简窗口控件，额外说明放到帮助图标的提示中。移除“回到原窗口”，不再需要辅助功能权限。
+- 在简体中文和英语之外，新增繁体中文、日语、韩语、法语和德语，并统一语言下拉框样式。
+- 需要 macOS 14 或更新版本。可使用“检查更新”，或退出 Fuwa 后替换“应用程序”中的应用。Apple Silicon/Intel 通用包沿用现有本地签名和签名更新源，未使用 Apple Developer ID 签名或 Apple 公证。
+- 自动检查已通过。本次未重新验收新版菜单的实际交互、Intel 实机及完整更新安装流程。
+
 ## [1.1.0] - 2026-10-03
 
 ### English
