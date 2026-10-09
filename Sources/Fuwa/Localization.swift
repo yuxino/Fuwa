@@ -71,6 +71,9 @@ enum FuwaString: String, CaseIterable, Sendable {
     case ready
     case permissionNeeded
     case permissionUnknown
+    case permissionRequired
+    case permissionOptional
+    case permissionNotEnabled
     case openSettings
     case screenRecordingNote
     case accessibilityNote
@@ -202,9 +205,12 @@ struct FuwaCopy: Sendable {
         .ready: "Allowed",
         .permissionNeeded: "Permission needed",
         .permissionUnknown: "Not used yet",
+        .permissionRequired: "Required",
+        .permissionOptional: "Optional",
+        .permissionNotEnabled: "Not enabled",
         .openSettings: "Open Settings",
-        .screenRecordingNote: "Used only for windows you choose to pin. Frames stay on this Mac.",
-        .accessibilityNote: "Lets Go to Original Window bring the original window to the front.",
+        .screenRecordingNote: "Fuwa needs to read a window’s picture to show it in a pinned view. Pictures stay on this Mac.",
+        .accessibilityNote: "Brings the original window to the front when you choose Go to Original Window. You can pin and freeze without it.",
         .keepInDock: "Keep in Dock",
         .keepInDockNote: "When off, the Dock icon appears only while Fuwa’s main window is open. Fuwa remains available in the menu bar.",
         .captureQuality: "Picture Quality",
@@ -299,9 +305,12 @@ struct FuwaCopy: Sendable {
         .ready: "已授权",
         .permissionNeeded: "需要授权",
         .permissionUnknown: "尚未使用",
+        .permissionRequired: "必需",
+        .permissionOptional: "可选",
+        .permissionNotEnabled: "未开启",
         .openSettings: "打开设置",
-        .screenRecordingNote: "用于显示你选择置顶的窗口画面，内容只在本机处理。",
-        .accessibilityNote: "用于将原窗口带到前台，在“回到原窗口”时使用。",
+        .screenRecordingNote: "Fuwa 需要读取窗口画面，才能显示置顶浮窗。画面只在本机处理。",
+        .accessibilityNote: "点击「回到原窗口」时，把原窗口切到最前面。不开启也能置顶和冻结。",
         .keepInDock: "保留 Dock 图标",
         .keepInDockNote: "关闭后，仅在 Fuwa 主窗口打开时显示 Dock 图标。仍可从菜单栏打开 Fuwa。",
         .captureQuality: "画面清晰度",

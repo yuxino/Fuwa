@@ -137,6 +137,15 @@ struct PresentationTests {
         #expect(store.captureQuality == .fourMegapixels)
     }
 
+    @Test func optionalAccessibilityDoesNotWarnAboutPinningPermissions() {
+        let model = AppModel(screenRecordingPermission: .granted, accessibilityPermission: .denied)
+        #expect(!model.hasPermissionWarning)
+        model.updatePermissions(screenRecording: .denied, accessibility: .granted)
+        #expect(model.hasPermissionWarning)
+        model.updatePermissions(screenRecording: .unknown, accessibility: .unknown)
+        #expect(!model.hasPermissionWarning)
+    }
+
     @Test func popoverFitsSmallListsAndKeepsLargeListsBounded() {
         func size(_ count: Int, route: FuwaPopoverRoute = .pins,
                   notice: Bool = false, type: DynamicTypeSize = .large, actions: Int = 0) -> NSSize {
