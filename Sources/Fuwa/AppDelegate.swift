@@ -381,15 +381,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func presentAccessibilityRationale() -> Bool {
-        let isChinese = model?.copy.language == .simplifiedChinese
+        let copy = model?.copy ?? FuwaCopy()
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = isChinese ? "回到原窗口需要辅助功能权限" : "Go to Original Window needs Accessibility"
-        alert.informativeText = isChinese
-            ? "开启后，Fuwa 可以把原窗口切到最前面，让你继续操作。不想开启也没关系，置顶和冻结画面仍然可用。"
-            : "This lets Fuwa bring the original window to the front so you can use it. You can still pin and freeze pictures without enabling it."
-        alert.addButton(withTitle: isChinese ? "继续" : "Continue")
-        alert.addButton(withTitle: isChinese ? "暂不" : "Not Now")
+        alert.messageText = copy.text(.accessibilityRationaleTitle)
+        alert.informativeText = copy.text(.accessibilityRationaleNote)
+        alert.addButton(withTitle: copy.text(.continueAction))
+        alert.addButton(withTitle: copy.text(.notNow))
         NSApp.activate(ignoringOtherApps: true)
         return alert.runModal() == .alertFirstButtonReturn
     }

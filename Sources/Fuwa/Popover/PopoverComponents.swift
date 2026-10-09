@@ -39,6 +39,7 @@ private struct FuwaButtonFeedback: ViewModifier {
     let isPressed: Bool
     let selected: Bool
     let restingOpacity: Double
+    var focusColor = Color(nsColor: .keyboardFocusIndicatorColor)
 
     private var fillOpacity: Double {
         guard isEnabled else { return selected ? 0.10 : restingOpacity }
@@ -56,13 +57,15 @@ private struct FuwaButtonFeedback: ViewModifier {
             }
             .contentShape(RoundedRectangle(cornerRadius: 7))
             .opacity(isEnabled ? 1 : 0.35)
-            .modifier(FuwaKeyboardFocus(cornerRadius: 7))
+            .modifier(FuwaKeyboardFocus(cornerRadius: 7, color: focusColor))
             .onHover { isHovered = $0 }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: isHovered)
     }
 }
 
 struct FuwaQuietButtonStyle: ButtonStyle {
+    var focusColor = Color(nsColor: .keyboardFocusIndicatorColor)
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.callout.weight(.medium))
@@ -70,7 +73,7 @@ struct FuwaQuietButtonStyle: ButtonStyle {
             .padding(.horizontal, 9)
             .padding(.vertical, 6)
             .frame(minHeight: 28)
-            .modifier(FuwaButtonFeedback(isPressed: configuration.isPressed, selected: false, restingOpacity: 0.06))
+            .modifier(FuwaButtonFeedback(isPressed: configuration.isPressed, selected: false, restingOpacity: 0.06, focusColor: focusColor))
     }
 }
 
@@ -89,11 +92,12 @@ struct FuwaKeyboardFocus: ViewModifier {
     @Environment(\.isEnabled) private var isEnabled
 
     let cornerRadius: CGFloat
+    var color = Color(nsColor: .keyboardFocusIndicatorColor)
 
     func body(content: Content) -> some View {
         content.overlay {
             RoundedRectangle(cornerRadius: cornerRadius + 2)
-                .strokeBorder(Color(nsColor: .keyboardFocusIndicatorColor), lineWidth: 2)
+                .strokeBorder(color, lineWidth: 2)
                 .padding(-3)
                 .opacity(isFocused && isEnabled ? 1 : 0)
                 .allowsHitTesting(false)
@@ -104,11 +108,12 @@ struct FuwaKeyboardFocus: ViewModifier {
 
 struct FuwaRowButtonStyle: ButtonStyle {
     var selected = false
+    var focusColor = Color(nsColor: .keyboardFocusIndicatorColor)
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(.primary)
-            .modifier(FuwaButtonFeedback(isPressed: configuration.isPressed, selected: selected, restingOpacity: 0))
+            .modifier(FuwaButtonFeedback(isPressed: configuration.isPressed, selected: selected, restingOpacity: 0, focusColor: focusColor))
     }
 }
 

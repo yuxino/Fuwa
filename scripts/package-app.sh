@@ -121,8 +121,9 @@ for FUWA_DEVELOPMENT_DIRECTORY in Headers PrivateHeaders Modules; do
 done
 cp "${FUWA_PROJECT_DIR}/Resources/Info.plist" "${FUWA_CONTENTS_DIR}/Info.plist"
 cp "${FUWA_PROJECT_DIR}/Resources/AppIcon.icns" "${FUWA_RESOURCES_DIR}/AppIcon.icns"
-cp -R "${FUWA_PROJECT_DIR}/Resources/en.lproj" "${FUWA_RESOURCES_DIR}/en.lproj"
-cp -R "${FUWA_PROJECT_DIR}/Resources/zh-Hans.lproj" "${FUWA_RESOURCES_DIR}/zh-Hans.lproj"
+for FUWA_LOCALIZATION_DIR in "${FUWA_PROJECT_DIR}"/Resources/*.lproj; do
+    cp -R "${FUWA_LOCALIZATION_DIR}" "${FUWA_RESOURCES_DIR}/${FUWA_LOCALIZATION_DIR:t}"
+done
 chmod +x "${FUWA_MACOS_DIR}/Fuwa"
 
 # Strip only the distributable copy. Keep SwiftPM's build output intact so

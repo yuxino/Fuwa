@@ -1,1 +1,1 @@
-"NSScreenCaptureUsageDescription" = "Fuwa 只捕获你主动选择的窗口，在这台 Mac 上显示一个私密的实时镜像。";
+"NSScreenCaptureUsageDescription" = "Fuwa 需要读取你选中的窗口画面，才能显示置顶浮窗。画面只在这台 Mac 上处理。";

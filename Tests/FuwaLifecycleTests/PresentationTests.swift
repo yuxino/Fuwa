@@ -83,6 +83,13 @@ struct PresentationTests {
         #expect(relaunched.copy.language == .simplifiedChinese)
         model.setLanguage(.system)
         #expect(model.copy.language == FuwaLanguage.automatic())
+        for preference in FuwaLanguagePreference.allCases {
+            model.setLanguage(preference)
+            #expect(AppSettingsStore(defaults: defaults).language == preference)
+            #expect(controller.makeQuickMenu().items.contains { $0.title == model.copy.text(.quit) })
+            let restored = AppModel(languagePreference: AppSettingsStore(defaults: defaults).language)
+            #expect(restored.copy.language == preference.resolved)
+        }
         defaults.set("invalid", forKey: "language")
         #expect(store.language == .system)
     }
@@ -164,10 +171,35 @@ struct PresentationTests {
         #expect(size(2, type: .accessibility3).height > size(2).height)
     }
 
-    @Test func allCopyKeysHaveBothLanguages() {
-        for language in [FuwaLanguage.english, .simplifiedChinese] {
+    @Test func allCopyKeysAndPlaceholdersHaveEveryLanguage() {
+        for language in FuwaLanguage.allCases {
             let copy = FuwaCopy(language: language)
-            for key in FuwaString.allCases { #expect(copy.text(key) != key.rawValue) }
+            for key in FuwaString.allCases {
+                #expect(copy.hasTranslation(for: key), "Missing \(language): \(key)")
+                #expect(!copy.text(key).isEmpty)
+                func placeholders(_ value: String) -> Set<String> {
+                    Set(value.split(separator: "{", omittingEmptySubsequences: false).dropFirst().compactMap { $0.split(separator: "}").first.map(String.init) })
+                }
+                #expect(placeholders(copy.text(key)) == placeholders(FuwaCopy(language: .english).text(key)))
+            }
+            #expect(copy.pinsCount(1).contains("1"))
+            #expect(copy.pinsCount(3).contains("3"))
+            let error = GlobalHotKey.RegistrationError.registerHotKey(-42, "⌥⌘P")
+            let message = FuwaErrorMessage.localizedDescription(for: error, language: language)
+            #expect(message.contains("-42") && message.contains("⌥⌘P"))
+            #expect(!message.contains("{"))
         }
+    }
+
+    @Test func systemLanguageMatchesScriptsRegionsAndPreferredOrder() {
+        for (identifier, expected) in [("en-US", FuwaLanguage.english), ("zh-CN", .simplifiedChinese),
+            ("zh-Hans-TW", .simplifiedChinese), ("zh-Hant-CN", .traditionalChinese),
+            ("zh_TW", .traditionalChinese), ("zh-HK", .traditionalChinese), ("zh-MO", .traditionalChinese),
+            ("ja-JP", .japanese), ("ko-KR", .korean), ("fr-CA", .french), ("de-AT", .german)] {
+            #expect(FuwaLanguage.automatic(preferredLanguages: [identifier]) == expected)
+        }
+        #expect(FuwaLanguage.automatic(preferredLanguages: ["es-ES", "de-DE"]) == .german)
+        #expect(FuwaLanguage.automatic(preferredLanguages: ["unsupported"]) == .english)
+        #expect(FuwaLanguage.automatic(preferredLanguages: []) == .english)
     }
 }

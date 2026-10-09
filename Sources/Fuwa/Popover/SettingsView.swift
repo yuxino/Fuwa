@@ -1,21 +1,9 @@
 import FuwaCore
 import SwiftUI
 
-private struct CaptureQualityAnchor: PreferenceKey {
-    static var defaultValue: Anchor<CGRect>? { nil }
-
-    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
-        value = nextValue() ?? value
-    }
-}
-
 @MainActor
 struct SettingsView: View {
     @ObservedObject var model: AppModel
-    @State private var showingCaptureQualityChoices = false
-    @FocusState private var focusedCaptureQuality: CaptureQuality?
-    @FocusState private var captureQualityPickerIsFocused: Bool
-    @ScaledMetric(relativeTo: .callout) private var captureQualityRowHeight = 30
 
     private var copy: FuwaCopy { model.copy }
 
@@ -128,37 +116,7 @@ struct SettingsView: View {
             .padding(.bottom, 12)
         }
         .scrollIndicators(.automatic)
-        .overlayPreferenceValue(CaptureQualityAnchor.self) { anchor in
-            if showingCaptureQualityChoices, let anchor {
-                GeometryReader { geometry in
-                    let bounds = geometry[anchor]
-                    let width = min(max(bounds.width, 184), geometry.size.width - 16)
-                    let height = captureQualityRowHeight * CGFloat(CaptureQuality.allCases.count) + 8
-                    let below = bounds.maxY + 4
-                    let y = below + height <= geometry.size.height - 8
-                        ? below : max(8, bounds.minY - height - 4)
-
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .onTapGesture { showingCaptureQualityChoices = false }
-                        .accessibilityHidden(true)
-
-                    captureQualityChoices
-                        .frame(width: width)
-                        .offset(x: max(8, min(bounds.maxX - width, geometry.size.width - width - 8)), y: y)
-                }
-            }
-        }
-        .onDisappear { showingCaptureQualityChoices = false }
-        .onChange(of: showingCaptureQualityChoices) { _, isShowing in
-            if !isShowing {
-                focusedCaptureQuality = nil
-                captureQualityPickerIsFocused = true
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
-            showingCaptureQualityChoices = false
-        }
+        .fuwaDropdowns()
     }
 
     private var languageControls: some View {
@@ -166,7 +124,7 @@ struct SettingsView: View {
             HStack(spacing: 16) {
                 Text(copy.text(.language)).font(FuwaTypography.settingTitle)
                 Spacer(minLength: 12)
-                languageChoices
+                languageChoices.fixedSize()
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text(copy.text(.language)).font(FuwaTypography.settingTitle)
@@ -198,114 +156,15 @@ struct SettingsView: View {
     }
 
     private var captureQualityPicker: some View {
-        Button {
-            showingCaptureQualityChoices.toggle()
-        } label: {
-            HStack(spacing: 10) {
-                Text(copy.captureQualityLabel(model.captureQuality))
-                Image(systemName: "chevron.down")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
-        }
-        .buttonStyle(FuwaQuietButtonStyle())
-        .focusable()
-        .focused($captureQualityPickerIsFocused)
-        .anchorPreference(key: CaptureQualityAnchor.self, value: .bounds) { $0 }
-        .help(copy.text(.captureQualityHelp))
-        .accessibilityLabel(copy.text(.captureQuality))
-        .accessibilityValue(copy.captureQualityLabel(model.captureQuality))
-        .accessibilityHint(copy.text(.captureQualityHelp))
-    }
-
-    private var captureQualityChoices: some View {
-        VStack(spacing: 0) {
-            ForEach(CaptureQuality.allCases, id: \.self) { quality in
-                let selected = model.captureQuality == quality
-                Button {
-                    model.setCaptureQuality(quality)
-                    showingCaptureQualityChoices = false
-                } label: {
-                    HStack(spacing: 10) {
-                        Text(copy.captureQualityLabel(quality))
-                            .font(.callout.weight(selected ? .medium : .regular))
-                        Spacer(minLength: 0)
-                        Image(systemName: "checkmark")
-                            .font(.caption.weight(.semibold))
-                            .opacity(selected ? 1 : 0)
-                            .accessibilityHidden(true)
-                    }
-                    .padding(.horizontal, 9)
-                    .frame(height: captureQualityRowHeight)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(FuwaRowButtonStyle(selected: selected))
-                .focusable()
-                .focused($focusedCaptureQuality, equals: quality)
-                .accessibilityAddTraits(selected ? .isSelected : [])
-            }
-        }
-        .padding(4)
-        .background(FuwaAppearance.canvas, in: RoundedRectangle(cornerRadius: 7))
-        .overlay {
-            RoundedRectangle(cornerRadius: 7)
-                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                .allowsHitTesting(false)
-        }
-        .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(copy.text(.captureQuality))
-        .onAppear { focusedCaptureQuality = model.captureQuality }
-        .onKeyPress(.downArrow) { moveCaptureQualityFocus(by: 1); return .handled }
-        .onKeyPress(.upArrow) { moveCaptureQualityFocus(by: -1); return .handled }
-        .onKeyPress(.return) {
-            if let focusedCaptureQuality { model.setCaptureQuality(focusedCaptureQuality) }
-            showingCaptureQualityChoices = false
-            return .handled
-        }
-        .onKeyPress(.escape) {
-            showingCaptureQualityChoices = false
-            return .handled
-        }
-    }
-
-    private func moveCaptureQualityFocus(by offset: Int) {
-        let choices = CaptureQuality.allCases
-        let current = choices.firstIndex(of: focusedCaptureQuality ?? model.captureQuality) ?? 0
-        focusedCaptureQuality = choices[(current + offset + choices.count) % choices.count]
+        FuwaDropdown(title: copy.text(.captureQuality), options: CaptureQuality.allCases,
+            selection: Binding(get: { model.captureQuality }, set: { model.setCaptureQuality($0) }),
+            optionLabel: copy.captureQualityLabel, help: copy.text(.captureQualityHelp))
     }
 
     private var languageChoices: some View {
-        HStack(spacing: 2) {
-            languageChoice(.system, title: copy.text(.systemLanguage))
-            languageChoice(.simplifiedChinese, title: "简体中文")
-            languageChoice(.english, title: "English")
-        }
-        .fixedSize()
-        .padding(3)
-        .background(FuwaAppearance.sidebar, in: RoundedRectangle(cornerRadius: 6))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(copy.text(.language))
-    }
-
-    private func languageChoice(_ preference: FuwaLanguagePreference, title: String) -> some View {
-        let selected = model.languagePreference == preference
-        return Button { model.setLanguage(preference) } label: {
-            Text(title)
-                .font(.caption.weight(selected ? .medium : .regular))
-                .foregroundStyle(selected ? Color.primary : Color.secondary)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .background(selected ? Color.white : Color.clear, in: RoundedRectangle(cornerRadius: 4))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(Color.black.opacity(selected ? 0.08 : 0), lineWidth: 1)
-                }
-        }
-        .buttonStyle(FuwaRowButtonStyle())
-        .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityLabel("\(copy.text(.language)): \(title)")
+        FuwaDropdown(title: copy.text(.language), options: FuwaLanguagePreference.allCases,
+            selection: Binding(get: { model.languagePreference }, set: { model.setLanguage($0) }),
+            optionLabel: { $0 == .system ? copy.text(.systemLanguage) : $0.resolved.nativeName })
     }
 
     private var appName: some View {

@@ -15,11 +15,13 @@ struct OffscreenPresentationTests {
         app.applicationIconImage = NSImage(contentsOfFile: "Resources/AppIcon.png")
         try FileManager.default.createDirectory(atPath: output, withIntermediateDirectories: true)
         let before = app.windows.filter(\.isVisible).count
-        for language in [FuwaLanguage.english, .simplifiedChinese] {
+        for language in FuwaLanguage.allCases {
             let model = AppModel(copy: FuwaCopy(language: language), screenRecordingPermission: .granted, accessibilityPermission: .granted)
             try save(SettingsView(model: model).frame(width: 546, height: 520).fuwaLightSurface(), to: "\(output)/\(language)-settings.png")
             try save(SettingsView(model: model).frame(width: 364, height: 520).fuwaLightSurface(), to: "\(output)/\(language)-settings-compact.png")
             try save(SettingsView(model: model).frame(width: 436, height: 660).environment(\.dynamicTypeSize, .accessibility3).fuwaLightSurface(), to: "\(output)/\(language)-settings-large-text.png")
+            let ungranted = AppModel(copy: FuwaCopy(language: language), screenRecordingPermission: .unknown, accessibilityPermission: .denied)
+            try save(SettingsView(model: ungranted).frame(width: 364, height: 920).fuwaLightSurface(), to: "\(output)/\(language)-permissions-compact.png")
             try save(MainView(model: model).frame(width: 720, height: 540), to: "\(output)/\(language)-empty.png")
             let pin = PinSnapshot(id: UUID(), sourceWindowID: 123, applicationName: "Reference",
                 bundleIdentifier: nil, windowTitle: "Notes for today's work", state: .live, errorMessage: nil)
