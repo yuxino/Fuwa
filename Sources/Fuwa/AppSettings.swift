@@ -7,7 +7,6 @@ final class AppSettingsStore {
     private enum Key {
         static let language = "language"
         static let keepInDock = "keepInDock"
-        static let captureQuality = "captureQuality"
         static let shortcut = "shortcut"
         static let didRequestScreenRecording = "didRequestScreenRecording"
     }
@@ -49,14 +48,6 @@ final class AppSettingsStore {
             }
             defaults.set(data, forKey: Key.shortcut)
         }
-    }
-
-    var captureQuality: CaptureQuality {
-        get {
-            CaptureQuality(rawValue: defaults.string(forKey: Key.captureQuality) ?? "")
-                ?? .default
-        }
-        set { defaults.set(newValue.rawValue, forKey: Key.captureQuality) }
     }
 
     var didRequestScreenRecording: Bool {

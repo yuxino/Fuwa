@@ -2,7 +2,7 @@ import CoreGraphics
 
 /// All inputs use AppKit coordinates, including screens left of or above primary.
 public enum FloatingControlsLayout {
-    public static func frame(source: CGRect, visible: CGRect, size: CGSize = CGSize(width: 380, height: 78)) -> CGRect {
+    public static func frame(source: CGRect, visible: CGRect, size: CGSize = CGSize(width: 380, height: 164)) -> CGRect {
         let width = min(size.width, visible.width)
         let height = min(size.height, visible.height)
         let proposedY = source.maxY + height <= visible.maxY ? source.maxY : source.minY - height

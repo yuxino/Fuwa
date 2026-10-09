@@ -40,7 +40,6 @@ final class PinCoordinator {
     private var pendingPinRequests = PendingPinRequests()
     private var pendingSessionOperations = Set<UUID>()
     private var operationGeneration: UInt64 = 0
-    private var captureQuality: CaptureQuality = .default
 
     init() {
         tracker = WindowTracker()
@@ -75,11 +74,8 @@ final class PinCoordinator {
         sessionsByID.count
     }
 
-    func setCaptureQuality(_ quality: CaptureQuality) {
-        captureQuality = quality
-        for session in sessionsByID.values {
-            session.setCaptureQuality(quality)
-        }
+    func setCaptureQuality(_ quality: CaptureQuality, for id: UUID) {
+        sessionsByID[id]?.setCaptureQuality(quality)
     }
 
     func focusControls(_ id: UUID) {
@@ -125,7 +121,7 @@ final class PinCoordinator {
             return
         }
 
-        let session = PinSession(target: target, captureQuality: captureQuality)
+        let session = PinSession(target: target)
         session.presentationModel = presentationModel
         configureCallbacks(for: session)
         sessionsByID[session.id] = session

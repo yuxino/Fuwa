@@ -29,7 +29,7 @@ Fuwa is a macOS window pinning app. Keep a live view of an image, document, or t
 - Support for application windows and system previews of images and documents.
 - Customizable keyboard shortcut.
 - Interface languages: English, Simplified Chinese, Traditional Chinese, Japanese, Korean, French, and German. Follow the system language or choose one in Settings.
-- Keep original clarity by default. Lower it with a slider to use less memory.
+- Each pinned window starts at original quality. Click its gear to lower that window’s quality and use less memory.
 - Choose whether Fuwa stays in the Dock. When off, its icon appears only while the main window is open; the menu bar remains available.
 - Pinned pictures let mouse clicks pass through to the window underneath.
 - Window pixels and metadata stay on your computer, with no uploads, analytics, or telemetry.

@@ -17,11 +17,6 @@ struct SettingsView: View {
 
                 Divider().opacity(0.5)
 
-                captureQualityControls
-                    .padding(.vertical, 12)
-
-                Divider().opacity(0.5)
-
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) {
                         shortcutDescription
@@ -46,8 +41,10 @@ struct SettingsView: View {
                 Divider().opacity(0.5)
 
                 HStack(spacing: 12) {
-                    Text(copy.text(.keepInDock))
-                        .font(FuwaTypography.settingTitle)
+                    HStack(spacing: 4) {
+                        Text(copy.text(.keepInDock)).font(FuwaTypography.settingTitle)
+                        FuwaHelpIcon(title: copy.text(.keepInDock), text: copy.text(.keepInDockNote))
+                    }
                     Spacer(minLength: 8)
                     Toggle(copy.text(.keepInDock), isOn: Binding(
                         get: { model.keepInDock },
@@ -122,41 +119,6 @@ struct SettingsView: View {
         }
     }
 
-    private var captureQualityControls: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(copy.text(.captureQuality)).font(FuwaTypography.settingTitle)
-                Spacer(minLength: 8)
-                Text(copy.captureQualityLabel(model.captureQuality))
-                    .font(.caption).monospacedDigit()
-                    .foregroundStyle(FuwaAppearance.secondaryText)
-            }
-            Slider(value: Binding(
-                get: { Double(model.captureQuality.percentage) },
-                set: { value in
-                    if let quality = CaptureQuality(percentage: Int(value.rounded())) {
-                        model.setCaptureQuality(quality)
-                    }
-                }
-            ), in: Double(CaptureQuality.minimumPercentage)...100)
-            .tint(FuwaAppearance.ink)
-            .accessibilityLabel(copy.text(.captureQuality))
-            .accessibilityValue(copy.captureQualityLabel(model.captureQuality))
-            .help(copy.text(.captureQualityHelp))
-            HStack {
-                Text(copy.text(.qualityLower))
-                Spacer()
-                Text(copy.text(.qualityHigher))
-            }
-            .font(.caption2).foregroundStyle(.secondary)
-            .accessibilityHidden(true)
-            Text(copy.text(.captureQualityNote))
-                .font(FuwaTypography.explanation)
-                .foregroundStyle(FuwaAppearance.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
     private var languageChoices: some View {
         FuwaDropdown(title: copy.text(.language), options: FuwaLanguagePreference.allCases,
             selection: Binding(get: { model.languagePreference }, set: { model.setLanguage($0) }),
@@ -208,8 +170,17 @@ struct SettingsView: View {
     private func updateStatus(_ state: SoftwareUpdateState) -> some View {
         Text(updateStatusText(state))
             .font(FuwaTypography.settingTitle)
+            .foregroundStyle(updateStatusColor(state))
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityLabel(updateStatusText(state))
+    }
+
+    private func updateStatusColor(_ state: SoftwareUpdateState) -> Color {
+        switch state.phase {
+        case .current, .ready: FuwaAppearance.success
+        case .failed: FuwaAppearance.error
+        default: FuwaAppearance.ink
+        }
     }
 
     private func updateActions(_ state: SoftwareUpdateState) -> some View {
@@ -336,19 +307,15 @@ struct SettingsView: View {
 
     private var shortcutDescription: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(copy.text(.shortcut))
-                .font(FuwaTypography.settingTitle)
-
-            Text(copy.text(.shortcutNote))
-                .font(FuwaTypography.explanation)
-                .foregroundStyle(FuwaAppearance.secondaryText)
-                .lineSpacing(1)
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 4) {
+                Text(copy.text(.shortcut)).font(FuwaTypography.settingTitle)
+                FuwaHelpIcon(title: copy.text(.shortcut), text: copy.text(.shortcutNote))
+            }
 
             if !model.shortcutIsActive {
                 Label(copy.text(.shortcutInactive), systemImage: "exclamationmark.circle")
                     .font(.caption)
-                    .foregroundStyle(Color.orange)
+                    .foregroundStyle(FuwaAppearance.warning)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityElement(children: .combine)
             }
@@ -367,7 +334,7 @@ struct SettingsView: View {
             if model.launchAtLoginState == .requiresApproval {
                 Text(copy.text(.launchAtLoginApproval))
                     .font(.caption)
-                    .foregroundStyle(Color.orange)
+                    .foregroundStyle(FuwaAppearance.warning)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack {
                     Spacer()
@@ -442,19 +409,12 @@ private struct PermissionSettingsRow: View {
     }
 
     private var permissionDescription: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(title).font(FuwaTypography.settingTitle)
-                Text(copy.text(.permissionRequired))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(note)
-                .font(FuwaTypography.explanation)
+        HStack(spacing: 6) {
+            Text(title).font(FuwaTypography.settingTitle)
+            FuwaHelpIcon(title: title, text: note)
+            Text(copy.text(.permissionRequired))
+                .font(.caption)
                 .foregroundStyle(FuwaAppearance.secondaryText)
-                .lineSpacing(1)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -463,7 +423,7 @@ private struct PermissionSettingsRow: View {
             Label(copy.text(state == .granted ? .ready : .permissionNotEnabled),
                   systemImage: state == .granted ? "checkmark.circle" : "minus.circle")
                 .font(.caption)
-                .foregroundStyle(state == .denied ? Color.orange : Color.secondary)
+                .foregroundStyle(state == .granted ? FuwaAppearance.success : FuwaAppearance.warning)
             if state != .granted {
                 openSettingsButton
             }

@@ -49,7 +49,7 @@ struct ShortcutRecorder: View {
             if hasInvalidInput {
                 Text(copy.text(.invalidShortcut))
                     .font(.system(size: 10))
-                    .foregroundStyle(Color.red)
+                    .foregroundStyle(FuwaAppearance.error)
                     .multilineTextAlignment(.trailing)
                     .fixedSize(horizontal: false, vertical: true)
             }

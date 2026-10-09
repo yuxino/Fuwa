@@ -40,6 +40,7 @@ struct FuwaAppActions {
     var pinWindow: @MainActor (FuwaWindowChoice) async throws -> Void = { _ in }
     var freeze: @MainActor (UUID) async throws -> Void = { _ in }
     var resume: @MainActor (UUID) async throws -> Void = { _ in }
+    var updateCaptureQuality: @MainActor (UUID, CaptureQuality) -> Void = { _, _ in }
     var unpin: @MainActor (UUID) async throws -> Void = { _ in }
     var clearAll: @MainActor () async throws -> Void = {}
     var updateShortcut: @MainActor (KeyboardShortcut) async throws
@@ -63,7 +64,6 @@ final class AppModel: ObservableObject {
     @Published private(set) var copy: FuwaCopy
     @Published private(set) var languagePreference: FuwaLanguagePreference
     @Published private(set) var keepInDock: Bool
-    @Published private(set) var captureQuality: CaptureQuality
     let version: String
 
     @Published private(set) var pins: [PinSnapshot] = [] {
@@ -87,7 +87,6 @@ final class AppModel: ObservableObject {
     @Published private(set) var softwareUpdate: SoftwareUpdateState
 
     var onKeepInDockChanged: ((Bool) -> Void)?
-    var onCaptureQualityChanged: ((CaptureQuality) -> Void)?
     var onLanguageChanged: ((FuwaLanguagePreference) -> Void)?
     var onStatusPresentationChanged: (() -> Void)?
     var onRequestDismissPopover: (() -> Void)?
@@ -98,7 +97,6 @@ final class AppModel: ObservableObject {
         copy: FuwaCopy? = nil,
         languagePreference: FuwaLanguagePreference = .system,
         keepInDock: Bool = true,
-        captureQuality: CaptureQuality = .default,
         version: String = "0.1.9",
         shortcut: KeyboardShortcut = .defaultPin,
         shortcutIsActive: Bool = true,
@@ -109,7 +107,6 @@ final class AppModel: ObservableObject {
         self.copy = copy ?? FuwaCopy(language: languagePreference.resolved)
         self.languagePreference = languagePreference
         self.keepInDock = keepInDock
-        self.captureQuality = captureQuality
         self.version = version
         self.shortcut = shortcut
         self.shortcutIsActive = shortcutIsActive
@@ -132,10 +129,11 @@ final class AppModel: ObservableObject {
         onKeepInDockChanged?(enabled)
     }
 
-    func setCaptureQuality(_ quality: CaptureQuality) {
-        guard quality != captureQuality else { return }
-        captureQuality = quality
-        onCaptureQualityChanged?(quality)
+    func setCaptureQuality(_ quality: CaptureQuality, for id: UUID) {
+        guard !isClearingAll, !busyPinIDs.contains(id),
+              let pin = pins.first(where: { $0.id == id }),
+              pin.canAdjustQuality, pin.captureQuality != quality else { return }
+        actions.updateCaptureQuality(id, quality)
     }
 
     var statusItemAccessibilityLabel: String {
