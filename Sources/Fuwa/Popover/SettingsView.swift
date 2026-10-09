@@ -412,9 +412,6 @@ private struct PermissionSettingsRow: View {
         HStack(spacing: 6) {
             Text(title).font(FuwaTypography.settingTitle)
             FuwaHelpIcon(title: title, text: note)
-            Text(copy.text(.permissionRequired))
-                .font(.caption)
-                .foregroundStyle(FuwaAppearance.secondaryText)
         }
     }
 

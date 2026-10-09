@@ -107,7 +107,6 @@ enum FuwaString: String, CaseIterable, Sendable {
     case ready
     case permissionNeeded
     case permissionUnknown
-    case permissionRequired
     case permissionNotEnabled
     case openSettings
     case screenRecordingNote
@@ -243,7 +242,6 @@ struct FuwaCopy: Sendable {
         .ready: "Allowed",
         .permissionNeeded: "Permission needed",
         .permissionUnknown: "Not used yet",
-        .permissionRequired: "Required",
         .permissionNotEnabled: "Not enabled",
         .openSettings: "Open Settings",
         .screenRecordingNote: "Fuwa needs to read a window’s picture to show it in a pinned view. Pictures stay on this Mac.",
@@ -362,7 +360,6 @@ struct FuwaCopy: Sendable {
         .ready: "已授权",
         .permissionNeeded: "需要授权",
         .permissionUnknown: "尚未使用",
-        .permissionRequired: "必需",
         .permissionNotEnabled: "未开启",
         .openSettings: "打开设置",
         .screenRecordingNote: "Fuwa 需要读取窗口画面，才能显示置顶浮窗。画面只在本机处理。",
