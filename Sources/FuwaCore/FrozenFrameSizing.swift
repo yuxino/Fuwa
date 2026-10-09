@@ -19,9 +19,16 @@ public enum FrozenFrameSizing {
     public static func fittedDimensions(
         sourceWidth: Int,
         sourceHeight: Int,
-        maxPixels: Int = 4_000_000
+        maxPixels: Int? = CaptureQuality.default.maximumPixelCount
     ) -> PixelDimensions? {
-        guard sourceWidth > 0, sourceHeight > 0, maxPixels > 0 else { return nil }
+        guard sourceWidth > 0, sourceHeight > 0 else { return nil }
+        guard let maxPixels else {
+            guard !sourceWidth.multipliedReportingOverflow(by: sourceHeight).overflow else {
+                return nil
+            }
+            return PixelDimensions(width: sourceWidth, height: sourceHeight)
+        }
+        guard maxPixels > 0 else { return nil }
 
         let sourcePixels = Double(sourceWidth) * Double(sourceHeight)
         guard sourcePixels > Double(maxPixels) else {
@@ -50,14 +57,14 @@ public enum LiveCaptureSizing {
         pointWidth: Double,
         pointHeight: Double,
         pointScale: Double,
-        maxPixels: Int = 4_000_000
+        maxPixels: Int? = CaptureQuality.default.maximumPixelCount
     ) -> PixelDimensions? {
         guard pointWidth.isFinite,
               pointHeight.isFinite,
               pointScale.isFinite,
               pointWidth > 0,
               pointHeight > 0,
-              maxPixels >= 4 else {
+              maxPixels.map({ $0 >= 4 }) ?? true else {
             return nil
         }
 
@@ -80,6 +87,8 @@ public enum LiveCaptureSizing {
         ) else {
             return nil
         }
+
+        guard let maxPixels else { return fitted }
 
         // ScreenCaptureKit requires useful non-zero surfaces. Keep both axes at
         // least two pixels without letting an extreme aspect ratio escape the

@@ -115,7 +115,7 @@ final class CaptureView: NSView {
         return scale
     }
 
-    func makeFrozenImage(maxPixels: Int = 4_000_000) throws -> CGImage {
+    func makeFrozenImage(maxPixels: Int? = CaptureQuality.default.maximumPixelCount) throws -> CGImage {
         guard let pixelBuffer = latestCompletePixelBuffer else {
             throw FrozenFrameError.noCompleteFrame
         }

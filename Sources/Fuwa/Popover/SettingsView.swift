@@ -38,6 +38,11 @@ struct SettingsView: View {
 
                 Divider().opacity(0.5)
 
+                captureQualityControls
+                    .padding(.vertical, 12)
+
+                Divider().opacity(0.5)
+
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) {
                         shortcutDescription
@@ -124,6 +129,42 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
+    }
+
+    private var captureQualityControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    Text(copy.text(.captureQuality)).font(FuwaTypography.settingTitle)
+                    Spacer(minLength: 8)
+                    captureQualityPicker.fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(copy.text(.captureQuality)).font(FuwaTypography.settingTitle)
+                    captureQualityPicker
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+            Text(copy.text(.captureQualityNote))
+                .font(FuwaTypography.explanation)
+                .foregroundStyle(FuwaAppearance.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var captureQualityPicker: some View {
+        Picker(copy.text(.captureQuality), selection: Binding(
+            get: { model.captureQuality },
+            set: { model.setCaptureQuality($0) }
+        )) {
+            ForEach(CaptureQuality.allCases, id: \.self) { quality in
+                Text(copy.captureQualityLabel(quality)).tag(quality)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .help(copy.text(.captureQualityHelp))
+        .accessibilityHint(copy.text(.captureQualityHelp))
     }
 
     private var languageChoices: some View {
