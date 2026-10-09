@@ -22,7 +22,9 @@ struct TerminationTests {
         #expect(probe.requestedTermination)
     }
 
-    @Test func terminationClosesUntrackedFloatingWindowsSynchronously() {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["FUWA_HEADLESS_TESTS"] != "1",
+                  "Visible window verification requires a dedicated desktop"))
+    func terminationClosesUntrackedFloatingWindowsSynchronously() {
         let app = NSApplication.shared
         let delegate = AppDelegate()
         let panel = NSPanel(

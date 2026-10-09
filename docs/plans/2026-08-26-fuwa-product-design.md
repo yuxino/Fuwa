@@ -84,7 +84,7 @@ PinCoordinator @MainActor
  └─ PermissionCenter
     │
     ▼
-AppModel → StatusItem + SwiftUI Popover
+AppModel → StatusItem + Native Menu + SwiftUI Main Window
 ```
 
 纯逻辑放在 `FuwaCore`，AppKit、ScreenCaptureKit、Accessibility 和 SwiftUI 集成放在 `Fuwa` 可执行目标中。所有 UI 与窗口控制在 `MainActor`；每个捕获会话使用 generation 标识拒绝旧流帧、旧错误和迟到的 resize。
@@ -105,15 +105,15 @@ frozen ── resume while source exists → starting
 
 ## 界面
 
-Fuwa 常驻菜单栏，主窗口打开时显示 Dock 图标。菜单栏按钮使用 template glyph；点击打开原生 popover。点击 Dock 图标（或通过 Finder、Launchpad 重新打开）会把同一份 Pins / Settings 内容显示在一个常规窗口中，两个入口共用同一个 `AppModel`。
+Fuwa 常驻菜单栏，可在设置中选择是否显示 Dock 图标。菜单栏按钮使用 template glyph；左右键打开同一个原生快捷菜单。设置和窗口选择都在主窗口打开，菜单、侧边栏与主窗口共用同一个 `AppModel`。
 
-Popover 保持单列、低密度、黑白与中性灰：
+快捷菜单使用系统字体、间距、滚动、子菜单和键盘导航：
 
-- 顶部显示 Fuwa 和当前快捷键。
-- 一个主动作：`Pin Front Window`。
-- Pins 列表，每项显示源 App 图标、窗口名、`Live / Frozen / View only`。
-- 每项提供 Freeze/Resume、Interact/Reveal、Unpin。
-- 底部提供权限状态、Launch at Login、快捷键设置、About 与 Quit。
+- 顶部直接提供固定最前方窗口和选择窗口。
+- 已固定窗口以应用名、窗口名列出；子菜单显示当前状态，以及显示控制、暂停/继续和取消固定。
+- 设置、关于与退出直接显示，不再藏在省略号内。
+- 权限或操作错误有可点击的入口；完整错误在主窗口中显示。
+- 菜单中不放设置表单，不在点击设置时扩大成第二个设置页面。
 
 不使用渐变、玻璃拟态、彩色背景、重阴影或卡片墙。状态色只用于错误和权限警告。镜像面板保持无装饰与鼠标穿透，并加入全空间、全屏辅助和 Stage Manager 应用集。
 
@@ -127,13 +127,13 @@ Fuwa 与 Kiri、mimi 属于同一产品家族。应用图标与 README 标识沿
 
 2026-09-18 调整：圆形头像外的真实透明会在启动台被系统铺成灰色底板。母版改为在 n=5 超椭圆圆角方形内铺上与圆内原白底一致的底色，四角仍真实透明；角色、`F` 发夹与星形配饰不变，所有 ICNS 尺寸继续从该母版生成并核验。
 
-2026-10-09 Dock 展示调整：移除「保留 Dock 图标」开关。启动时使用 `.accessory`，打开主窗口时切换到 `.regular`，关闭主窗口时回到 `.accessory`。关闭或最小化主窗口不会退出 App；菜单栏仍可管理浮窗和重新打开主窗口，退出走菜单栏或 `⌘Q`。
+2026-10-10 Dock 开关修复：Dock 图标完全由「保留 Dock 图标」设置控制。开启使用 `.regular`，关闭使用 `.accessory`，主窗口打开、关闭或重新打开不会覆盖这项设置。切换时保留当前窗口和焦点，原有设置会保留；菜单栏仍可打开主窗口，关闭主窗口不退出 App。
 
 ## 本地化与无障碍
 
 - 首版提供简体中文与英文。
 - 所有按钮都有可读标签、tooltip 和 VoiceOver 描述。
-- 菜单和 Popover 支持完整键盘导航。
+- 原生菜单和主窗口支持完整键盘导航。
 - Reduce Motion 开启时不使用位移动画。
 - 状态不能只靠颜色区分。
 

@@ -34,7 +34,8 @@ struct OffscreenPresentationTests {
             try save(PinControlsView(model: model, pinID: pin.id).frame(width: 380, height: 164), to: "\(output)/\(language)-controls.png")
             try save(PinControlsView(model: model, pinID: paused.id).frame(width: 380, height: 164), to: "\(output)/\(language)-paused-controls.png")
             try save(PinControlsView(model: model, pinID: pin.id).frame(width: 380).environment(\.dynamicTypeSize, .accessibility3), to: "\(output)/\(language)-controls-large-text.png")
-            try save(FuwaPopoverView(model: model).frame(width: 364, height: 520), to: "\(output)/\(language)-tray.png")
+            model.showSettings()
+            try save(MainView(model: model).frame(width: 720, height: 540), to: "\(output)/\(language)-settings-main.png")
             try save(MainView(model: model).frame(width: 720, height: 540).environment(\.colorScheme, .dark), to: "\(output)/\(language)-dark.png")
         }
         #expect(app.windows.filter(\.isVisible).count == before)

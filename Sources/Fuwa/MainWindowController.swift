@@ -1,16 +1,15 @@
 import AppKit
 import SwiftUI
 
-/// A persistent management surface, separate from the compact menu-bar panel.
-/// Both presentations observe the same live pin and permission state.
+/// A persistent management surface opened from the menu bar or the Dock.
+/// The menu and window share live pin, navigation and permission state.
 @MainActor
-final class MainWindowController: NSObject, NSWindowDelegate {
+final class MainWindowController: NSObject {
     let window: NSWindow
+    private let model: AppModel
 
-    private let onVisibilityChanged: @MainActor (Bool) -> Void
-
-    init(model: AppModel, onVisibilityChanged: @escaping @MainActor (Bool) -> Void = { _ in }) {
-        self.onVisibilityChanged = onVisibilityChanged
+    init(model: AppModel) {
+        self.model = model
         window = NSWindow(
             contentRect: NSRect(origin: .zero, size: Self.defaultContentSize),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -24,7 +23,6 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(applicationDidResignActive),
             name: NSApplication.didResignActiveNotification, object: NSApp)
 
-        window.delegate = self
         window.title = model.copy.text(.appName)
         window.appearance = NSAppearance(named: .aqua)
         window.backgroundColor = .white
@@ -46,7 +44,6 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     /// Opens the window and brings Fuwa forward. Called when the Dock icon is
     /// clicked, including relaunches that macOS routes to the running copy.
     func present() {
-        onVisibilityChanged(true)
         if !window.isVisible {
             window.center()
         }
@@ -54,10 +51,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         window.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + 1)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        onVisibilityChanged(false)
+        FuwaDockPresence.update(keepInDock: model.keepInDock)
     }
 
     @objc private func applicationDidBecomeActive() {

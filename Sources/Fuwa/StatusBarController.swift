@@ -1,243 +1,166 @@
 import AppKit
-import SwiftUI
 
 @MainActor
-final class StatusBarController: NSObject, NSPopoverDelegate {
+final class StatusBarController: NSObject, NSMenuDelegate {
     private let model: AppModel
-    private let statusItem: NSStatusItem
-    private let popover: NSPopover
-    private let onWillShowPopover: @MainActor () -> Void
-    private let onDidClosePopover: @MainActor () -> Void
-    private var preparedIntentForPendingClick = false
+    private let statusItem: NSStatusItem?
+    private let menu = NSMenu()
+    private let onWillShowMenu: @MainActor () -> Void
+    private let onDidCloseMenu: @MainActor () -> Void
+    private var menuSession: UUID?
 
-    init(
-        model: AppModel,
-        onWillShowPopover: @escaping @MainActor () -> Void = {},
-        onDidClosePopover: @escaping @MainActor () -> Void = {}
-    ) {
+    init(model: AppModel,
+         statusItem: NSStatusItem? = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength),
+         onWillShowMenu: @escaping @MainActor () -> Void = {},
+         onDidCloseMenu: @escaping @MainActor () -> Void = {}) {
         self.model = model
-        self.onWillShowPopover = onWillShowPopover
-        self.onDidClosePopover = onDidClosePopover
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        popover = NSPopover()
+        self.statusItem = statusItem
+        self.onWillShowMenu = onWillShowMenu
+        self.onDidCloseMenu = onDidCloseMenu
         super.init()
-
-        configureStatusItem()
-        configurePopover()
-        model.onStatusPresentationChanged = { [weak self] in
-            self?.refreshStatusItem()
-        }
-        model.onRequestDismissPopover = { [weak self] in
-            self?.closePopover()
-        }
+        menu.delegate = self
+        menu.autoenablesItems = false
+        menu.minimumWidth = 240
+        statusItem?.menu = menu
+        statusItem?.button?.imagePosition = .imageLeading
+        model.onStatusPresentationChanged = { [weak self] in self?.refreshStatusItem() }
         refreshStatusItem()
     }
 
     func invalidate() {
-        closePopover()
+        menu.cancelTracking()
+        menu.delegate = nil
+        menuSession = nil
+        onDidCloseMenu()
         model.onStatusPresentationChanged = nil
-        model.onRequestDismissPopover = nil
-        NSStatusBar.system.removeStatusItem(statusItem)
-    }
-
-    @objc private func handleStatusItemAction() {
-        switch NSApp.currentEvent?.type {
-        case .rightMouseDown:
-            closePopover()
-            onWillShowPopover()
-            preparedIntentForPendingClick = true
-        case .rightMouseUp:
-            if !preparedIntentForPendingClick { onWillShowPopover() }
-            if let button = statusItem.button {
-                makeQuickMenu().popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.minY), in: button)
-            }
-            preparedIntentForPendingClick = false
-            onDidClosePopover()
-        case .leftMouseDown:
-            guard !popover.isShown else { return }
-            onWillShowPopover()
-            preparedIntentForPendingClick = true
-        case .leftMouseUp:
-            togglePopover(preparingIntentIfNeeded: !preparedIntentForPendingClick)
-            preparedIntentForPendingClick = false
-        default:
-            // Keyboard and accessibility activation do not have a mouse-down
-            // phase, so preserve the target in the action itself.
-            togglePopover(preparingIntentIfNeeded: true)
+        if let statusItem {
+            statusItem.menu = nil
+            NSStatusBar.system.removeStatusItem(statusItem)
         }
-    }
-
-    private func togglePopover(preparingIntentIfNeeded: Bool) {
-        if popover.isShown {
-            closePopover()
-        } else {
-            showPopover(preparingIntentIfNeeded: preparingIntentIfNeeded)
-        }
-    }
-
-    private func configureStatusItem() {
-        guard let button = statusItem.button else { return }
-        button.target = self
-        button.action = #selector(handleStatusItemAction)
-        button.sendAction(on: [.leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp])
-        button.imagePosition = .imageLeading
-    }
-
-    private func configurePopover() {
-        popover.appearance = NSAppearance(named: .aqua)
-        popover.behavior = .transient
-        popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        popover.contentSize = FuwaPopoverLayout.preferredContentSize(
-            route: model.route,
-            pinCount: model.pins.count,
-            hasNotice: model.notice != nil,
-            hasPermissionWarning: model.hasPermissionWarning,
-            dynamicTypeSize: .large
-        )
-        popover.contentViewController = NSHostingController(
-            rootView: FuwaPopoverView(
-                model: model,
-                onPreferredContentSizeChange: { [weak self] preferredSize in
-                    self?.applyPreferredContentSize(preferredSize)
-                }
-            )
-        )
-        popover.delegate = self
-    }
-
-    private func applyPreferredContentSize(_ preferredSize: NSSize) {
-        let visibleSize = statusItem.button?.window?.screen?.visibleFrame.size
-            ?? NSScreen.main?.visibleFrame.size
-
-        let targetSize: NSSize
-        if let visibleSize {
-            // Leave room for the menu bar, popover arrow and screen edges.
-            // Content remains scrollable if an accessibility size exceeds the
-            // display.
-            let maximumWidth = max(320, visibleSize.width - 32)
-            let maximumHeight = max(360, visibleSize.height - 64)
-            targetSize = NSSize(
-                width: min(preferredSize.width, maximumWidth),
-                height: min(preferredSize.height, maximumHeight)
-            )
-        } else {
-            targetSize = preferredSize
-        }
-
-        guard popover.contentSize != targetSize else { return }
-        popover.contentSize = targetSize
-    }
-
-    private func showPopover(preparingIntentIfNeeded: Bool) {
-        guard let button = statusItem.button else { return }
-        if preparingIntentIfNeeded {
-            onWillShowPopover()
-        }
-        applyPreferredContentSize(
-            FuwaPopoverLayout.preferredContentSize(
-                route: model.route,
-                pinCount: model.pins.count,
-                hasNotice: model.notice != nil,
-                hasPermissionWarning: model.hasPermissionWarning,
-                dynamicTypeSize: .large
-            )
-        )
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        popover.contentViewController?.view.window?.makeKey()
-    }
-
-    private func closePopover() {
-        popover.performClose(nil)
     }
 
     private func refreshStatusItem() {
-        guard let button = statusItem.button else { return }
+        guard let button = statusItem?.button else { return }
         let hasPins = !model.pins.isEmpty
-        let image = NSImage(
-            systemSymbolName: hasPins ? "pin.fill" : "pin",
-            accessibilityDescription: model.statusItemAccessibilityLabel
-        )
+        let attention = model.notice?.kind == .error || model.hasPermissionWarning
+        let image = NSImage(systemSymbolName: attention ? "exclamationmark.circle" : hasPins ? "pin.fill" : "pin",
+                            accessibilityDescription: model.statusItemAccessibilityLabel)
         image?.isTemplate = true
         button.image = image
         button.title = hasPins ? " \(model.pins.count)" : ""
         button.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-        if model.shortcutIsActive {
-            button.toolTip = "\(model.copy.text(.appName)) · \(model.shortcut.displayString)"
-        } else {
-            button.toolTip = "\(model.copy.text(.appName)) · \(model.copy.text(.shortcutInactive))"
-        }
+        button.toolTip = model.notice?.message ?? "\(model.copy.text(.appName)) · \(model.shortcutIsActive ? model.shortcut.displayString : model.copy.text(.shortcutInactive))"
         button.setAccessibilityLabel(model.statusItemAccessibilityLabel)
-        button.setAccessibilityHelp(
-            model.shortcutIsActive
-                ? model.copy.text(.appTagline)
-                : model.copy.text(.shortcutInactive)
-        )
+        button.setAccessibilityHelp(model.copy.text(.appTagline))
     }
 
-    func makeQuickMenu() -> NSMenu {
-        let menu = NSMenu()
+    func makeMenu() -> NSMenu {
+        let menu = NSMenu(title: model.copy.text(.appName))
         menu.autoenablesItems = false
+        menu.minimumWidth = 240
         func item(_ key: FuwaString, _ selector: Selector, enabled: Bool = true, id: UUID? = nil) -> NSMenuItem {
             let item = NSMenuItem(title: model.copy.text(key), action: selector, keyEquivalent: "")
             item.target = self
             item.isEnabled = enabled
             item.representedObject = id
+            item.identifier = NSUserInterfaceItemIdentifier(key.rawValue)
             return item
         }
-        let heading = NSMenuItem(title: "Fuwa · \(model.copy.pinsCount(model.pins.count))", action: nil, keyEquivalent: "")
-        heading.isEnabled = false
-        menu.addItem(heading)
-        menu.addItem(item(.pinFrontWindow, #selector(quickPin), enabled: !model.isPinningFrontWindow && !model.isClearingAll))
-        menu.addItem(item(.openFuwa, #selector(quickOpen)))
+        func heading(_ title: String) -> NSMenuItem {
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            return item
+        }
+        func shortened(_ title: String) -> String {
+            let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.menuFont(ofSize: 0)]
+            if (title as NSString).size(withAttributes: attributes).width <= 320 { return title }
+            let characters = Array(title)
+            for count in stride(from: min(characters.count - 1, 51), through: 0, by: -1) {
+                let value = String(characters.prefix((count + 1) / 2)) + "…" + String(characters.suffix(count / 2))
+                if (value as NSString).size(withAttributes: attributes).width <= 320 { return value }
+            }
+            return "…"
+        }
+        if let notice = model.notice {
+            let row = NSMenuItem(title: shortened(notice.message), action: #selector(openNotice), keyEquivalent: "")
+            row.target = self
+            row.toolTip = notice.message
+            if notice.kind == .error { row.image = NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: nil) }
+            menu.addItem(row)
+            menu.addItem(.separator())
+        } else if model.hasPermissionWarning {
+            menu.addItem(item(.permissionAttention, #selector(openSettings)))
+            menu.addItem(.separator())
+        }
+        let pin = item(.pinFrontWindow, #selector(pinFrontWindow), enabled: !model.isPinningFrontWindow && !model.isClearingAll)
+        // Display the shortcut here; the existing Carbon handler owns it.
+        if model.shortcutIsActive { pin.title += "  \(model.shortcut.displayString)" }
+        pin.toolTip = model.shortcutIsActive ? model.shortcut.displayString : model.copy.text(.shortcutInactive)
+        menu.addItem(pin)
+        let choose = item(.chooseWindow, #selector(chooseWindow), enabled: !model.isPinningFrontWindow && !model.isClearingAll)
+        choose.title += "…"
+        menu.addItem(choose)
         menu.addItem(.separator())
+        menu.addItem(heading(model.pins.isEmpty ? model.copy.text(.emptyTitle) : model.copy.pinsCount(model.pins.count)))
         for pin in model.pins {
-            let row = NSMenuItem(title: "\(pin.applicationName) — \(pin.windowTitle)", action: nil, keyEquivalent: "")
+            let title = "\(pin.applicationName) — \(pin.windowTitle)"
+            let row = NSMenuItem(title: shortened(title), action: nil, keyEquivalent: "")
+            row.toolTip = title
             let submenu = NSMenu()
             submenu.autoenablesItems = false
-            let state = NSMenuItem(title: pin.stateTitle(model.copy), action: nil, keyEquivalent: "")
-            state.isEnabled = false
-            submenu.addItem(state)
-            submenu.addItem(item(.showControls, #selector(quickControls(_:)), enabled: pin.canShowControls, id: pin.id))
+            submenu.addItem(heading(pin.stateTitle(model.copy)))
+            submenu.addItem(item(.showControls, #selector(showControls(_:)), enabled: pin.canShowControls, id: pin.id))
             let available = !model.busyPinIDs.contains(pin.id) && !model.isClearingAll
-            if pin.canFreeze { submenu.addItem(item(.freeze, #selector(quickFreeze(_:)), enabled: available, id: pin.id)) }
-            if pin.canResume { submenu.addItem(item(.resume, #selector(quickResume(_:)), enabled: available, id: pin.id)) }
+            if pin.canFreeze { submenu.addItem(item(.freeze, #selector(pause(_:)), enabled: available, id: pin.id)) }
+            if pin.canResume { submenu.addItem(item(.resume, #selector(resume(_:)), enabled: available, id: pin.id)) }
             submenu.addItem(.separator())
-            submenu.addItem(item(.unpin, #selector(quickUnpin(_:)), enabled: available, id: pin.id))
+            submenu.addItem(item(.unpin, #selector(unpin(_:)), enabled: available, id: pin.id))
             row.submenu = submenu
             menu.addItem(row)
         }
-        menu.addItem(item(.clearAll, #selector(quickClear), enabled: !model.pins.isEmpty && !model.isClearingAll))
+        if !model.pins.isEmpty { menu.addItem(item(.clearAll, #selector(clearAll), enabled: !model.isClearingAll)) }
         menu.addItem(.separator())
-        menu.addItem(item(.settings, #selector(quickSettings)))
-        menu.addItem(item(.quit, #selector(quickQuit)))
+        menu.addItem(item(.openFuwa, #selector(openFuwa)))
+        let settings = item(.settings, #selector(openSettings))
+        settings.title += "…"
+        settings.keyEquivalent = ","
+        settings.keyEquivalentModifierMask = .command
+        menu.addItem(settings)
+        menu.addItem(item(.about, #selector(about)))
+        menu.addItem(.separator())
+        let quit = item(.quit, #selector(quit))
+        quit.keyEquivalent = "q"
+        quit.keyEquivalentModifierMask = .command
+        menu.addItem(quit)
         return menu
     }
 
-    @objc private func quickPin() { model.pinFrontWindow() }
-    @objc private func quickOpen() { model.openMainWindow() }
-    @objc private func quickClear() { model.clearAll() }
-    @objc private func quickQuit() { model.quit() }
-    @objc private func quickSettings() {
-        model.showSettings()
-        showPopover(preparingIntentIfNeeded: false)
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        let contents = makeMenu()
+        for item in Array(contents.items) { contents.removeItem(item); menu.addItem(item) }
     }
-    @objc private func quickControls(_ sender: NSMenuItem) {
-        if let id = sender.representedObject as? UUID { model.showControls(id) }
+    func menuWillOpen(_ menu: NSMenu) { menuSession = UUID(); onWillShowMenu() }
+    func menuDidClose(_ menu: NSMenu) {
+        let session = menuSession
+        // AppKit can close a menu before sending its selected action. Allow the
+        // action to claim the prepared window before discarding the snapshot.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let session, menuSession == session else { return }
+            menuSession = nil
+            onDidCloseMenu()
+        }
     }
-    @objc private func quickFreeze(_ sender: NSMenuItem) {
-        if let id = sender.representedObject as? UUID { model.freeze(id) }
-    }
-    @objc private func quickResume(_ sender: NSMenuItem) {
-        if let id = sender.representedObject as? UUID { model.resume(id) }
-    }
-    @objc private func quickUnpin(_ sender: NSMenuItem) {
-        if let id = sender.representedObject as? UUID { model.unpin(id) }
-    }
-
-    func popoverDidClose(_ notification: Notification) {
-        guard !popover.isShown else { return }
-        preparedIntentForPendingClick = false
-        onDidClosePopover()
-        model.showPins()
-    }
+    @objc private func pinFrontWindow() { model.pinFrontWindow() }
+    @objc private func chooseWindow() { model.chooseWindow() }
+    @objc private func openFuwa() { model.showPins(); model.openMainWindow() }
+    @objc private func openSettings() { model.showSettings(); model.openMainWindow() }
+    @objc private func openNotice() { model.openMainWindow() }
+    @objc private func about() { model.showAbout() }
+    @objc private func clearAll() { model.clearAll() }
+    @objc private func quit() { model.quit() }
+    @objc private func showControls(_ sender: NSMenuItem) { if let id = sender.representedObject as? UUID { model.showControls(id) } }
+    @objc private func pause(_ sender: NSMenuItem) { if let id = sender.representedObject as? UUID { model.freeze(id) } }
+    @objc private func resume(_ sender: NSMenuItem) { if let id = sender.representedObject as? UUID { model.resume(id) } }
+    @objc private func unpin(_ sender: NSMenuItem) { if let id = sender.representedObject as? UUID { model.unpin(id) } }
 }

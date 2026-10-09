@@ -29,8 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindowController: MainWindowController?
     private var softwareUpdateController: SoftwareUpdateController?
     private var isTerminating = false
-    private var mainWindowPresented = false
-    private var preparedPopoverIntent = PreparedIntentSlot<
+    private var preparedMenuIntent = PreparedIntentSlot<
         Result<TargetIntentSnapshot, Error>
     >()
 
@@ -60,6 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let model = AppModel(
             languagePreference: settingsStore.language,
+            keepInDock: settingsStore.keepInDock,
             version: Self.version,
             shortcut: activeShortcut,
             shortcutIsActive: hotKey.currentShortcut != nil,
@@ -71,6 +71,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.settingsStore.language = preference
             guard let model else { return }
             NSApp.mainMenu = FuwaApplicationMenu.make(quitTitle: model.copy.text(.quit))
+        }
+        model.onKeepInDockChanged = { [weak self] enabled in
+            guard let self else { return }
+            settingsStore.keepInDock = enabled
+            updateDockPresence()
         }
         pinCoordinator.presentationModel = model
         NSApp.mainMenu = FuwaApplicationMenu.make(quitTitle: model.copy.text(.quit))
@@ -92,19 +97,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let statusBarController = StatusBarController(
             model: model,
-            onWillShowPopover: { [weak self] in
-                self?.preparePopoverIntent()
+            onWillShowMenu: { [weak self] in
+                self?.prepareMenuIntent()
             },
-            onDidClosePopover: { [weak self] in
-                self?.discardPopoverIntent()
+            onDidCloseMenu: { [weak self] in
+                self?.discardMenuIntent()
             }
         )
         self.statusBarController = statusBarController
-        mainWindowController = MainWindowController(model: model) { [weak self] presented in
-            guard let self else { return }
-            mainWindowPresented = presented
-            updateDockPresence()
-        }
+        mainWindowController = MainWindowController(model: model)
         let launchEvent = NSAppleEventManager.shared().currentAppleEvent
         let launchedAtLogin = launchEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue
             == keyAELaunchedAsLogInItem
@@ -117,8 +118,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateDockPresence() {
-        let policy: NSApplication.ActivationPolicy = mainWindowPresented ? .regular : .accessory
-        if NSApp.activationPolicy() != policy { NSApp.setActivationPolicy(policy) }
+        FuwaDockPresence.update(keepInDock: settingsStore.keepInDock)
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // Launch Services may promote a reopened regular bundle into the Dock.
+        updateDockPresence()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -143,13 +148,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func prepareForTermination() {
         guard !isTerminating else { return }
         isTerminating = true
-        discardPopoverIntent()
+        discardMenuIntent()
         hotKey?.stop()
         privacyLifecycle.stop()
         pinCoordinator.clearAllImmediately()
         statusBarController?.invalidate()
         statusBarController = nil
-        // Include popovers, the main window, About, and any presentation no
+        // Include the main window, About, and any presentation no
         // longer owned by a pin session. Hide synchronously before AppKit tears
         // down the app; never wait for ScreenCaptureKit's asynchronous stream
         // shutdown. Iterate a copy: closing a window mutates `NSApp.windows`.
@@ -163,7 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         FuwaAppActions(
             beginPinFrontWindow: { [weak self] in
                 guard let self else { throw FuwaApplicationError.unavailable }
-                let intent = try takePreparedPopoverIntent()
+                let intent = try takePreparedMenuIntent()
                 return { [weak self] in
                     guard let self else { throw FuwaApplicationError.unavailable }
                     try await toggle(intent)
@@ -247,7 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// from disappearing between user input and target selection.
     private func handleGlobalShortcut() {
         guard !isTerminating else { return }
-        discardPopoverIntent()
+        discardMenuIntent()
         let intent: TargetIntentSnapshot
         do {
             intent = try pinCoordinator.snapshotFrontmostIntent()
@@ -268,26 +273,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func takePreparedPopoverIntent() throws -> TargetIntentSnapshot {
-        guard let preparedIntent = preparedPopoverIntent.consume() else {
+    private func takePreparedMenuIntent() throws -> TargetIntentSnapshot {
+        guard let preparedIntent = preparedMenuIntent.consume() else {
             throw FuwaApplicationError.pinIntentUnavailable
         }
         return try preparedIntent.get()
     }
 
-    /// The status-item action runs before the popover becomes key. Preserve
+    /// The menu opens without activating a management window. Preserve
     /// both success and failure so the later button action never rescans behind
     /// a transient Quick Look panel that may already have disappeared.
-    private func preparePopoverIntent() {
-        preparedPopoverIntent.replace(
+    private func prepareMenuIntent() {
+        preparedMenuIntent.replace(
             with: Result {
                 try pinCoordinator.snapshotFrontmostIntent()
             }
         )
     }
 
-    private func discardPopoverIntent() {
-        preparedPopoverIntent.clear()
+    private func discardMenuIntent() {
+        preparedMenuIntent.clear()
     }
 
     private func toggle(_ intent: TargetIntentSnapshot) async throws {
@@ -329,7 +334,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func configurePrivacyLifecycle() {
         privacyLifecycle.onPrivacyBoundary = { [weak self] _ in
-            self?.discardPopoverIntent()
+            self?.discardMenuIntent()
             self?.pinCoordinator.clearAllImmediately()
         }
         privacyLifecycle.onEnvironmentRefresh = { [weak self] in
