@@ -44,8 +44,6 @@ extension FuwaCopy {
         .permissionNotEnabled: "未開啟",
         .openSettings: "開啟設定",
         .screenRecordingNote: "Fuwa 需要讀取視窗畫面，才能顯示置頂浮窗。畫面只在本機處理。",
-        .keepInDock: "保留 Dock 圖標",
-        .keepInDockNote: "關閉後，僅在 Fuwa 主視窗打開時顯示 Dock 圖標。仍可從菜單欄打開 Fuwa。",
         .captureQuality: "畫面清晰度",
         .captureQualityNote: "調整這個置頂視窗的清晰度。",
         .captureQualityHelp: "每個新置頂的視窗預設保留原始畫面。調低只影響這個視窗，可節省記憶體，但文字和細節可能變模糊。暫停畫面時，需先取消暫停才能調整。",

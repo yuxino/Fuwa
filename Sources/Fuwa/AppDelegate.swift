@@ -60,7 +60,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let model = AppModel(
             languagePreference: settingsStore.language,
-            keepInDock: settingsStore.keepInDock,
             version: Self.version,
             shortcut: activeShortcut,
             shortcutIsActive: hotKey.currentShortcut != nil,
@@ -72,11 +71,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.settingsStore.language = preference
             guard let model else { return }
             NSApp.mainMenu = FuwaApplicationMenu.make(quitTitle: model.copy.text(.quit))
-        }
-        model.onKeepInDockChanged = { [weak self] enabled in
-            guard let self else { return }
-            settingsStore.keepInDock = enabled
-            updateDockPresence()
         }
         pinCoordinator.presentationModel = model
         NSApp.mainMenu = FuwaApplicationMenu.make(quitTitle: model.copy.text(.quit))
@@ -123,8 +117,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateDockPresence() {
-        let visible = settingsStore.keepInDock || mainWindowPresented
-        NSApp.setActivationPolicy(visible ? .regular : .accessory)
+        let policy: NSApplication.ActivationPolicy = mainWindowPresented ? .regular : .accessory
+        if NSApp.activationPolicy() != policy { NSApp.setActivationPolicy(policy) }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

@@ -44,8 +44,6 @@ extension FuwaCopy {
         .permissionNotEnabled: "허용되지 않음",
         .openSettings: "설정 열기",
         .screenRecordingNote: "고정된 화면을 표시하려면 창의 화면을 읽어야 합니다. 화면은 이 Mac에서만 처리됩니다.",
-        .keepInDock: "Dock에 표시",
-        .keepInDockNote: "끄면 기본 창이 열려 있을 때만 Dock 아이콘이 표시됩니다. 메뉴 막대에서는 언제든 Fuwa를 열 수 있습니다.",
         .captureQuality: "화질",
         .captureQualityNote: "이 고정 창의 화질을 조절합니다.",
         .captureQualityHelp: "새로 고정한 창은 원본 화질로 표시됩니다. 화질을 낮추면 이 창만 메모리를 덜 쓰지만 글자와 세부 내용이 흐려질 수 있습니다. 일시 정지 중에는 먼저 재개하세요.",

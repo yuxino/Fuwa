@@ -44,8 +44,6 @@ extension FuwaCopy {
         .permissionNotEnabled: "Non autorisé",
         .openSettings: "Ouvrir les réglages",
         .screenRecordingNote: "Fuwa doit lire l’image d’une fenêtre pour l’afficher au premier plan. Les images restent sur ce Mac.",
-        .keepInDock: "Afficher dans le Dock",
-        .keepInDockNote: "Si désactivé, l’icône du Dock apparaît seulement quand la fenêtre principale est ouverte. Fuwa reste accessible dans la barre des menus.",
         .captureQuality: "Qualité d’image",
         .captureQualityNote: "Ajuster la qualité de cette fenêtre épinglée.",
         .captureQualityHelp: "Chaque nouvelle fenêtre épinglée conserve la qualité d’origine. La réduire ne concerne que cette fenêtre et économise la mémoire, mais peut rendre le texte et les détails flous. Reprenez une image en pause avant de la régler.",

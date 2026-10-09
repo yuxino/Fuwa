@@ -30,9 +30,9 @@ if let existing = NSRunningApplication.runningApplications(
 let application = NSApplication.shared
 let applicationDelegate = AppDelegate()
 application.delegate = applicationDelegate
-// Match the saved Dock preference before login-item startup can show an icon.
-// A visible management window temporarily supplies Dock presence either way.
-application.setActivationPolicy(AppSettingsStore().keepInDock ? .regular : .accessory)
+// Login-item startup stays in the menu bar. Opening the management window
+// supplies Dock presence until that window is closed.
+application.setActivationPolicy(.accessory)
 
 withExtendedLifetime((applicationDelegate, instanceLock)) {
     application.run()
