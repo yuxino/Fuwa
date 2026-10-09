@@ -63,12 +63,6 @@ cd fuwa
 ./scripts/install-app.sh
 ```
 
-## Platform scope
-
-Fuwa is now maintained for macOS only. Windows development and releases have ended. Existing Windows release files and Git history remain available as unsupported archives; future macOS releases will not provide Windows installers or update feeds.
-
-Fuwa displays a mirror, not a change to another app's real window level. It does not bypass operating-system security boundaries or protected-content restrictions.
-
 [Privacy](PRIVACY.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Independent implementation](docs/independent-implementation.md)
 
 ## License

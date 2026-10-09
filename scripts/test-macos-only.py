@@ -83,9 +83,10 @@ class MacOSOnlyTests(unittest.TestCase):
         self.assertIn(f"public_key='{metadata['SUPublicEDKey']}'",
                       read(".github/workflows/promote-release.yml"))
 
-    def test_public_scope_is_consistent(self) -> None:
-        self.assertIn("不再开发或发布 Windows 版本", read("README_ZH.md"))
-        self.assertIn("Windows development and releases have ended", read("README.md"))
+    def test_public_platform_requirements_are_consistent(self) -> None:
+        for path in ("README.md", "README_ZH.md"):
+            self.assertIn("macOS 14 或更高版本", read(path))
+        self.assertIn("macOS 14 or later", read("README_EN.md"))
         self.assertIn("discontinued Windows builds are unsupported", read("SECURITY.md"))
 
 
