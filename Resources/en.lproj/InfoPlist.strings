@@ -1,1 +1,1 @@
-"NSScreenCaptureUsageDescription" = "Fuwa captures only the window you choose so it can keep a private, live mirror visible on your Mac.";
+"NSScreenCaptureUsageDescription" = "Fuwa reads the window you choose to show its picture in a pinned view. Pictures stay on this Mac.";

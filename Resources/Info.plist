@@ -4,6 +4,16 @@
 <dict>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>zh-Hans</string>
+        <string>zh-Hant</string>
+        <string>ja</string>
+        <string>ko</string>
+        <string>fr</string>
+        <string>de</string>
+    </array>
     <key>CFBundleExecutable</key>
     <string>Fuwa</string>
     <key>CFBundleDisplayName</key>
@@ -47,7 +57,7 @@
     <key>SUVerifyUpdateBeforeExtraction</key>
     <true/>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>Fuwa captures only the window you choose so it can keep a private, live mirror visible on your Mac.</string>
+    <string>Fuwa reads the window you choose to show its picture in a pinned view. Pictures stay on this Mac.</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 yuxino and Fuwa contributors. MIT License.</string>
 </dict>

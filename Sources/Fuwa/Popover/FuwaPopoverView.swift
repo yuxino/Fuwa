@@ -125,6 +125,7 @@ struct FuwaPopoverView: View {
             alignment: .top
         )
         .fuwaLightSurface()
+        .environment(\.locale, Locale(identifier: model.copy.language.localeIdentifier))
         .onExitCommand(perform: model.dismissPopover)
         .onAppear(perform: reportPreferredContentSize)
         .onChange(of: layoutSignature) { _, _ in

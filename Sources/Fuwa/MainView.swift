@@ -95,6 +95,7 @@ struct MainView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .fuwaLightSurface()
+        .environment(\.locale, Locale(identifier: copy.language.localeIdentifier))
         .sheet(isPresented: $choosingWindow) { WindowPickerView(model: model) }
     }
 

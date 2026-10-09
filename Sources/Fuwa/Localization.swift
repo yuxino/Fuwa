@@ -1,28 +1,68 @@
 import Foundation
 import FuwaCore
 
-enum FuwaLanguage: String, Sendable {
-    case english
-    case simplifiedChinese
+enum FuwaLanguage: String, CaseIterable, Sendable {
+    case english, simplifiedChinese, traditionalChinese, japanese, korean, french, german
+
+    var nativeName: String {
+        switch self {
+        case .english: "English"
+        case .simplifiedChinese: "简体中文"
+        case .traditionalChinese: "繁體中文"
+        case .japanese: "日本語"
+        case .korean: "한국어"
+        case .french: "Français"
+        case .german: "Deutsch"
+        }
+    }
+
+    var localeIdentifier: String {
+        switch self {
+        case .english: "en"
+        case .simplifiedChinese: "zh-Hans"
+        case .traditionalChinese: "zh-Hant"
+        case .japanese: "ja"
+        case .korean: "ko"
+        case .french: "fr"
+        case .german: "de"
+        }
+    }
 
     static func automatic(preferredLanguages: [String] = Locale.preferredLanguages) -> Self {
-        guard let preferred = preferredLanguages.first?.lowercased() else {
-            return .english
+        for identifier in preferredLanguages {
+            let parts = identifier.lowercased().replacingOccurrences(of: "_", with: "-").split(separator: "-")
+            switch parts.first {
+            case "zh":
+                if parts.contains("hant") { return .traditionalChinese }
+                if parts.contains("hans") { return .simplifiedChinese }
+                return parts.contains(where: { ["tw", "hk", "mo"].contains($0) })
+                    ? .traditionalChinese : .simplifiedChinese
+            case "en": return .english
+            case "ja": return .japanese
+            case "ko": return .korean
+            case "fr": return .french
+            case "de": return .german
+            default: continue
+            }
         }
-        return preferred.hasPrefix("zh") ? .simplifiedChinese : .english
+        return .english
     }
 }
 
 enum FuwaLanguagePreference: String, CaseIterable, Sendable {
-    case system
-    case simplifiedChinese
-    case english
+    // Keep existing saved values stable when adding languages.
+    case system, english, simplifiedChinese, traditionalChinese, japanese, korean, french, german
 
     var resolved: FuwaLanguage {
         switch self {
         case .system: .automatic()
-        case .simplifiedChinese: .simplifiedChinese
         case .english: .english
+        case .simplifiedChinese: .simplifiedChinese
+        case .traditionalChinese: .traditionalChinese
+        case .japanese: .japanese
+        case .korean: .korean
+        case .french: .french
+        case .german: .german
         }
     }
 }
@@ -125,6 +165,17 @@ enum FuwaString: String, CaseIterable, Sendable {
     case statusPinned
     case statusNoPins
     case permissionAttention
+    case pinCountOne, pinCountMany
+    case accessibilityRationaleTitle, accessibilityRationaleNote, continueAction, notNow
+    case errorUnavailable, errorPinIntentUnavailable, errorShortcutStart, errorShortcutRegister
+    case errorLoginUnavailable, errorPinMissing, errorPinCancelled, errorPinLimit, errorRecordingRevoked
+    case errorInventory, errorNoEligibleWindow, errorRecordingDenied, errorShareableContent
+    case errorSourceClosed, errorNotShareable, errorWindowMatch
+    case errorPinState, errorCaptureStart, errorCaptureInterrupted, errorCaptureStopped
+    case errorCaptureResume, errorFreeze, errorFrameMissing, errorDisplayInventory, errorUnknown
+    case errorAccessibilityRequired, errorSourceAppMissing, errorSourceWindowMissing, errorSourceAmbiguous
+    case errorActivationRejected, errorActivationTimeout, errorRestoreUnsupported, errorRestoreFailed
+    case errorRaiseUnsupported, errorRaiseFailed
 }
 
 struct FuwaCopy: Sendable {
@@ -134,22 +185,30 @@ struct FuwaCopy: Sendable {
         self.language = language
     }
 
-    func text(_ key: FuwaString) -> String {
+    private var translations: [FuwaString: String] {
         switch language {
-        case .english:
-            Self.english[key] ?? key.rawValue
-        case .simplifiedChinese:
-            Self.simplifiedChinese[key] ?? Self.english[key] ?? key.rawValue
+        case .english: Self.english
+        case .simplifiedChinese: Self.simplifiedChinese
+        case .traditionalChinese: Self.traditionalChinese
+        case .japanese: Self.japanese
+        case .korean: Self.korean
+        case .french: Self.french
+        case .german: Self.german
+        }
+    }
+
+    func hasTranslation(for key: FuwaString) -> Bool { translations[key] != nil }
+
+    func text(_ key: FuwaString) -> String { translations[key] ?? key.rawValue }
+
+    func formatted(_ key: FuwaString, values: [String: String]) -> String {
+        values.reduce(text(key)) { result, value in
+            result.replacingOccurrences(of: "{\(value.key)}", with: value.value)
         }
     }
 
     func pinsCount(_ count: Int) -> String {
-        switch language {
-        case .english:
-            count == 1 ? "1 pin" : "\(count) pins"
-        case .simplifiedChinese:
-            "\(count) 个固定窗口"
-        }
+        formatted(count == 1 ? .pinCountOne : .pinCountMany, values: ["count": String(count)])
     }
 
     func captureQualityLabel(_ quality: CaptureQuality) -> String {
@@ -258,7 +317,48 @@ struct FuwaCopy: Sendable {
         .cancel: "Cancel",
         .statusPinned: "Fuwa has pinned windows",
         .statusNoPins: "Fuwa, no pinned windows",
-        .permissionAttention: "Permission needs attention"
+        .permissionAttention: "Permission needs attention",
+        .errorUnavailable: "Fuwa is temporarily unavailable. Try again.",
+        .errorPinIntentUnavailable: "Reopen Fuwa while the target window is still visible, then try again.",
+        .errorShortcutStart: "Fuwa could not start the global shortcut ({code}).",
+        .errorShortcutRegister: "Fuwa could not register {shortcut} ({code}). It may conflict with another app.",
+        .errorLoginUnavailable: "Launch at Login is unavailable for this copy. Move Fuwa to Applications and try again.",
+        .errorPinMissing: "This pinned window is no longer available.",
+        .errorPinCancelled: "The pin operation was cancelled.",
+        .errorPinLimit: "Fuwa can pin up to {count} windows. Remove one before adding another.",
+        .errorRecordingRevoked: "Screen Recording permission was removed, so Fuwa cleared all captured frames.",
+        .errorInventory: "Fuwa cannot read the current window list right now.",
+        .errorNoEligibleWindow: "No pinnable window is visible in front.",
+        .errorRecordingDenied: "Enable Screen Recording permission before Fuwa can pin this window.",
+        .errorShareableContent: "macOS did not provide a capturable window list. Try again.",
+        .errorSourceClosed: "The front window closed before capture began.",
+        .errorNotShareable: "This window is visible, but macOS does not allow it to be captured.",
+        .errorWindowMatch: "Fuwa could not safely confirm the source window, so the pin remains view-only.",
+        .errorPinState: "This pinned window changed state. Try again.",
+        .errorCaptureStart: "Fuwa could not start capturing this window.",
+        .errorCaptureInterrupted: "Capture stopped while Fuwa was starting it.",
+        .errorCaptureStopped: "Window capture stopped, so Fuwa stopped displaying that frame.",
+        .errorCaptureResume: "Fuwa could not resume live capture. The previous frozen frame is still visible.",
+        .errorFreeze: "Fuwa could not preserve the last frame.",
+        .errorFrameMissing: "Fuwa has not received a complete frame to freeze yet.",
+        .errorDisplayInventory: "Fuwa cannot read the current windows or display arrangement right now.",
+        .errorUnknown: "Fuwa could not complete this action. Try again.",
+        .errorAccessibilityRequired: "Enable Accessibility permission to reveal and use the source window.",
+        .errorSourceAppMissing: "The source app has quit, so this pin remains view-only.",
+        .errorSourceWindowMissing: "Fuwa could not find the original source window, so this pin remains view-only.",
+        .errorSourceAmbiguous: "Several windows look alike, so Fuwa did not switch to a possibly wrong source.",
+        .errorActivationRejected: "macOS did not allow Fuwa to activate the source app.",
+        .errorActivationTimeout: "The source app did not become active in time, so this pin remains view-only.",
+        .errorRestoreUnsupported: "This minimized source window cannot be restored through Accessibility.",
+        .errorRestoreFailed: "macOS could not restore the minimized source window (Accessibility error {code}).",
+        .errorRaiseUnsupported: "This source window cannot be revealed through Accessibility.",
+        .errorRaiseFailed: "macOS could not reveal the source window (Accessibility error {code}).",
+        .pinCountOne: "{count} pin",
+        .pinCountMany: "{count} pins",
+        .accessibilityRationaleTitle: "Go to Original Window needs Accessibility",
+        .accessibilityRationaleNote: "This lets Fuwa bring the original window to the front so you can use it. You can still pin and freeze pictures without enabling it.",
+        .continueAction: "Continue",
+        .notNow: "Not Now"
     ]
 
     private static let simplifiedChinese: [FuwaString: String] = [
@@ -358,6 +458,47 @@ struct FuwaCopy: Sendable {
         .cancel: "取消",
         .statusPinned: "Fuwa 有已固定窗口",
         .statusNoPins: "Fuwa，没有固定窗口",
-        .permissionAttention: "权限需要处理"
+        .permissionAttention: "权限需要处理",
+        .errorUnavailable: "Fuwa 暂时不可用，请再试一次。",
+        .errorPinIntentUnavailable: "请在目标窗口仍可见时重新打开 Fuwa，再试一次。",
+        .errorShortcutStart: "Fuwa 无法启动全局快捷键（{code}）。",
+        .errorShortcutRegister: "Fuwa 无法注册 {shortcut}（{code}），可能与其他软件冲突。",
+        .errorLoginUnavailable: "当前这份 Fuwa 无法设置开机启动。请先将它移到“应用程序”文件夹。",
+        .errorPinMissing: "这个固定窗口已经不存在。",
+        .errorPinCancelled: "这次固定操作已取消。",
+        .errorPinLimit: "Fuwa 最多同时固定 {count} 个窗口，请先移除一个。",
+        .errorRecordingRevoked: "屏幕录制权限已被关闭，Fuwa 已清除所有捕获画面。",
+        .errorInventory: "Fuwa 暂时无法读取当前窗口列表。",
+        .errorNoEligibleWindow: "没有找到可以固定的前方窗口。",
+        .errorRecordingDenied: "需要开启屏幕录制权限，Fuwa 才能固定这个窗口。",
+        .errorShareableContent: "macOS 暂时没有提供可捕获的窗口列表。",
+        .errorSourceClosed: "前方窗口在捕获开始前已经关闭。",
+        .errorNotShareable: "这个窗口可见，但 macOS 不允许捕获它。",
+        .errorWindowMatch: "Fuwa 无法安全地确认真实源窗口，因此保留为仅查看。",
+        .errorPinState: "这个固定窗口的状态已经变化，请再试一次。",
+        .errorCaptureStart: "Fuwa 无法开始捕获这个窗口。",
+        .errorCaptureInterrupted: "捕获在启动过程中被中断。",
+        .errorCaptureStopped: "窗口捕获已中断，Fuwa 已停止显示相关画面。",
+        .errorCaptureResume: "Fuwa 无法恢复实时捕获，之前的冻结画面仍然保留。",
+        .errorFreeze: "Fuwa 无法保留最后一帧画面。",
+        .errorFrameMissing: "Fuwa 还没有收到可以冻结的完整画面。",
+        .errorDisplayInventory: "Fuwa 暂时无法读取窗口或显示器信息。",
+        .errorUnknown: "Fuwa 无法完成这次操作，请再试一次。",
+        .errorAccessibilityRequired: "需要开启辅助功能权限，才能显示并操作真实源窗口。",
+        .errorSourceAppMissing: "源应用已经退出，这个画面会保持仅查看。",
+        .errorSourceWindowMissing: "没有找到原来的源窗口，这个画面会保持仅查看。",
+        .errorSourceAmbiguous: "有多个相似窗口，Fuwa 无法安全确认原窗口，因此没有切换。",
+        .errorActivationRejected: "macOS 没有允许 Fuwa 激活源应用。",
+        .errorActivationTimeout: "源应用未能及时切换到前台，这个画面会保持仅查看。",
+        .errorRestoreUnsupported: "这个最小化的源窗口不支持通过辅助功能恢复。",
+        .errorRestoreFailed: "macOS 无法恢复最小化的源窗口（辅助功能错误 {code}）。",
+        .errorRaiseUnsupported: "这个源窗口不支持通过辅助功能显示。",
+        .errorRaiseFailed: "macOS 无法切换到原窗口（辅助功能错误 {code}）。",
+        .pinCountOne: "{count} 个固定窗口",
+        .pinCountMany: "{count} 个固定窗口",
+        .accessibilityRationaleTitle: "回到原窗口需要辅助功能权限",
+        .accessibilityRationaleNote: "开启后，Fuwa 可以把原窗口切到最前面，让你继续操作。不想开启也没关系，置顶和冻结画面仍然可用。",
+        .continueAction: "继续",
+        .notNow: "暂不"
     ]
 }
