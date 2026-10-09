@@ -110,8 +110,6 @@ enum FuwaString: String, CaseIterable, Sendable {
     case permissionNotEnabled
     case openSettings
     case screenRecordingNote
-    case keepInDock
-    case keepInDockNote
     case captureQuality
     case captureQualityNote
     case captureQualityHelp
@@ -245,8 +243,6 @@ struct FuwaCopy: Sendable {
         .permissionNotEnabled: "Not enabled",
         .openSettings: "Open Settings",
         .screenRecordingNote: "Fuwa needs to read a window’s picture to show it in a pinned view. Pictures stay on this Mac.",
-        .keepInDock: "Keep in Dock",
-        .keepInDockNote: "When off, the Dock icon appears only while Fuwa’s main window is open. Fuwa remains available in the menu bar.",
         .captureQuality: "Picture Quality",
         .captureQualityNote: "Adjust the picture quality of this pinned window.",
         .captureQualityHelp: "Each newly pinned window starts at original quality. Lowering it affects only this window and uses less memory, but may blur text and details. Resume a paused picture before adjusting.",
@@ -363,8 +359,6 @@ struct FuwaCopy: Sendable {
         .permissionNotEnabled: "未开启",
         .openSettings: "打开设置",
         .screenRecordingNote: "Fuwa 需要读取窗口画面，才能显示置顶浮窗。画面只在本机处理。",
-        .keepInDock: "保留 Dock 图标",
-        .keepInDockNote: "关闭后，仅在 Fuwa 主窗口打开时显示 Dock 图标。仍可从菜单栏打开 Fuwa。",
         .captureQuality: "画面清晰度",
         .captureQualityNote: "调整这个置顶窗口的清晰度。",
         .captureQualityHelp: "每个新置顶的窗口默认保留原始画面。调低只影响这个窗口，可节省内存，但文字和细节可能变模糊。暂停画面时，需先取消暂停才能调整。",

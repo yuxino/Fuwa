@@ -44,8 +44,6 @@ extension FuwaCopy {
         .permissionNotEnabled: "Nicht erlaubt",
         .openSettings: "Einstellungen öffnen",
         .screenRecordingNote: "Fuwa muss das Fensterbild lesen, um es angeheftet anzuzeigen. Die Bilder bleiben auf diesem Mac.",
-        .keepInDock: "Im Dock anzeigen",
-        .keepInDockNote: "Ausgeschaltet erscheint das Dock-Symbol nur bei geöffnetem Hauptfenster. Fuwa bleibt über die Menüleiste erreichbar.",
         .captureQuality: "Bildqualität",
         .captureQualityNote: "Bildqualität dieses angehefteten Fensters anpassen.",
         .captureQualityHelp: "Jedes neu angeheftete Fenster startet mit Originalqualität. Eine niedrigere Qualität spart nur bei diesem Fenster Speicher, kann aber Text und Details unschärfer machen. Setze ein pausiertes Bild vor dem Anpassen fort.",

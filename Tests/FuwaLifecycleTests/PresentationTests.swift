@@ -94,24 +94,6 @@ struct PresentationTests {
         #expect(store.language == .system)
     }
 
-    @Test func dockPreferencePersistsAndKeepsTheDefaultForExistingUsers() throws {
-        let suite = "FuwaDockTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let store = AppSettingsStore(defaults: defaults)
-        #expect(store.keepInDock)
-        let model = AppModel(keepInDock: store.keepInDock)
-        var changes = [Bool]()
-        model.onKeepInDockChanged = { store.keepInDock = $0; changes.append($0) }
-        model.setKeepInDock(false)
-        model.setKeepInDock(false)
-        #expect(changes == [false])
-        let relaunched = AppModel(keepInDock: AppSettingsStore(defaults: defaults).keepInDock)
-        #expect(!relaunched.keepInDock)
-        model.setKeepInDock(true)
-        #expect(AppSettingsStore(defaults: defaults).keepInDock)
-    }
-
     @Test func closingAndReopeningManagementReportsDockPresence() {
         _ = NSApplication.shared
         var visibility = [Bool]()

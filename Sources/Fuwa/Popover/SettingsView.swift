@@ -38,26 +38,6 @@ struct SettingsView: View {
                 launchAtLoginControls
                 .padding(.vertical, 12)
 
-                Divider().opacity(0.5)
-
-                HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Text(copy.text(.keepInDock)).font(FuwaTypography.settingTitle)
-                        FuwaHelpIcon(title: copy.text(.keepInDock), text: copy.text(.keepInDockNote))
-                    }
-                    Spacer(minLength: 8)
-                    Toggle(copy.text(.keepInDock), isOn: Binding(
-                        get: { model.keepInDock },
-                        set: { model.setKeepInDock($0) }
-                    ))
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .help(copy.text(.keepInDockNote))
-                    .accessibilityHint(copy.text(.keepInDockNote))
-                }
-                .padding(.vertical, 12)
-
                 sectionDivider
                 sectionTitle(copy.text(.permissions))
 

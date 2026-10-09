@@ -44,8 +44,6 @@ extension FuwaCopy {
         .permissionNotEnabled: "未許可",
         .openSettings: "設定を開く",
         .screenRecordingNote: "固定表示にはウィンドウの画面を読み取る必要があります。画像はこの Mac 内でのみ処理されます。",
-        .keepInDock: "Dock に表示",
-        .keepInDockNote: "オフにすると、メインウィンドウを開いている間だけ Dock に表示されます。メニューバーからはいつでも開けます。",
         .captureQuality: "画質",
         .captureQualityNote: "この固定ウィンドウの画質を調整します。",
         .captureQualityHelp: "新しく固定したウィンドウは元の画質で表示します。画質を下げると、このウィンドウだけのメモリ使用量を減らせますが、文字や細部がぼやける場合があります。一時停止中は先に再開してください。",
