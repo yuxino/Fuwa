@@ -168,7 +168,12 @@ struct ReferenceCaptureWorkflowTests {
             onSelection: { _ in selected = true }, onCancellation: { canceled = true })
         #expect(!chooser.isVisible)
         #expect(chooser.sharingType == .none)
+        let selection = chooser.contentView!.subviews[0]
+        let before = Mirror(reflecting: selection).descendant("image")!
+        #expect(!Mirror(reflecting: before).children.isEmpty)
         chooser.dismissForTeardown()
+        let after = Mirror(reflecting: selection).descendant("image")!
+        #expect(Mirror(reflecting: after).children.isEmpty)
         #expect(!selected && !canceled)
     }
 

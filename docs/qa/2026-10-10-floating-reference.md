@@ -35,7 +35,7 @@ FUWA_REFERENCE_CAPTURE_QA=1 FUWA_LIVE_REFERENCE_OUTPUT=/tmp/fuwa-live-reference 
   -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
 ```
 
-Both tests passed (18.944 seconds combined). Only generated fixture windows were
+Both tests passed. Only generated fixture windows were
 selected, by exact WindowServer identity and process ID. No user work window was
 selected and the tests never requested or reset permission.
 
@@ -96,7 +96,9 @@ Representative evidence is kept in
 Kept source identity and playback intent separate from presentation suppression;
 hid all panels before asynchronous shutdown; invalidated older restores; awaited
 in-flight stream startup before teardown; retained the last picture on failed
-restoration; kept crop metadata truthful while paused/hidden; snapped only
+restoration; explicitly cleared the crop selector's image and backing surface
+when closing rather than relying on AppKit deallocation; kept crop metadata
+truthful while paused/hidden; snapped only
 machine-rounding noise in crop pixel dimensions; and persisted fps only on an
 explicit fps change. These repairs are covered by the relevant regression and
 recording checks above.

@@ -66,6 +66,7 @@ final class CaptureRegionSelectionPanel: NSPanel, NSWindowDelegate {
     override func cancelOperation(_ sender: Any?) { close() }
 
     func windowWillClose(_ notification: Notification) {
+        selectionView.clearImage()
         let action = onCancellation
         onSelection = nil
         onCancellation = nil
@@ -78,13 +79,14 @@ final class CaptureRegionSelectionPanel: NSPanel, NSWindowDelegate {
         onSelection = nil
         onCancellation = nil
         selectionView.onSelection = nil
+        selectionView.clearImage()
         close()
     }
 }
 
 @MainActor
 private final class CaptureRegionSelectionView: NSView {
-    let image: CGImage
+    private var image: CGImage?
     let previousRegion: NormalizedCaptureRegion?
     var onSelection: ((NormalizedCaptureRegion) -> Void)?
     private var startPoint: NSPoint?
@@ -100,13 +102,25 @@ private final class CaptureRegionSelectionView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     private var imageRect: CGRect {
-        CaptureReferenceGeometry.aspectFit(imageSize: CGSize(width: image.width, height: image.height),
-                                           in: bounds.insetBy(dx: 12, dy: 12))
+        guard let image else { return .zero }
+        return CaptureReferenceGeometry.aspectFit(imageSize: CGSize(width: image.width, height: image.height),
+                                                  in: bounds.insetBy(dx: 12, dy: 12))
+    }
+
+    func clearImage() {
+        image = nil
+        startPoint = nil
+        selection = .zero
+        needsDisplay = true
+        // A closed AppKit window can remain retained. Clear its backing surface
+        // as well as the CGImage rather than relying on eventual deallocation.
+        displayIfNeeded()
     }
 
     override func draw(_ dirtyRect: NSRect) {
         NSColor.windowBackgroundColor.setFill()
         bounds.fill()
+        guard let image else { return }
         NSGraphicsContext.current?.cgContext.draw(image, in: imageRect)
         guard startPoint != nil, selection.width > 0, selection.height > 0 else { return }
         let shade = NSBezierPath(rect: imageRect)
