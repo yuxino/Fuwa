@@ -41,9 +41,14 @@ struct FuwaAppActions {
     var freeze: @MainActor (UUID) async throws -> Void = { _ in }
     var resume: @MainActor (UUID) async throws -> Void = { _ in }
     var updateCaptureQuality: @MainActor (UUID, CaptureQuality) -> Void = { _, _ in }
+    var updatePinOptions: @MainActor (UUID, PinOptions) -> Void = { _, _ in }
+    var beginCropSelection: @MainActor (UUID) -> Void = { _ in }
+    var togglePinsVisibility: @MainActor () async throws -> Void = {}
     var unpin: @MainActor (UUID) async throws -> Void = { _ in }
     var clearAll: @MainActor () async throws -> Void = {}
     var updateShortcut: @MainActor (KeyboardShortcut) async throws
+        -> KeyboardShortcutRegistrationOutcome = { _ in .failed }
+    var updateVisibilityShortcut: @MainActor (KeyboardShortcut) async throws
         -> KeyboardShortcutRegistrationOutcome = { _ in .failed }
     var updateLaunchAtLogin: @MainActor (Bool) async throws
         -> FuwaLaunchAtLoginState = { _ in .disabled }
@@ -80,6 +85,17 @@ final class AppModel: ObservableObject {
     @Published private(set) var shortcutIsActive: Bool {
         didSet { onStatusPresentationChanged?() }
     }
+    @Published private(set) var visibilityShortcut: KeyboardShortcut {
+        didSet { onStatusPresentationChanged?() }
+    }
+    @Published private(set) var visibilityShortcutIsActive: Bool {
+        didSet { onStatusPresentationChanged?() }
+    }
+    @Published private(set) var arePinsHidden = false {
+        didSet { onStatusPresentationChanged?() }
+    }
+    @Published private(set) var isTogglingVisibility = false
+    @Published private(set) var isUpdatingVisibilityShortcut = false
     @Published private(set) var launchAtLoginState: FuwaLaunchAtLoginState
     @Published private(set) var screenRecordingPermission: FuwaPermissionState {
         didSet { onStatusPresentationChanged?() }
@@ -96,6 +112,7 @@ final class AppModel: ObservableObject {
     var onStatusPresentationChanged: (() -> Void)?
 
     private var actions: FuwaAppActions
+    private var visibilityOperationCount = 0
 
     init(
         copy: FuwaCopy? = nil,
@@ -104,6 +121,8 @@ final class AppModel: ObservableObject {
         version: String = "0.1.9",
         shortcut: KeyboardShortcut = .defaultPin,
         shortcutIsActive: Bool = true,
+        visibilityShortcut: KeyboardShortcut = .defaultVisibility,
+        visibilityShortcutIsActive: Bool = true,
         launchAtLoginState: FuwaLaunchAtLoginState = .disabled,
         screenRecordingPermission: FuwaPermissionState = .unknown,
         actions: FuwaAppActions = FuwaAppActions()
@@ -114,6 +133,8 @@ final class AppModel: ObservableObject {
         self.version = version
         self.shortcut = shortcut
         self.shortcutIsActive = shortcutIsActive
+        self.visibilityShortcut = visibilityShortcut
+        self.visibilityShortcutIsActive = visibilityShortcutIsActive
         self.launchAtLoginState = launchAtLoginState
         self.screenRecordingPermission = screenRecordingPermission
         softwareUpdate = .idle(currentVersion: version)
@@ -140,6 +161,39 @@ final class AppModel: ObservableObject {
         actions.updateCaptureQuality(id, quality)
     }
 
+    func setPinOptions(_ options: PinOptions, for id: UUID) {
+        guard !isClearingAll, !busyPinIDs.contains(id),
+              let pin = pins.first(where: { $0.id == id }), pin.options != options else { return }
+        actions.updatePinOptions(id, options)
+    }
+
+    func beginCropSelection(_ id: UUID) {
+        guard !isClearingAll, !busyPinIDs.contains(id),
+              let pin = pins.first(where: { $0.id == id }),
+              pin.state == .live, !pin.isHidden else { return }
+        actions.beginCropSelection(id)
+    }
+
+    func updatePinsVisibility(_ hidden: Bool) { arePinsHidden = hidden }
+
+    func togglePinsVisibility() {
+        guard !pins.isEmpty, !isClearingAll else { return }
+        visibilityOperationCount += 1
+        isTogglingVisibility = true
+        notice = nil
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                visibilityOperationCount -= 1
+                isTogglingVisibility = visibilityOperationCount > 0
+            }
+            do { try await actions.togglePinsVisibility() }
+            catch is CancellationError { return }
+            catch PinCoordinatorError.operationCancelled { return }
+            catch { presentError(error) }
+        }
+    }
+
     var statusItemAccessibilityLabel: String {
         pins.isEmpty ? copy.text(.statusNoPins) : copy.text(.statusPinned)
     }
@@ -158,6 +212,7 @@ final class AppModel: ObservableObject {
 
     func updatePins(_ snapshots: [PinSnapshot]) {
         pins = snapshots
+        if snapshots.isEmpty { arePinsHidden = false }
 
         let activeIDs = Set(snapshots.map(\.id))
         busyPinIDs.formIntersection(activeIDs)
@@ -385,10 +440,8 @@ final class AppModel: ObservableObject {
                 case .registered:
                     shortcutIsActive = true
                 case .conflict:
-                    shortcutIsActive = true
                     notice = FuwaNotice(kind: .error, message: copy.text(.shortcutConflict))
                 case .failed:
-                    shortcutIsActive = true
                     notice = FuwaNotice(kind: .error, message: copy.text(.shortcutFailed))
                 case .inactive:
                     shortcutIsActive = false
@@ -396,6 +449,40 @@ final class AppModel: ObservableObject {
                 }
             } catch {
                 shortcut = update.rolledBackValue
+                presentError(error)
+            }
+        }
+    }
+
+    func updateVisibilityShortcut(_ proposed: KeyboardShortcut) {
+        guard !isUpdatingVisibilityShortcut else { return }
+        let update: KeyboardShortcutUpdate
+        do {
+            update = try KeyboardShortcutUpdate(previous: visibilityShortcut, proposed: proposed)
+        } catch {
+            notice = FuwaNotice(kind: .error, message: copy.text(.invalidShortcut))
+            return
+        }
+        isUpdatingVisibilityShortcut = true
+        notice = nil
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { isUpdatingVisibilityShortcut = false }
+            do {
+                let outcome = try await actions.updateVisibilityShortcut(proposed)
+                visibilityShortcut = update.resolvedValue(after: outcome)
+                switch outcome {
+                case .registered: visibilityShortcutIsActive = true
+                case .conflict:
+                    notice = FuwaNotice(kind: .error, message: copy.text(.shortcutConflict))
+                case .failed:
+                    notice = FuwaNotice(kind: .error, message: copy.text(.shortcutFailed))
+                case .inactive:
+                    visibilityShortcutIsActive = false
+                    notice = FuwaNotice(kind: .error, message: copy.text(.shortcutInactive))
+                }
+            } catch {
+                visibilityShortcut = update.rolledBackValue
                 presentError(error)
             }
         }

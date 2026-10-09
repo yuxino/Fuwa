@@ -7,6 +7,7 @@ struct PinRowView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var detailsIndent = 36
     let pin: PinSnapshot
+    @State private var isShowingOptions = false
 
     private var copy: FuwaCopy { model.copy }
     private var isBusy: Bool { model.busyPinIDs.contains(pin.id) || model.isClearingAll }
@@ -33,7 +34,10 @@ struct PinRowView: View {
         }
         .padding(.vertical, 14)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(pin.applicationName), \(pin.windowTitle), \(pin.stateTitle(copy))")
+        .accessibilityLabel("\(pin.applicationName), \(pin.windowTitle), \(pin.statusTitle(copy))")
+        .popover(isPresented: $isShowingOptions, arrowEdge: .trailing) {
+            PinControlsView(model: model, pinID: pin.id).frame(width: 380)
+        }
     }
 
     private var windowDetails: some View {
@@ -44,7 +48,7 @@ struct PinRowView: View {
                 size: 28
             )
             VStack(alignment: .leading, spacing: 4) {
-                Button { model.showControls(pin.id) } label: {
+                Button { isShowingOptions = true } label: {
                     Text(pin.windowTitle)
                         .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
                         .contentShape(Rectangle())
@@ -52,17 +56,17 @@ struct PinRowView: View {
                 .buttonStyle(FuwaRowButtonStyle())
                 .fuwaLinkCursor()
                 .disabled(!pin.canShowControls)
-                .accessibilityHint(copy.text(.showControls))
+                .accessibilityHint(copy.text(.pinOptions))
                 .font(.callout.weight(.medium))
                 .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 2)
                 .truncationMode(.middle)
-                .help("\(copy.text(.showControls)): \(pin.windowTitle)")
+                .help("\(copy.text(.pinOptions)): \(pin.windowTitle)")
                 (Text(pin.windowTitle == pin.applicationName ? "" : "\(pin.applicationName) · ")
                     .foregroundColor(FuwaAppearance.secondaryText)
-                 + Text(pin.stateTitle(copy)).foregroundColor(pin.stateColor))
+                 + Text(pin.statusTitle(copy)).foregroundColor(pin.stateColor))
                     .font(.caption)
                     .foregroundStyle(pin.stateColor)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -71,12 +75,12 @@ struct PinRowView: View {
     private var actions: some View {
         HStack(spacing: 8) {
             PinPlaybackButton(model: model, pin: pin)
-            FuwaIconButton(symbol: "gearshape", label: copy.text(.captureQuality), isBusy: isBusy) {
-                model.showControls(pin.id)
+            FuwaIconButton(symbol: "gearshape", label: copy.text(.pinOptions), isBusy: isBusy) {
+                isShowingOptions = true
             }
             .disabled(!pin.canShowControls || isBusy)
-            .help(copy.text(.captureQualityNote))
-            .accessibilityHint(copy.text(.captureQualityNote))
+            .help(copy.text(.pinOptionsNote))
+            .accessibilityHint(copy.text(.pinOptionsNote))
             FuwaIconButton(symbol: "pin.slash", label: copy.text(.unpin), isBusy: isBusy) {
                 model.unpin(pin.id)
             }

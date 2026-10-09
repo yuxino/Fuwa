@@ -4,11 +4,16 @@ import SwiftUI
 
 @MainActor
 struct ShortcutRecorder: View {
+    enum Purpose { case pin, visibility }
     @ObservedObject var model: AppModel
+    var purpose: Purpose = .pin
     @State private var isRecording = false
     @State private var hasInvalidInput = false
 
     private var copy: FuwaCopy { model.copy }
+    private var isUpdating: Bool { purpose == .pin ? model.isUpdatingShortcut : model.isUpdatingVisibilityShortcut }
+    private var shortcut: FuwaCore.KeyboardShortcut { purpose == .pin ? model.shortcut : model.visibilityShortcut }
+    private var titleKey: FuwaString { purpose == .pin ? .shortcut : .visibilityShortcut }
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 5) {
@@ -21,7 +26,7 @@ struct ShortcutRecorder: View {
                 }
             } label: {
                 HStack(spacing: 7) {
-                    if model.isUpdatingShortcut {
+                    if isUpdating {
                         ProgressView()
                             .controlSize(.mini)
                     } else {
@@ -33,7 +38,7 @@ struct ShortcutRecorder: View {
                         .font(.system(.callout, design: .monospaced).weight(.medium))
                         .monospacedDigit()
 
-                    if !isRecording && !model.isUpdatingShortcut {
+                    if !isRecording && !isUpdating {
                         Text(copy.text(.recordShortcut))
                             .font(.callout)
                             .foregroundStyle(FuwaAppearance.secondaryText)
@@ -42,7 +47,7 @@ struct ShortcutRecorder: View {
                 .frame(minWidth: 92)
             }
             .buttonStyle(FuwaQuietButtonStyle())
-            .disabled(model.isUpdatingShortcut)
+            .disabled(isUpdating)
             .help(isRecording ? copy.text(.cancel) : copy.text(.recordShortcut))
             .accessibilityLabel(accessibilityTitle)
 
@@ -60,7 +65,11 @@ struct ShortcutRecorder: View {
                 onCapture: { shortcut in
                     isRecording = false
                     hasInvalidInput = false
-                    model.proposeShortcut(shortcut)
+                    if purpose == .pin {
+                        model.proposeShortcut(shortcut)
+                    } else {
+                        model.updateVisibilityShortcut(shortcut)
+                    }
                 },
                 onInvalid: {
                     hasInvalidInput = true
@@ -84,14 +93,14 @@ struct ShortcutRecorder: View {
         if isRecording {
             return copy.text(.pressShortcut)
         }
-        return model.shortcut.displayString
+        return shortcut.displayString
     }
 
     private var accessibilityTitle: String {
         if isRecording {
             return copy.text(.pressShortcut)
         }
-        return "\(copy.text(.shortcut)): \(model.shortcut.displayString)"
+        return "\(copy.text(titleKey)): \(shortcut.displayString)"
     }
 }
 

@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### English
+
+- Temporarily hide and restore all pinned pictures with a separate, customizable shortcut; keep their settings and playback choices.
+- Move and resize an independent reference window, or select an area of its picture to keep visible.
+- Choose all Spaces or the current Space, and optionally show a reference only while a selected app is active.
+- Remember frame rates by source app, reduce updates while the picture is idle, and optionally show a picture-inactivity indicator.
+
+### 中文
+
+- 使用独立、可自定义的快捷键暂时隐藏和恢复全部置顶画面，保留设置及播放选择。
+- 使用可独立移动、调整大小的参考窗口，或框选画面中的局部区域持续查看。
+- 选择在所有空间或当前空间显示，也可仅在指定应用处于前台时显示参考画面。
+- 按来源应用记住帧率，画面静止时减少更新，并可开启画面停止变化的提示。
+
 ## [1.1.1] - 2026-10-10
 
 ### English

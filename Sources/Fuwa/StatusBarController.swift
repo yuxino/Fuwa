@@ -100,6 +100,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let choose = item(.chooseWindow, #selector(chooseWindow), enabled: !model.isPinningFrontWindow && !model.isClearingAll)
         choose.title += "…"
         menu.addItem(choose)
+        if !model.pins.isEmpty {
+            let visibility = item(model.arePinsHidden ? .showAllPins : .hideAllPins,
+                                  #selector(togglePinsVisibility), enabled: !model.isClearingAll)
+            // Carbon owns the global shortcut; the native menu only displays it.
+            if model.visibilityShortcutIsActive { visibility.title += "  \(model.visibilityShortcut.displayString)" }
+            visibility.toolTip = model.copy.text(.visibilityShortcutNote)
+            menu.addItem(visibility)
+        }
         menu.addItem(.separator())
         menu.addItem(heading(model.pins.isEmpty ? model.copy.text(.emptyTitle) : model.copy.pinsCount(model.pins.count)))
         for pin in model.pins {
@@ -108,7 +116,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             row.toolTip = title
             let submenu = NSMenu()
             submenu.autoenablesItems = false
-            submenu.addItem(heading(pin.stateTitle(model.copy)))
+            submenu.addItem(heading(pin.statusTitle(model.copy)))
             submenu.addItem(item(.showControls, #selector(showControls(_:)), enabled: pin.canShowControls, id: pin.id))
             let available = !model.busyPinIDs.contains(pin.id) && !model.isClearingAll
             if pin.canFreeze { submenu.addItem(item(.freeze, #selector(pause(_:)), enabled: available, id: pin.id)) }
@@ -118,7 +126,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             row.submenu = submenu
             menu.addItem(row)
         }
-        if !model.pins.isEmpty { menu.addItem(item(.clearAll, #selector(clearAll), enabled: !model.isClearingAll)) }
+        if !model.pins.isEmpty {
+            menu.addItem(item(.clearAll, #selector(clearAll), enabled: !model.isClearingAll))
+        }
         menu.addItem(.separator())
         menu.addItem(item(.openFuwa, #selector(openFuwa)))
         let settings = item(.settings, #selector(openSettings))
@@ -158,6 +168,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func openNotice() { model.openMainWindow() }
     @objc private func about() { model.showAbout() }
     @objc private func clearAll() { model.clearAll() }
+    @objc private func togglePinsVisibility() { model.togglePinsVisibility() }
     @objc private func quit() { model.quit() }
     @objc private func showControls(_ sender: NSMenuItem) { if let id = sender.representedObject as? UUID { model.showControls(id) } }
     @objc private func pause(_ sender: NSMenuItem) { if let id = sender.representedObject as? UUID { model.freeze(id) } }

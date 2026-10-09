@@ -28,6 +28,23 @@ struct PinsView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
+                VStack(alignment: .leading, spacing: 6) {
+                    Button(action: model.togglePinsVisibility) {
+                        Label(copy.text(model.arePinsHidden ? .showAllPins : .hideAllPins),
+                              systemImage: model.arePinsHidden ? "eye" : "eye.slash")
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .buttonStyle(FuwaQuietButtonStyle())
+                    .disabled(model.isClearingAll)
+                    .help(copy.text(.visibilityShortcutNote))
+                    if model.arePinsHidden {
+                        Text(copy.text(.pinsHiddenNote)).font(.caption)
+                            .foregroundStyle(FuwaAppearance.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16).padding(.bottom, 8)
                 Divider().opacity(0.5)
                 ScrollView {
                     LazyVStack(spacing: 0) {

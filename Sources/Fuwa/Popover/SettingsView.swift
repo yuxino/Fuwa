@@ -35,6 +35,23 @@ struct SettingsView: View {
 
                 Divider().opacity(0.5)
 
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        visibilityShortcutDescription
+                        Spacer(minLength: 10)
+                        ShortcutRecorder(model: model, purpose: .visibility)
+                            .frame(maxWidth: 170, alignment: .trailing)
+                    }
+                    VStack(alignment: .leading, spacing: 10) {
+                        visibilityShortcutDescription
+                        ShortcutRecorder(model: model, purpose: .visibility)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(.vertical, 12)
+
+                Divider().opacity(0.5)
+
                 launchAtLoginControls
                 .padding(.vertical, 12)
 
@@ -316,6 +333,21 @@ struct SettingsView: View {
                 Label(copy.text(.shortcutInactive), systemImage: "exclamationmark.circle")
                     .font(.caption)
                     .foregroundStyle(FuwaAppearance.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityElement(children: .combine)
+            }
+        }
+    }
+
+    private var visibilityShortcutDescription: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Text(copy.text(.visibilityShortcut)).font(FuwaTypography.settingTitle)
+                FuwaHelpIcon(title: copy.text(.visibilityShortcut), text: copy.text(.visibilityShortcutNote))
+            }
+            if !model.visibilityShortcutIsActive {
+                Label(copy.text(.visibilityShortcutInactive), systemImage: "exclamationmark.circle")
+                    .font(.caption).foregroundStyle(FuwaAppearance.warning)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityElement(children: .combine)
             }

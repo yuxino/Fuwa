@@ -19,6 +19,13 @@ extension PinSnapshot {
         }
     }
 
+    func statusTitle(_ copy: FuwaCopy) -> String {
+        var parts = [stateTitle(copy)]
+        if isHidden { parts.append(copy.text(.hidden)) }
+        if state == .live, options.notifiesWhenIdle, isIdle { parts.append(copy.text(.pictureIdle)) }
+        return parts.joined(separator: " · ")
+    }
+
     func stateTitle(_ copy: FuwaCopy) -> String {
         switch state {
         case .resolving: copy.text(.resolving)
@@ -71,7 +78,7 @@ struct PinActionsView: View {
                 model.unpin(pin.id)
             } label: {
                 if compact {
-                    Image(systemName: "xmark")
+                    Image(systemName: "pin.slash")
                 } else {
                     Label(model.copy.text(.unpin), systemImage: "pin.slash")
                 }
@@ -89,6 +96,7 @@ struct PinActionsView: View {
 struct PinControlsView: View {
     @ObservedObject var model: AppModel
     let pinID: UUID
+    var maximumHeight: CGFloat = 460
     var onHeightChanged: (CGFloat) -> Void = { _ in }
 
     var body: some View {
@@ -97,16 +105,26 @@ struct PinControlsView: View {
                 HStack(spacing: 6) {
                     Image(systemName: pin.canFreeze ? "pin.fill" : "pause.circle")
                     Text(pin.windowTitle).lineLimit(1).truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Spacer(minLength: 4)
                     if model.busyPinIDs.contains(pin.id) { ProgressView().controlSize(.mini) }
-                    Text(pin.stateTitle(model.copy)).foregroundStyle(pin.stateColor)
+                    Text(pin.statusTitle(model.copy)).foregroundStyle(pin.stateColor)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 180, alignment: .trailing)
                 }
                 .font(.caption.weight(.medium))
                 PinActionsView(model: model, pin: pin, compact: true)
                 Divider().opacity(0.5).padding(.vertical, 4)
-                PinQualityControls(model: model, pin: pin)
+                ScrollView {
+                    PinReferenceOptionsView(model: model, pin: pin)
+                        .padding(.trailing, 3)
+                        .padding(.vertical, 2)
+                }
+                .frame(maxHeight: .infinity)
+                .scrollIndicators(.automatic)
             }
             .padding(12)
+            .frame(height: maximumHeight)
             .fixedSize(horizontal: false, vertical: true)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { onHeightChanged($0) }
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(FuwaAppearance.border, lineWidth: 1))

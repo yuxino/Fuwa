@@ -30,10 +30,17 @@ final class PinCoordinator {
     weak var presentationModel: AppModel?
     var onPinsChanged: (([PinSnapshot]) -> Void)?
     var onFailure: ((Error) -> Void)?
+    var onVisibilityChanged: ((Bool) -> Void)?
+    /// Persists an explicitly changed frame-rate preference for this source app.
+    var onOptionsChanged: ((PinSnapshot) -> Void)?
+    var frameRateForApplication: ((String?) -> PinFrameRate)?
 
     private let resolver = TargetResolver()
     private var displayObserver: NSObjectProtocol?
+    private var applicationObserver: NSObjectProtocol?
     private let tracker: WindowTracker
+    private let visibilityReconciler = PinVisibilityReconciler()
+    private var visibilityPolicy: PinVisibilityPolicy
     private var sessionsByID: [UUID: PinSession] = [:]
     private var sessionIDByWindowID: [CGWindowID: UUID] = [:]
     private var insertionOrder: [UUID] = []
@@ -43,6 +50,12 @@ final class PinCoordinator {
 
     init() {
         tracker = WindowTracker()
+        let frontmostApplication = NSWorkspace.shared.frontmostApplication
+        visibilityPolicy = PinVisibilityPolicy(
+            activeApplicationBundleIdentifier: frontmostApplication?.processIdentifier == ProcessInfo.processInfo.processIdentifier
+                ? nil : frontmostApplication?.bundleIdentifier,
+            ownBundleIdentifier: Bundle.main.bundleIdentifier
+        )
         tracker.onInventory = { [weak self] inventory in
             self?.reconcileSessions(with: inventory)
         }
@@ -60,10 +73,31 @@ final class PinCoordinator {
                 }
             }
         }
+        applicationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            let bundleIdentifier = application.bundleIdentifier
+            let processIdentifier = application.processIdentifier
+            MainActor.assumeIsolated {
+                guard let self,
+                      self.visibilityPolicy.applicationActivated(
+                        bundleIdentifier: bundleIdentifier,
+                        isFuwa: processIdentifier == ProcessInfo.processInfo.processIdentifier
+                      ) else { return }
+                self.prepareRequiredSuppression()
+                self.requestVisibilityUpdate()
+            }
+        }
     }
 
     isolated deinit {
         if let displayObserver { NotificationCenter.default.removeObserver(displayObserver) }
+        if let applicationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(applicationObserver)
+        }
+        visibilityReconciler.invalidate()
     }
 
     var snapshots: [PinSnapshot] {
@@ -74,12 +108,37 @@ final class PinCoordinator {
         sessionsByID.count
     }
 
+    var arePinsHidden: Bool {
+        visibilityPolicy.arePinsHidden
+    }
+
+    func togglePinsVisibility() async throws {
+        guard !sessionsByID.isEmpty else { return }
+        setPinsHidden(!arePinsHidden)
+        try await reconcileVisibility()
+    }
+
+    func setOptions(_ options: PinOptions, for id: UUID) {
+        guard let session = sessionsByID[id] else { return }
+        session.setOptions(options)
+        requestVisibilityUpdate()
+        publishSnapshots()
+    }
+
+    func beginCropSelection(_ id: UUID) {
+        sessionsByID[id]?.beginCropSelection()
+    }
+
     func setCaptureQuality(_ quality: CaptureQuality, for id: UUID) {
         sessionsByID[id]?.setCaptureQuality(quality)
     }
 
     func focusControls(_ id: UUID) {
         sessionsByID[id]?.focusControls()
+    }
+
+    func refreshPresentationCopy() {
+        for session in sessionsByID.values { session.refreshPresentationCopy() }
     }
 
     func snapshotFrontmostIntent() throws -> TargetIntentSnapshot {
@@ -122,6 +181,14 @@ final class PinCoordinator {
         }
 
         let session = PinSession(target: target)
+        var options = session.options
+        if let frameRate = frameRateForApplication?(session.snapshot.bundleIdentifier) {
+            options.frameRate = frameRate
+            session.setOptions(options)
+        }
+        // Adding a new reference is an explicit request to see the group again.
+        // Application-specific rules still apply to each existing reference.
+        setPinsHidden(false)
         session.presentationModel = presentationModel
         configureCallbacks(for: session)
         sessionsByID[session.id] = session
@@ -130,7 +197,14 @@ final class PinCoordinator {
         publishSnapshots()
 
         do {
+            if visibilityPolicy.suppresses(session.options) {
+                try await session.setPresentationSuppressed(true)
+            }
             try await session.startInitialCapture(with: target)
+            guard requestedGeneration == operationGeneration,
+                  sessionsByID[session.id] === session else {
+                throw PinCoordinatorError.operationCancelled
+            }
         } catch {
             if !CGPreflightScreenCaptureAccess() {
                 clearAllImmediately()
@@ -141,6 +215,7 @@ final class PinCoordinator {
         }
         updateTrackerActivity()
         publishSnapshots()
+        try await reconcileVisibility()
     }
 
     func freeze(_ id: UUID) async throws {
@@ -191,10 +266,12 @@ final class PinCoordinator {
         pendingSessionOperations.remove(id)
         sessionIDByWindowID.removeValue(forKey: session.sourceWindowID)
         insertionOrder.removeAll(where: { $0 == id })
+        if sessionsByID.isEmpty { setPinsHidden(false) }
         session.onChange = nil
         session.onGeometryChanged = nil
         session.onFailure = nil
         session.onScreenRecordingRevoked = nil
+        session.onOptionsChanged = nil
         session.prepareForStop()
         updateTrackerActivity()
         publishSnapshots()
@@ -218,12 +295,14 @@ final class PinCoordinator {
 
     private func prepareToClearAll() -> [PinSession] {
         operationGeneration &+= 1
+        visibilityReconciler.invalidate()
         let sessions = insertionOrder.compactMap { sessionsByID[$0] }
         sessionsByID.removeAll()
         sessionIDByWindowID.removeAll()
         insertionOrder.removeAll()
         pendingPinRequests.clear()
         pendingSessionOperations.removeAll()
+        setPinsHidden(false)
         tracker.stop()
 
         for session in sessions {
@@ -231,6 +310,7 @@ final class PinCoordinator {
             session.onGeometryChanged = nil
             session.onFailure = nil
             session.onScreenRecordingRevoked = nil
+            session.onOptionsChanged = nil
             session.prepareForStop()
         }
         publishSnapshots()
@@ -249,6 +329,16 @@ final class PinCoordinator {
     }
 
     private func configureCallbacks(for session: PinSession) {
+        var previousFrameRate = session.options.frameRate
+        session.onOptionsChanged = { [weak self, weak session] options in
+            guard let self, let session, self.sessionsByID[session.id] === session else { return }
+            if options.frameRate != previousFrameRate {
+                previousFrameRate = options.frameRate
+                self.onOptionsChanged?(session.snapshot)
+            }
+            self.prepareRequiredSuppression()
+            self.requestVisibilityUpdate()
+        }
         session.onChange = { [weak self, weak session] in
             guard let self, let session, self.sessionsByID[session.id] === session else {
                 return
@@ -292,10 +382,12 @@ final class PinCoordinator {
         sessionsByID.removeValue(forKey: session.id)
         sessionIDByWindowID.removeValue(forKey: session.sourceWindowID)
         insertionOrder.removeAll(where: { $0 == session.id })
+        if sessionsByID.isEmpty { setPinsHidden(false) }
         session.onChange = nil
         session.onGeometryChanged = nil
         session.onFailure = nil
         session.onScreenRecordingRevoked = nil
+        session.onOptionsChanged = nil
         session.prepareForStop()
         updateTrackerActivity()
         publishSnapshots()
@@ -304,5 +396,68 @@ final class PinCoordinator {
 
     private func publishSnapshots() {
         onPinsChanged?(snapshots)
+    }
+
+    private func setPinsHidden(_ hidden: Bool) {
+        guard arePinsHidden != hidden else { return }
+        visibilityPolicy.arePinsHidden = hidden
+        if hidden { prepareRequiredSuppression() }
+        onVisibilityChanged?(hidden)
+    }
+
+    private func prepareRequiredSuppression() {
+        for id in insertionOrder {
+            guard let session = sessionsByID[id],
+                  visibilityPolicy.suppresses(session.options),
+                  !session.snapshot.isHidden else { continue }
+            session.preparePresentationSuppression()
+        }
+    }
+
+    private func requestVisibilityUpdate() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await self.reconcileVisibility()
+            } catch is CancellationError {
+                // Clearing pins intentionally invalidates pending visibility work.
+            } catch {
+                self.onFailure?(error)
+            }
+        }
+    }
+
+    private func reconcileVisibility() async throws {
+        try await visibilityReconciler.reconcile { [weak self] in
+            guard let self else { throw CancellationError() }
+            let requestedGeneration = self.operationGeneration
+            var firstError: Error?
+            // Conceal every affected panel before awaiting any stream shutdown.
+            // A slow first stream must not leave the remaining references visible.
+            self.prepareRequiredSuppression()
+            for id in self.insertionOrder {
+                try Task.checkCancellation()
+                guard requestedGeneration == self.operationGeneration else {
+                    throw CancellationError()
+                }
+                guard let session = self.sessionsByID[id] else { continue }
+                let suppressed = self.visibilityPolicy.suppresses(session.options)
+                if suppressed || session.snapshot.isHidden != suppressed {
+                    do {
+                        try await session.setPresentationSuppressed(suppressed)
+                    } catch {
+                        guard requestedGeneration == self.operationGeneration else {
+                            throw CancellationError()
+                        }
+                        if self.sessionsByID[id] === session, firstError == nil {
+                            firstError = error
+                        }
+                    }
+                }
+            }
+            self.updateTrackerActivity()
+            self.publishSnapshots()
+            if let firstError { throw firstError }
+        }
     }
 }
