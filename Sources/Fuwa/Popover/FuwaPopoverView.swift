@@ -168,7 +168,7 @@ struct FuwaPopoverView: View {
                     )
                 }
                 .font(.caption.weight(.medium))
-                .foregroundStyle(model.hasPermissionWarning ? Color.orange : Color.secondary)
+                .foregroundStyle(model.hasPermissionWarning ? FuwaAppearance.warning : Color.secondary)
             }
             .buttonStyle(FuwaPlainButtonStyle())
             .help(settingsButtonLabel)

@@ -61,7 +61,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let model = AppModel(
             languagePreference: settingsStore.language,
             keepInDock: settingsStore.keepInDock,
-            captureQuality: settingsStore.captureQuality,
             version: Self.version,
             shortcut: activeShortcut,
             shortcutIsActive: hotKey.currentShortcut != nil,
@@ -78,12 +77,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             settingsStore.keepInDock = enabled
             updateDockPresence()
-        }
-        pinCoordinator.setCaptureQuality(settingsStore.captureQuality)
-        model.onCaptureQualityChanged = { [weak self] quality in
-            guard let self else { return }
-            settingsStore.captureQuality = quality
-            pinCoordinator.setCaptureQuality(quality)
         }
         pinCoordinator.presentationModel = model
         NSApp.mainMenu = FuwaApplicationMenu.make(quitTitle: model.copy.text(.quit))
@@ -197,6 +190,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             resume: { [weak self] id in
                 guard let self else { throw FuwaApplicationError.unavailable }
                 try await pinCoordinator.resume(id)
+            },
+            updateCaptureQuality: { [weak self] id, quality in
+                self?.pinCoordinator.setCaptureQuality(quality, for: id)
             },
             unpin: { [weak self] id in
                 guard let self else { throw FuwaApplicationError.unavailable }

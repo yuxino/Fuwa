@@ -123,27 +123,65 @@ struct PresentationTests {
         #expect(visibility == [true, false, true, false])
     }
 
-    @Test func captureQualityPersistsAndDefaultsToNativePixels() throws {
-        let suite = "FuwaCaptureQualityTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let store = AppSettingsStore(defaults: defaults)
-        #expect(store.captureQuality == .native)
-        let model = AppModel(captureQuality: store.captureQuality)
-        var changes = [CaptureQuality]()
-        model.onCaptureQualityChanged = { store.captureQuality = $0; changes.append($0) }
-        for quality in [37, 50, 75, 100].map({ CaptureQuality(percentage: $0)! }) {
-            model.setCaptureQuality(quality)
-            model.setCaptureQuality(quality)
-            #expect(AppSettingsStore(defaults: defaults).captureQuality == quality)
+    @Test func qualityChangesOnlyTheRequestedPinAndNewPinsStartAtOriginalQuality() throws {
+        let model = AppModel()
+        let first = pin(.live)
+        let second = pin(.live)
+        #expect(first.captureQuality == .native && second.captureQuality == .native)
+        model.updatePins([first, second])
+        var changedIDs = [UUID]()
+        var actions = FuwaAppActions()
+        actions.updateCaptureQuality = { id, quality in
+            changedIDs.append(id)
+            model.updatePins(model.pins.map { snapshot in
+                var updated = snapshot
+                if snapshot.id == id { updated.captureQuality = quality }
+                return updated
+            })
         }
-        #expect(changes.map(\.percentage) == [37, 50, 75, 100])
-        let relaunched = AppModel(captureQuality: AppSettingsStore(defaults: defaults).captureQuality)
-        #expect(relaunched.captureQuality == .native)
-        defaults.set("4mp", forKey: "captureQuality")
-        #expect(store.captureQuality == .native)
-        defaults.set("invalid", forKey: "captureQuality")
-        #expect(store.captureQuality == .native)
+        model.configure(actions: actions)
+        let reduced = try #require(CaptureQuality(percentage: 50))
+        model.setCaptureQuality(reduced, for: first.id)
+        model.setCaptureQuality(reduced, for: first.id)
+        #expect(changedIDs == [first.id])
+        #expect(model.pins[0].captureQuality == reduced)
+        #expect(model.pins[1].captureQuality == .native)
+        let newlyPinned = pin(.live)
+        model.updatePins(model.pins + [newlyPinned])
+        #expect(model.pins.last?.captureQuality == .native)
+        model.setCaptureQuality(.native, for: first.id)
+        #expect(model.pins.allSatisfy { $0.captureQuality == .native })
+        #expect(changedIDs == [first.id, first.id])
+    }
+
+    @Test func qualityCannotChangeForMissingPausedBusyOrStoppingPins() async throws {
+        let model = AppModel()
+        var changedIDs = [UUID]()
+        var actions = FuwaAppActions()
+        actions.updateCaptureQuality = { id, _ in changedIDs.append(id) }
+        actions.freeze = { _ in try await Task.sleep(for: .milliseconds(20)) }
+        actions.clearAll = { try await Task.sleep(for: .milliseconds(20)) }
+        model.configure(actions: actions)
+        let reduced = try #require(CaptureQuality(percentage: 50))
+        let live = pin(.live)
+        let unavailable = [PinState.starting, .frozen(.manual), .frozen(.captureInterrupted),
+                           .frozen(.sourceClosed), .failed(.captureFailed), .stopping, .stopped].map(pin)
+        model.updatePins([live] + unavailable)
+        model.setCaptureQuality(reduced, for: UUID())
+        for snapshot in unavailable {
+            #expect(!snapshot.canAdjustQuality)
+            model.setCaptureQuality(reduced, for: snapshot.id)
+        }
+        model.freeze(live.id)
+        model.setCaptureQuality(reduced, for: live.id)
+        model.clearAll()
+        model.setCaptureQuality(reduced, for: live.id)
+        #expect(changedIDs.isEmpty)
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while (model.isClearingAll || !model.busyPinIDs.isEmpty) && ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(!model.isClearingAll && model.busyPinIDs.isEmpty)
     }
 
     @Test func screenRecordingDenialWarnsAboutPinningPermissions() {

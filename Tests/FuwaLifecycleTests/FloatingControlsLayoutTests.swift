@@ -15,7 +15,7 @@ struct FloatingControlsLayoutTests {
                 for y in [display.minY - 200, display.minY, display.midY, display.maxY - 50, display.maxY + 200] {
                     let result = FloatingControlsLayout.frame(source: CGRect(x: x, y: y, width: 600, height: 400), visible: display)
                     #expect(display.contains(result))
-                    #expect(result.size == CGSize(width: 380, height: 78))
+                    #expect(result.size == CGSize(width: 380, height: 164))
                 }
             }
         }

@@ -21,7 +21,8 @@ Window pixels and window metadata are used only on your computer to provide the 
 - Window inventories are transient snapshots. Fuwa does not persist or log them.
 - Unpinning clears any retained frame.
 - Locking the screen, sleeping the computer, switching users, or quitting Fuwa stops active mirroring immediately. On macOS, Screen Recording revocation also clears captured pixels when detected.
-- Language, picture quality, Dock visibility, the keyboard shortcut, and the launch-at-login preference are stored locally using system preferences and services.
+- Picture quality is kept in memory for the current pin only. Newly pinned windows start at original quality.
+- Language, Dock visibility, the keyboard shortcut, and the launch-at-login preference are stored locally using system preferences and services.
 
 Fuwa does not restore third-party window content after a privacy boundary. The updater may store a verified package temporarily while installing it and removes or replaces that staging data through the native Sparkle lifecycle. macOS may create diagnostic reports according to your system settings; Fuwa does not collect or transmit those reports.
 

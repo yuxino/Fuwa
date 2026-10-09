@@ -41,6 +41,9 @@ struct PinSnapshot: Identifiable, Equatable {
     let windowTitle: String
     let state: PinState
     let errorMessage: String?
+    var captureQuality: CaptureQuality = .native
+
+    var canAdjustQuality: Bool { state == .live }
 
     var canFreeze: Bool {
         state == .live
@@ -83,11 +86,11 @@ final class PinSession {
     private var teardownTask: Task<Void, Never>?
     private var missingObservationCount = 0
     private var isHandlingMissingSource = false
-    private var captureQuality: CaptureQuality
+    private var captureQuality: CaptureQuality = .native
+    private var controlsHeight: CGFloat = 164
 
-    init(id: UUID = UUID(), target: ResolvedTarget, captureQuality: CaptureQuality = .default) {
+    init(id: UUID = UUID(), target: ResolvedTarget) {
         self.id = id
-        self.captureQuality = captureQuality
         descriptor = target.descriptor
         coordinateSpace = target.coordinateSpace
         applicationName = target.window.owningApplication?.applicationName
@@ -128,7 +131,8 @@ final class PinSession {
             bundleIdentifier: bundleIdentifier,
             windowTitle: windowTitle,
             state: state,
-            errorMessage: errorMessage
+            errorMessage: errorMessage,
+            captureQuality: captureQuality
         )
     }
 
@@ -693,10 +697,17 @@ final class PinSession {
         captureView = view
         if let presentationModel {
             let controls = PinControlsPanel(
-                contentRect: NSRect(x: frame.minX, y: frame.maxY, width: 380, height: 78),
+                contentRect: NSRect(x: frame.minX, y: frame.maxY, width: 380, height: controlsHeight),
                 styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false
             )
-            controls.contentView = NSHostingView(rootView: PinControlsView(model: presentationModel, pinID: id))
+            controls.contentView = NSHostingView(rootView: PinControlsView(
+                model: presentationModel, pinID: id,
+                onHeightChanged: { [weak self] height in
+                    guard let self, height > 0, abs(height - controlsHeight) > 0.5 else { return }
+                    controlsHeight = height
+                    positionControls()
+                }
+            ))
             controls.title = "Fuwa — \(windowTitle)"
             controls.level = .floating
             controls.isReleasedWhenClosed = false
@@ -738,7 +749,8 @@ final class PinSession {
         guard let panel, let controlsPanel else { return }
         let screens = NSScreen.screens
         guard let index = FloatingControlsLayout.screenIndex(source: panel.frame, screens: screens.map(\.frame)) else { return }
-        let frame = FloatingControlsLayout.frame(source: panel.frame, visible: screens[index].visibleFrame)
+        let frame = FloatingControlsLayout.frame(source: panel.frame, visible: screens[index].visibleFrame,
+                                                 size: CGSize(width: 380, height: controlsHeight))
         if controlsPanel.frame != frame { controlsPanel.setFrame(frame, display: true) }
     }
 
@@ -798,9 +810,10 @@ final class PinSession {
     }
 
     func setCaptureQuality(_ quality: CaptureQuality) {
-        guard quality != captureQuality else { return }
+        guard state == .live, quality != captureQuality else { return }
         captureQuality = quality
-        if currentCycle != nil { scheduleCaptureResize(to: descriptor.bounds.size) }
+        scheduleCaptureResize(to: descriptor.bounds.size)
+        notifyChange()
     }
 
     static func makeConfiguration(

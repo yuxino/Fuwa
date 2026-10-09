@@ -27,7 +27,7 @@ struct PinRowView: View {
             if let message = pin.errorMessage, !message.isEmpty {
                 Text(message)
                     .font(compact ? .caption2 : .caption)
-                    .foregroundStyle(stateIsFailure ? Color.red : Color.secondary)
+                    .foregroundStyle(pin.stateColor)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, detailsIndent)
             }
@@ -58,11 +58,11 @@ struct PinRowView: View {
                 .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 2)
                 .truncationMode(.middle)
                 .help("\(copy.text(.showControls)): \(pin.windowTitle)")
-                Text(pin.windowTitle == pin.applicationName
-                     ? pin.stateTitle(copy)
-                     : "\(pin.applicationName) · \(pin.stateTitle(copy))")
+                (Text(pin.windowTitle == pin.applicationName ? "" : "\(pin.applicationName) · ")
+                    .foregroundColor(FuwaAppearance.secondaryText)
+                 + Text(pin.stateTitle(copy)).foregroundColor(pin.stateColor))
                     .font(compact ? .caption2 : .caption)
-                    .foregroundStyle(stateIsFailure ? Color.red : Color.secondary)
+                    .foregroundStyle(pin.stateColor)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -72,6 +72,12 @@ struct PinRowView: View {
     private var actions: some View {
         HStack(spacing: 8) {
             PinPlaybackButton(model: model, pin: pin)
+            FuwaIconButton(symbol: "gearshape", label: copy.text(.captureQuality), isBusy: isBusy) {
+                model.showControls(pin.id)
+            }
+            .disabled(!pin.canShowControls || isBusy)
+            .help(copy.text(.captureQualityNote))
+            .accessibilityHint(copy.text(.captureQualityNote))
             FuwaIconButton(symbol: "pin.slash", label: copy.text(.unpin), isBusy: isBusy) {
                 model.unpin(pin.id)
             }
@@ -81,8 +87,4 @@ struct PinRowView: View {
         .fixedSize()
     }
 
-    private var stateIsFailure: Bool {
-        if case .failed = pin.state { return true }
-        return false
-    }
 }

@@ -10,6 +10,15 @@ extension PinSnapshot {
         }
     }
 
+    var stateColor: Color {
+        switch state {
+        case .live: FuwaAppearance.success
+        case .frozen(.sourceClosed), .frozen(.captureInterrupted): FuwaAppearance.warning
+        case .failed: FuwaAppearance.error
+        default: FuwaAppearance.secondaryText
+        }
+    }
+
     func stateTitle(_ copy: FuwaCopy) -> String {
         switch state {
         case .resolving: copy.text(.resolving)
@@ -80,6 +89,7 @@ struct PinActionsView: View {
 struct PinControlsView: View {
     @ObservedObject var model: AppModel
     let pinID: UUID
+    var onHeightChanged: (CGFloat) -> Void = { _ in }
 
     var body: some View {
         if let pin = model.pins.first(where: { $0.id == pinID }) {
@@ -89,13 +99,17 @@ struct PinControlsView: View {
                     Text(pin.windowTitle).lineLimit(1).truncationMode(.middle)
                     Spacer(minLength: 4)
                     if model.busyPinIDs.contains(pin.id) { ProgressView().controlSize(.mini) }
-                    Text(pin.stateTitle(model.copy)).foregroundStyle(.secondary)
+                    Text(pin.stateTitle(model.copy)).foregroundStyle(pin.stateColor)
                 }
                 .font(.caption.weight(.medium))
                 PinActionsView(model: model, pin: pin, compact: true)
+                Divider().opacity(0.5).padding(.vertical, 4)
+                PinQualityControls(model: model, pin: pin)
             }
-            .padding(10)
-            .overlay(Rectangle().stroke(Color.primary.opacity(0.16), lineWidth: 1))
+            .padding(12)
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { onHeightChanged($0) }
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(FuwaAppearance.border, lineWidth: 1))
             .fuwaLightSurface()
             .accessibilityElement(children: .contain)
         }

@@ -169,7 +169,7 @@ struct FuwaNoticeView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: notice.kind == .error ? "exclamationmark.circle" : "info.circle")
-                .foregroundStyle(notice.kind == .error ? Color.red : Color.secondary)
+                .foregroundStyle(notice.kind == .error ? FuwaAppearance.error : Color.secondary)
                 .accessibilityHidden(true)
 
             Text(notice.message)
@@ -255,7 +255,7 @@ struct FuwaPermissionLabel: View {
     var body: some View {
         Label(title, systemImage: symbol)
             .font(.caption.weight(.medium))
-            .foregroundStyle(state == .denied ? Color.orange : Color.secondary)
+            .foregroundStyle(state == .denied ? FuwaAppearance.warning : Color.secondary)
             .accessibilityLabel(title)
     }
 

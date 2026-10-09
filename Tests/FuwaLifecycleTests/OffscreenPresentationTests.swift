@@ -16,22 +16,24 @@ struct OffscreenPresentationTests {
         try FileManager.default.createDirectory(atPath: output, withIntermediateDirectories: true)
         let before = app.windows.filter(\.isVisible).count
         for language in FuwaLanguage.allCases {
-            let model = AppModel(copy: FuwaCopy(language: language), screenRecordingPermission: .granted)
+            let model = AppModel(copy: FuwaCopy(language: language), version: "1.1.0", screenRecordingPermission: .granted)
             try save(SettingsView(model: model).frame(width: 546, height: 520).fuwaLightSurface(), to: "\(output)/\(language)-settings.png")
             try save(SettingsView(model: model).frame(width: 364, height: 520).fuwaLightSurface(), to: "\(output)/\(language)-settings-compact.png")
             try save(SettingsView(model: model).frame(width: 436, height: 660).environment(\.dynamicTypeSize, .accessibility3).fuwaLightSurface(), to: "\(output)/\(language)-settings-large-text.png")
-            let ungranted = AppModel(copy: FuwaCopy(language: language), screenRecordingPermission: .unknown)
+            let ungranted = AppModel(copy: FuwaCopy(language: language), version: "1.1.0", screenRecordingPermission: .unknown)
             try save(SettingsView(model: ungranted).frame(width: 364, height: 920).fuwaLightSurface(), to: "\(output)/\(language)-permissions-compact.png")
             try save(MainView(model: model).frame(width: 720, height: 540), to: "\(output)/\(language)-empty.png")
             let pin = PinSnapshot(id: UUID(), sourceWindowID: 123, applicationName: "Reference",
-                bundleIdentifier: nil, windowTitle: "Notes for today's work", state: .live, errorMessage: nil)
+                bundleIdentifier: nil, windowTitle: "Notes for today's work", state: .live, errorMessage: nil, captureQuality: CaptureQuality(percentage: 50)!)
             let frozen = PinSnapshot(id: UUID(), sourceWindowID: 124, applicationName: "Preview",
                 bundleIdentifier: nil, windowTitle: "A saved reference", state: .frozen(.sourceClosed), errorMessage: nil)
             let paused = PinSnapshot(id: UUID(), sourceWindowID: 125, applicationName: "Preview", bundleIdentifier: nil, windowTitle: "A paused reference", state: .frozen(.manual), errorMessage: nil)
             model.updatePins([pin, paused, frozen])
             try save(MainView(model: model).frame(width: 720, height: 540), to: "\(output)/\(language)-pins.png")
-            try save(MainView(model: model).frame(width: 600, height: 420), to: "\(output)/\(language)-pins-compact.png")
-            try save(PinControlsView(model: model, pinID: pin.id).frame(width: 380, height: 78), to: "\(output)/\(language)-controls.png")
+            try save(MainView(model: model).frame(width: 640, height: 460), to: "\(output)/\(language)-pins-compact.png")
+            try save(PinControlsView(model: model, pinID: pin.id).frame(width: 380, height: 164), to: "\(output)/\(language)-controls.png")
+            try save(PinControlsView(model: model, pinID: paused.id).frame(width: 380, height: 164), to: "\(output)/\(language)-paused-controls.png")
+            try save(PinControlsView(model: model, pinID: pin.id).frame(width: 380).environment(\.dynamicTypeSize, .accessibility3), to: "\(output)/\(language)-controls-large-text.png")
             try save(FuwaPopoverView(model: model).frame(width: 364, height: 520), to: "\(output)/\(language)-tray.png")
             try save(MainView(model: model).frame(width: 720, height: 540).environment(\.colorScheme, .dark), to: "\(output)/\(language)-dark.png")
         }
