@@ -28,6 +28,7 @@ Fuwa is a macOS window pinning app. Keep a live view of an image, document, or t
 - Pin multiple windows and freeze frames.
 - Support for application windows and system previews of images and documents.
 - Customizable keyboard shortcut.
+- Choose a capture limit of 4 (default), 9, or 16 million pixels, or keep native resolution. Higher limits preserve more detail and use more memory.
 - Choose whether Fuwa stays in the Dock. When off, its icon appears only while the main window is open; the menu bar remains available.
 - Mirrors pass mouse input through; `Go to Original Window` activates and raises the real source window.
 - Window pixels and metadata stay on your computer, with no uploads, analytics, or telemetry.

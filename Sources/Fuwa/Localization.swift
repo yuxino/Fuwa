@@ -1,4 +1,5 @@
 import Foundation
+import FuwaCore
 
 enum FuwaLanguage: String, Sendable {
     case english
@@ -75,6 +76,13 @@ enum FuwaString: String, CaseIterable, Sendable {
     case accessibilityNote
     case keepInDock
     case keepInDockNote
+    case captureQuality
+    case captureQualityNote
+    case captureQualityHelp
+    case qualityFourMillion
+    case qualityNineMillion
+    case qualitySixteenMillion
+    case qualityNative
     case launchAtLogin
     case launchAtLoginApproval
     case openLoginItems
@@ -141,6 +149,15 @@ struct FuwaCopy: Sendable {
         }
     }
 
+    func captureQualityLabel(_ quality: CaptureQuality) -> String {
+        switch quality {
+        case .fourMegapixels: text(.qualityFourMillion)
+        case .nineMegapixels: text(.qualityNineMillion)
+        case .sixteenMegapixels: text(.qualitySixteenMillion)
+        case .native: text(.qualityNative)
+        }
+    }
+
     private static let english: [FuwaString: String] = [
         .language: "Language",
         .systemLanguage: "Follow System",
@@ -190,6 +207,13 @@ struct FuwaCopy: Sendable {
         .accessibilityNote: "Lets Go to Original Window bring the original window to the front.",
         .keepInDock: "Keep in Dock",
         .keepInDockNote: "When off, the Dock icon appears only while Fuwa’s main window is open. Fuwa remains available in the menu bar.",
+        .captureQuality: "Picture Quality",
+        .captureQualityNote: "MP means million pixels. Higher limits preserve more detail in large windows, but use more memory.",
+        .captureQualityHelp: "Native resolution keeps the window’s original pixel dimensions. Changes apply to live views and future frozen images. An already frozen image keeps its current detail until you resume and freeze it again.",
+        .qualityFourMillion: "4 million pixels (default)",
+        .qualityNineMillion: "9 million pixels",
+        .qualitySixteenMillion: "16 million pixels",
+        .qualityNative: "Native resolution",
         .launchAtLogin: "Launch at Login",
         .launchAtLoginApproval: "Approve Fuwa in System Settings → General → Login Items.",
         .openLoginItems: "Open Login Items",
@@ -280,6 +304,13 @@ struct FuwaCopy: Sendable {
         .accessibilityNote: "用于将原窗口带到前台，在“回到原窗口”时使用。",
         .keepInDock: "保留 Dock 图标",
         .keepInDockNote: "关闭后，仅在 Fuwa 主窗口打开时显示 Dock 图标。仍可从菜单栏打开 Fuwa。",
+        .captureQuality: "画面清晰度",
+        .captureQualityNote: "MP 表示百万像素。上限越高，大窗口能保留更多细节，也会使用更多内存。",
+        .captureQualityHelp: "原生分辨率保留窗口的原始像素尺寸。设置用于实时画面和之后冻结的画面。已冻结的画面需先恢复实时，再重新冻结，才能使用新设置。",
+        .qualityFourMillion: "400 万像素（默认）",
+        .qualityNineMillion: "900 万像素",
+        .qualitySixteenMillion: "1600 万像素",
+        .qualityNative: "原生分辨率",
         .launchAtLogin: "开机启动",
         .launchAtLoginApproval: "需要在“系统设置 → 通用 → 登录项”中批准 Fuwa。",
         .openLoginItems: "打开登录项",

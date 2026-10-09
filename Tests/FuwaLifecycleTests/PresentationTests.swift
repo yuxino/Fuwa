@@ -116,6 +116,27 @@ struct PresentationTests {
         #expect(visibility == [true, false, true, false])
     }
 
+    @Test func captureQualityPersistsAndDefaultsToFourMillionPixels() throws {
+        let suite = "FuwaCaptureQualityTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = AppSettingsStore(defaults: defaults)
+        #expect(store.captureQuality == .fourMegapixels)
+        let model = AppModel(captureQuality: store.captureQuality)
+        var changes = [CaptureQuality]()
+        model.onCaptureQualityChanged = { store.captureQuality = $0; changes.append($0) }
+        for quality in CaptureQuality.allCases {
+            model.setCaptureQuality(quality)
+            model.setCaptureQuality(quality)
+            #expect(AppSettingsStore(defaults: defaults).captureQuality == quality)
+        }
+        #expect(changes == [.nineMegapixels, .sixteenMegapixels, .native])
+        let relaunched = AppModel(captureQuality: AppSettingsStore(defaults: defaults).captureQuality)
+        #expect(relaunched.captureQuality == .native)
+        defaults.set("invalid", forKey: "captureQuality")
+        #expect(store.captureQuality == .fourMegapixels)
+    }
+
     @Test func popoverFitsSmallListsAndKeepsLargeListsBounded() {
         func size(_ count: Int, route: FuwaPopoverRoute = .pins,
                   notice: Bool = false, type: DynamicTypeSize = .large, actions: Int = 0) -> NSSize {

@@ -83,9 +83,11 @@ final class PinSession {
     private var teardownTask: Task<Void, Never>?
     private var missingObservationCount = 0
     private var isHandlingMissingSource = false
+    private var captureQuality: CaptureQuality
 
-    init(id: UUID = UUID(), target: ResolvedTarget) {
+    init(id: UUID = UUID(), target: ResolvedTarget, captureQuality: CaptureQuality = .default) {
         self.id = id
+        self.captureQuality = captureQuality
         descriptor = target.descriptor
         coordinateSpace = target.coordinateSpace
         applicationName = target.window.owningApplication?.applicationName
@@ -157,7 +159,7 @@ final class PinSession {
 
         let image: CGImage
         do {
-            image = try captureView.makeFrozenImage()
+            image = try captureView.makeFrozenImage(maxPixels: captureQuality.maximumPixelCount)
         } catch {
             throw PinSessionError.freezeFailed(error.localizedDescription)
         }
@@ -397,12 +399,13 @@ final class PinSession {
 
         let filter = SCContentFilter(desktopIndependentWindow: target.window)
         let pointScale = max(1, CGFloat(filter.pointPixelScale))
-        let configuration = makeConfiguration(
+        let configuration = Self.makeConfiguration(
             pointSize: Self.capturePointSize(
                 filter: filter,
                 fallback: target.descriptor.bounds.size
             ),
-            pointScale: pointScale
+            pointScale: pointScale,
+            captureQuality: captureQuality
         )
 
         nextGeneration &+= 1
@@ -763,9 +766,10 @@ final class PinSession {
         guard let currentCycle else { return }
 
         let latestScale = currentCycle.pointScale
-        let configuration = makeConfiguration(
+        let configuration = Self.makeConfiguration(
             pointSize: pointSize,
-            pointScale: latestScale
+            pointScale: latestScale,
+            captureQuality: captureQuality
         )
         let generation = currentCycle.generation
         let streamID = currentCycle.streamID
@@ -793,18 +797,27 @@ final class PinSession {
         }
     }
 
-    private func makeConfiguration(
+    func setCaptureQuality(_ quality: CaptureQuality) {
+        guard quality != captureQuality else { return }
+        captureQuality = quality
+        if currentCycle != nil { scheduleCaptureResize(to: descriptor.bounds.size) }
+    }
+
+    static func makeConfiguration(
         pointSize: CGSize,
-        pointScale: CGFloat
+        pointScale: CGFloat,
+        captureQuality: CaptureQuality = .default
     ) -> SCStreamConfiguration {
         let configuration = SCStreamConfiguration()
         let dimensions = LiveCaptureSizing.fittedDimensions(
             pointWidth: Double(pointSize.width),
             pointHeight: Double(pointSize.height),
-            pointScale: Double(pointScale)
+            pointScale: Double(pointScale),
+            maxPixels: captureQuality.maximumPixelCount
         ) ?? PixelDimensions(width: 2, height: 2)
         configuration.width = dimensions.width
         configuration.height = dimensions.height
+        if captureQuality == .native { configuration.captureResolution = .best }
         // Fill the canvas while a cross-display resize is being applied.
         configuration.scalesToFit = true
         configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)

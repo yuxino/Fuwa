@@ -72,6 +72,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var copy: FuwaCopy
     @Published private(set) var languagePreference: FuwaLanguagePreference
     @Published private(set) var keepInDock: Bool
+    @Published private(set) var captureQuality: CaptureQuality
     let version: String
 
     @Published private(set) var pins: [PinSnapshot] = [] {
@@ -98,6 +99,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var softwareUpdate: SoftwareUpdateState
 
     var onKeepInDockChanged: ((Bool) -> Void)?
+    var onCaptureQualityChanged: ((CaptureQuality) -> Void)?
     var onLanguageChanged: ((FuwaLanguagePreference) -> Void)?
     var onStatusPresentationChanged: (() -> Void)?
     var onRequestDismissPopover: (() -> Void)?
@@ -108,6 +110,7 @@ final class AppModel: ObservableObject {
         copy: FuwaCopy? = nil,
         languagePreference: FuwaLanguagePreference = .system,
         keepInDock: Bool = true,
+        captureQuality: CaptureQuality = .default,
         version: String = "0.1.9",
         shortcut: KeyboardShortcut = .defaultPin,
         shortcutIsActive: Bool = true,
@@ -119,6 +122,7 @@ final class AppModel: ObservableObject {
         self.copy = copy ?? FuwaCopy(language: languagePreference.resolved)
         self.languagePreference = languagePreference
         self.keepInDock = keepInDock
+        self.captureQuality = captureQuality
         self.version = version
         self.shortcut = shortcut
         self.shortcutIsActive = shortcutIsActive
@@ -140,6 +144,12 @@ final class AppModel: ObservableObject {
         guard enabled != keepInDock else { return }
         keepInDock = enabled
         onKeepInDockChanged?(enabled)
+    }
+
+    func setCaptureQuality(_ quality: CaptureQuality) {
+        guard quality != captureQuality else { return }
+        captureQuality = quality
+        onCaptureQualityChanged?(quality)
     }
 
     var statusItemAccessibilityLabel: String {

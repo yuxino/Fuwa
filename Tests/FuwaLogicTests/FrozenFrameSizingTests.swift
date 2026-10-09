@@ -2,6 +2,52 @@ import FuwaCore
 
 func runFrozenFrameSizingTests(runner: inout LogicTestRunner) {
     runner.expect(
+        CaptureQuality.default.maximumPixelCount == 4_000_000,
+        "existing users and new installations retain the four-million-pixel default"
+    )
+    let qualityDimensions: [(CaptureQuality, PixelDimensions)] = [
+        (.fourMegapixels, PixelDimensions(width: 2_666, height: 1_500)),
+        (.nineMegapixels, PixelDimensions(width: 4_000, height: 2_250)),
+        (.sixteenMegapixels, PixelDimensions(width: 5_120, height: 2_880)),
+        (.native, PixelDimensions(width: 5_120, height: 2_880))
+    ]
+    for (quality, expected) in qualityDimensions {
+        runner.expect(
+            LiveCaptureSizing.fittedDimensions(
+                pointWidth: 2_560, pointHeight: 1_440, pointScale: 2,
+                maxPixels: quality.maximumPixelCount
+            ) == expected,
+            "live Retina capture follows the \(quality.rawValue) pixel limit"
+        )
+        runner.expect(
+            FrozenFrameSizing.fittedDimensions(
+                sourceWidth: 5_120, sourceHeight: 2_880,
+                maxPixels: quality.maximumPixelCount
+            ) == expected,
+            "frozen capture uses the same \(quality.rawValue) pixel limit"
+        )
+    }
+    runner.expect(
+        LiveCaptureSizing.fittedDimensions(
+            pointWidth: 1_920, pointHeight: 1_080, pointScale: 2,
+            maxPixels: CaptureQuality.nineMegapixels.maximumPixelCount
+        ) == PixelDimensions(width: 3_840, height: 2_160),
+        "nine million pixels preserve a native 4K surface"
+    )
+    runner.expect(
+        LiveCaptureSizing.fittedDimensions(
+            pointWidth: 3_008, pointHeight: 1_692, pointScale: 2,
+            maxPixels: CaptureQuality.native.maximumPixelCount
+        ) == PixelDimensions(width: 6_016, height: 3_384),
+        "native resolution preserves a 6K surface beyond the sixteen-million-pixel preset"
+    )
+    runner.expect(
+        FrozenFrameSizing.fittedDimensions(
+            sourceWidth: .max, sourceHeight: 2, maxPixels: nil
+        ) == nil,
+        "native sizing rejects overflowing pixel counts"
+    )
+    runner.expect(
         FrozenFrameSizing.fittedDimensions(
             sourceWidth: 1_920,
             sourceHeight: 1_080,
