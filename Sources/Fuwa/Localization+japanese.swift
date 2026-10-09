@@ -41,7 +41,6 @@ extension FuwaCopy {
         .ready: "許可済み",
         .permissionNeeded: "許可が必要",
         .permissionUnknown: "未使用",
-        .permissionRequired: "必須",
         .permissionNotEnabled: "未許可",
         .openSettings: "設定を開く",
         .screenRecordingNote: "固定表示にはウィンドウの画面を読み取る必要があります。画像はこの Mac 内でのみ処理されます。",

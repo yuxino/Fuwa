@@ -41,7 +41,6 @@ extension FuwaCopy {
         .ready: "Erlaubt",
         .permissionNeeded: "Berechtigung erforderlich",
         .permissionUnknown: "Noch nicht verwendet",
-        .permissionRequired: "Erforderlich",
         .permissionNotEnabled: "Nicht erlaubt",
         .openSettings: "Einstellungen öffnen",
         .screenRecordingNote: "Fuwa muss das Fensterbild lesen, um es angeheftet anzuzeigen. Die Bilder bleiben auf diesem Mac.",

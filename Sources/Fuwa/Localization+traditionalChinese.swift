@@ -41,7 +41,6 @@ extension FuwaCopy {
         .ready: "已授權",
         .permissionNeeded: "需要授權",
         .permissionUnknown: "尚未使用",
-        .permissionRequired: "必需",
         .permissionNotEnabled: "未開啟",
         .openSettings: "開啟設定",
         .screenRecordingNote: "Fuwa 需要讀取視窗畫面，才能顯示置頂浮窗。畫面只在本機處理。",

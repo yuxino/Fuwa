@@ -41,7 +41,6 @@ extension FuwaCopy {
         .ready: "Autorisé",
         .permissionNeeded: "Autorisation requise",
         .permissionUnknown: "Pas encore utilisé",
-        .permissionRequired: "Nécessaire",
         .permissionNotEnabled: "Non autorisé",
         .openSettings: "Ouvrir les réglages",
         .screenRecordingNote: "Fuwa doit lire l’image d’une fenêtre pour l’afficher au premier plan. Les images restent sur ce Mac.",
