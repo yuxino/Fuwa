@@ -305,6 +305,7 @@ jobs:
             -v heading="## [${version}]" \
             '$0 == heading || index($0, heading " - ") == 1 {capture=1; next}
              capture && /^## / {exit}
+             capture && /^### (English|中文)$/ {sub(/^### /, "## "); print; next}
              capture {print}' \
             CHANGELOG.md > "$notes_file"
           if [[ ! -s "$notes_file" ]]; then
