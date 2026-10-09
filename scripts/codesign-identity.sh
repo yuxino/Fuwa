@@ -111,7 +111,7 @@ error: no stable macOS code-signing identity is available.
 Run ./scripts/setup-local-signing.sh once, install an Apple Development
 identity, or set FUWA_CODESIGN_IDENTITY to an existing certificate fingerprint.
 Fuwa refuses to create a normal ad-hoc build because doing so would make macOS
-ask for Screen Recording and Accessibility permission again after a rebuild.
+ask for Screen Recording permission again after a rebuild.
 EOF
 # Exit 3 is reserved for the one safe setup condition: the Keychain query
 # succeeded, but no default stable identity exists yet.

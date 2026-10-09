@@ -10,7 +10,6 @@ final class AppSettingsStore {
         static let captureQuality = "captureQuality"
         static let shortcut = "shortcut"
         static let didRequestScreenRecording = "didRequestScreenRecording"
-        static let didRequestAccessibility = "didRequestAccessibility"
     }
 
     private let defaults: UserDefaults
@@ -63,11 +62,6 @@ final class AppSettingsStore {
     var didRequestScreenRecording: Bool {
         get { defaults.bool(forKey: Key.didRequestScreenRecording) }
         set { defaults.set(newValue, forKey: Key.didRequestScreenRecording) }
-    }
-
-    var didRequestAccessibility: Bool {
-        get { defaults.bool(forKey: Key.didRequestAccessibility) }
-        set { defaults.set(newValue, forKey: Key.didRequestAccessibility) }
     }
 }
 

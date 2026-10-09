@@ -14,12 +14,6 @@ enum FuwaPermissionState: Equatable {
     case denied
 }
 
-enum FuwaInteractionState: Equatable {
-    case viewOnly
-    case engaged
-    case unavailable(String?)
-}
-
 struct FuwaNotice: Identifiable, Equatable {
     enum Kind: Equatable {
         case information
@@ -46,8 +40,6 @@ struct FuwaAppActions {
     var pinWindow: @MainActor (FuwaWindowChoice) async throws -> Void = { _ in }
     var freeze: @MainActor (UUID) async throws -> Void = { _ in }
     var resume: @MainActor (UUID) async throws -> Void = { _ in }
-    var interact: @MainActor (UUID) async throws -> Void = { _ in }
-    var revealSource: @MainActor (UUID) async throws -> Void = { _ in }
     var unpin: @MainActor (UUID) async throws -> Void = { _ in }
     var clearAll: @MainActor () async throws -> Void = {}
     var updateShortcut: @MainActor (KeyboardShortcut) async throws
@@ -55,7 +47,6 @@ struct FuwaAppActions {
     var updateLaunchAtLogin: @MainActor (Bool) async throws
         -> FuwaLaunchAtLoginState = { _ in .disabled }
     var openScreenRecordingSettings: @MainActor () -> Void = {}
-    var openAccessibilitySettings: @MainActor () -> Void = {}
     var openLoginItemsSettings: @MainActor () -> Void = {}
     var checkForUpdates: @MainActor () -> Void = {}
     var downloadUpdate: @MainActor () -> Void = {}
@@ -88,9 +79,6 @@ final class AppModel: ObservableObject {
     }
     @Published private(set) var launchAtLoginState: FuwaLaunchAtLoginState
     @Published private(set) var screenRecordingPermission: FuwaPermissionState
-    @Published private(set) var accessibilityPermission: FuwaPermissionState
-    @Published private(set) var interactionStates: [UUID: FuwaInteractionState] = [:]
-    @Published private(set) var engagedPinID: UUID?
     @Published private(set) var busyPinIDs = Set<UUID>()
     @Published private(set) var isPinningFrontWindow = false
     @Published private(set) var isClearingAll = false
@@ -116,7 +104,6 @@ final class AppModel: ObservableObject {
         shortcutIsActive: Bool = true,
         launchAtLoginState: FuwaLaunchAtLoginState = .disabled,
         screenRecordingPermission: FuwaPermissionState = .unknown,
-        accessibilityPermission: FuwaPermissionState = .unknown,
         actions: FuwaAppActions = FuwaAppActions()
     ) {
         self.copy = copy ?? FuwaCopy(language: languagePreference.resolved)
@@ -128,7 +115,6 @@ final class AppModel: ObservableObject {
         self.shortcutIsActive = shortcutIsActive
         self.launchAtLoginState = launchAtLoginState
         self.screenRecordingPermission = screenRecordingPermission
-        self.accessibilityPermission = accessibilityPermission
         softwareUpdate = .idle(currentVersion: version)
         self.actions = actions
     }
@@ -172,38 +158,13 @@ final class AppModel: ObservableObject {
         pins = snapshots
 
         let activeIDs = Set(snapshots.map(\.id))
-        interactionStates = interactionStates.filter { activeIDs.contains($0.key) }
         busyPinIDs.formIntersection(activeIDs)
-
-        if let engagedPinID {
-            let engagedPin = snapshots.first(where: { $0.id == engagedPinID })
-            if engagedPin == nil || !Self.canInteract(with: engagedPin?.state) {
-                setEngagedPin(nil)
-            }
-        }
     }
 
     func updatePermissions(
-        screenRecording: FuwaPermissionState,
-        accessibility: FuwaPermissionState
+        screenRecording: FuwaPermissionState
     ) {
         screenRecordingPermission = screenRecording
-        accessibilityPermission = accessibility
-    }
-
-    func setEngagedPin(_ id: UUID?) {
-        if let previous = engagedPinID,
-           interactionStates[previous] == .engaged {
-            interactionStates[previous] = .viewOnly
-        }
-        engagedPinID = id
-        if let id {
-            interactionStates[id] = .engaged
-        }
-    }
-
-    func disengageInteraction() {
-        setEngagedPin(nil)
     }
 
     func updateLaunchAtLoginState(_ state: FuwaLaunchAtLoginState) {
@@ -232,10 +193,6 @@ final class AppModel: ObservableObject {
 
     func openScreenRecordingSettings() {
         actions.openScreenRecordingSettings()
-    }
-
-    func openAccessibilitySettings() {
-        actions.openAccessibilitySettings()
     }
 
     func openLoginItemsSettings() {
@@ -372,39 +329,9 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func interact(_ id: UUID) {
-        performPinAction(id) { [weak self] actions in
-            do {
-                try await actions.interact(id)
-                self?.setEngagedPin(id)
-            } catch {
-                if let self {
-                    interactionStates[id] = .unavailable(
-                        FuwaErrorMessage.localizedDescription(
-                            for: error,
-                            language: copy.language
-                        )
-                    )
-                }
-                throw error
-            }
-        }
-    }
-
-    func revealSource(_ id: UUID) {
-        performPinAction(id) { [weak self] actions in
-            try await actions.revealSource(id)
-            self?.interactionStates[id] = .viewOnly
-            self?.setEngagedPin(nil)
-        }
-    }
-
     func unpin(_ id: UUID) {
-        performPinAction(id) { [weak self] actions in
+        performPinAction(id) { actions in
             try await actions.unpin(id)
-            if self?.engagedPinID == id {
-                self?.setEngagedPin(nil)
-            }
         }
     }
 
@@ -412,7 +339,6 @@ final class AppModel: ObservableObject {
         guard !isClearingAll, !pins.isEmpty else { return }
         isClearingAll = true
         notice = nil
-        setEngagedPin(nil)
 
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -518,14 +444,5 @@ final class AppModel: ObservableObject {
                 language: copy.language
             )
         )
-    }
-
-    private static func canInteract(with state: PinState?) -> Bool {
-        switch state {
-        case .live, .frozen(.manual), .frozen(.captureInterrupted):
-            true
-        case .none, .resolving, .starting, .frozen(.sourceClosed), .failed, .stopping, .stopped:
-            false
-        }
     }
 }

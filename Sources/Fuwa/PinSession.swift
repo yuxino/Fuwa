@@ -159,7 +159,7 @@ final class PinSession {
 
         let image: CGImage
         do {
-            image = try captureView.makeFrozenImage(maxPixels: captureQuality.maximumPixelCount)
+            image = try captureView.makeFrozenImage()
         } catch {
             throw PinSessionError.freezeFailed(error.localizedDescription)
         }
@@ -813,7 +813,7 @@ final class PinSession {
             pointWidth: Double(pointSize.width),
             pointHeight: Double(pointSize.height),
             pointScale: Double(pointScale),
-            maxPixels: captureQuality.maximumPixelCount
+            quality: captureQuality
         ) ?? PixelDimensions(width: 2, height: 2)
         configuration.width = dimensions.width
         configuration.height = dimensions.height

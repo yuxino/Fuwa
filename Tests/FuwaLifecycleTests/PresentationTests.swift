@@ -12,10 +12,9 @@ struct PresentationTests {
                     windowTitle: "Reference document", state: state, errorMessage: nil)
     }
 
-    @Test func closedSourceCannotResumeOrReveal() {
+    @Test func closedSourceCannotResume() {
         let closed = pin(.frozen(.sourceClosed))
         #expect(!closed.canResume)
-        #expect(!closed.canUseSource)
         #expect(!closed.canFreeze)
         #expect(closed.canShowControls)
         #expect(!pin(.starting).canShowControls)
@@ -40,7 +39,8 @@ struct PresentationTests {
         #expect(!submenu.items.contains(where: { $0.title == "Resume" }))
         model.updatePins([pin(.live)])
         let liveMenu = try #require(controller.makeQuickMenu().items.first(where: { $0.submenu != nil })?.submenu)
-        #expect(liveMenu.items.contains(where: { $0.title == "Go to Original Window" && $0.isEnabled }))
+        #expect(liveMenu.items.contains(where: { $0.title == "Pause Picture" && $0.isEnabled }))
+        #expect(!liveMenu.items.contains(where: { $0.title == "Go to Original Window" }))
     }
 
     @Test func clearAllPreventsConcurrentPinCommands() async {
@@ -123,44 +123,44 @@ struct PresentationTests {
         #expect(visibility == [true, false, true, false])
     }
 
-    @Test func captureQualityPersistsAndDefaultsToFourMillionPixels() throws {
+    @Test func captureQualityPersistsAndDefaultsToNativePixels() throws {
         let suite = "FuwaCaptureQualityTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let store = AppSettingsStore(defaults: defaults)
-        #expect(store.captureQuality == .fourMegapixels)
+        #expect(store.captureQuality == .native)
         let model = AppModel(captureQuality: store.captureQuality)
         var changes = [CaptureQuality]()
         model.onCaptureQualityChanged = { store.captureQuality = $0; changes.append($0) }
-        for quality in CaptureQuality.allCases {
+        for quality in [37, 50, 75, 100].map({ CaptureQuality(percentage: $0)! }) {
             model.setCaptureQuality(quality)
             model.setCaptureQuality(quality)
             #expect(AppSettingsStore(defaults: defaults).captureQuality == quality)
         }
-        #expect(changes == [.nineMegapixels, .sixteenMegapixels, .native])
+        #expect(changes.map(\.percentage) == [37, 50, 75, 100])
         let relaunched = AppModel(captureQuality: AppSettingsStore(defaults: defaults).captureQuality)
         #expect(relaunched.captureQuality == .native)
+        defaults.set("4mp", forKey: "captureQuality")
+        #expect(store.captureQuality == .native)
         defaults.set("invalid", forKey: "captureQuality")
-        #expect(store.captureQuality == .fourMegapixels)
+        #expect(store.captureQuality == .native)
     }
 
-    @Test func optionalAccessibilityDoesNotWarnAboutPinningPermissions() {
-        let model = AppModel(screenRecordingPermission: .granted, accessibilityPermission: .denied)
+    @Test func screenRecordingDenialWarnsAboutPinningPermissions() {
+        let model = AppModel(screenRecordingPermission: .granted)
         #expect(!model.hasPermissionWarning)
-        model.updatePermissions(screenRecording: .denied, accessibility: .granted)
+        model.updatePermissions(screenRecording: .denied)
         #expect(model.hasPermissionWarning)
-        model.updatePermissions(screenRecording: .unknown, accessibility: .unknown)
+        model.updatePermissions(screenRecording: .unknown)
         #expect(!model.hasPermissionWarning)
     }
 
     @Test func popoverFitsSmallListsAndKeepsLargeListsBounded() {
         func size(_ count: Int, route: FuwaPopoverRoute = .pins,
-                  notice: Bool = false, type: DynamicTypeSize = .large, actions: Int = 0) -> NSSize {
-            FuwaPopoverLayout.preferredContentSize(route: route, pinCount: count, actionRowCount: actions,
+                  notice: Bool = false, type: DynamicTypeSize = .large) -> NSSize {
+            FuwaPopoverLayout.preferredContentSize(route: route, pinCount: count,
                 hasNotice: notice, hasPermissionWarning: false, dynamicTypeSize: type)
         }
-        #expect(size(2, actions: 2).height > size(2).height)
-        #expect(size(8, actions: 8) == size(12, actions: 12))
         #expect(size(1).height < size(2).height)
         #expect(size(2).height < size(8).height)
         #expect(size(8) == size(12))

@@ -19,7 +19,6 @@ enum FuwaApplicationError: LocalizedError {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let pinCoordinator = PinCoordinator()
-    private let interactionCoordinator = InteractionCoordinator()
     private let privacyLifecycle = PrivacyLifecycle()
     private let settingsStore = AppSettingsStore()
     private let launchAtLoginController = LaunchAtLoginController()
@@ -67,8 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             shortcut: activeShortcut,
             shortcutIsActive: hotKey.currentShortcut != nil,
             launchAtLoginState: launchAtLoginController.state,
-            screenRecordingPermission: screenRecordingPermissionState,
-            accessibilityPermission: accessibilityPermissionState
+            screenRecordingPermission: screenRecordingPermissionState
         )
         self.model = model
         model.onLanguageChanged = { [weak self, weak model] preference in
@@ -161,7 +159,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         discardPopoverIntent()
         hotKey?.stop()
         privacyLifecycle.stop()
-        model?.disengageInteraction()
         pinCoordinator.clearAllImmediately()
         statusBarController?.invalidate()
         statusBarController = nil
@@ -201,21 +198,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self else { throw FuwaApplicationError.unavailable }
                 try await pinCoordinator.resume(id)
             },
-            interact: { [weak self] id in
-                guard let self else { throw FuwaApplicationError.unavailable }
-                try await engageSource(for: id, isInteract: true)
-            },
-            revealSource: { [weak self] id in
-                guard let self else { throw FuwaApplicationError.unavailable }
-                try await engageSource(for: id, isInteract: false)
-            },
             unpin: { [weak self] id in
                 guard let self else { throw FuwaApplicationError.unavailable }
                 await pinCoordinator.unpin(id)
             },
             clearAll: { [weak self] in
                 guard let self else { throw FuwaApplicationError.unavailable }
-                model?.disengageInteraction()
                 await pinCoordinator.clearAll()
             },
             updateShortcut: { [weak self] shortcut in
@@ -233,9 +221,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             openScreenRecordingSettings: { [weak self] in
                 self?.openPrivacySettings(anchor: "Privacy_ScreenCapture")
-            },
-            openAccessibilitySettings: { [weak self] in
-                self?.openPrivacySettings(anchor: "Privacy_Accessibility")
             },
             openLoginItemsSettings: { [weak self] in
                 self?.launchAtLoginController.openSettings()
@@ -342,56 +327,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func engageSource(for id: UUID, isInteract: Bool) async throws {
-        try ensureAccessibilityPermission()
-        let target = try pinCoordinator.interactionTarget(for: id)
-
-        if isInteract {
-            _ = try await interactionCoordinator.interact(
-                with: target.descriptor,
-                expectedTitle: target.windowTitle
-            )
-        } else {
-            _ = try await interactionCoordinator.revealSource(
-                matching: target.descriptor,
-                expectedTitle: target.windowTitle
-            )
-        }
-    }
-
-    private func ensureAccessibilityPermission() throws {
-        if interactionCoordinator.accessibilityPermissionStatus == .granted {
-            return
-        }
-
-        if !settingsStore.didRequestAccessibility {
-            guard presentAccessibilityRationale() else {
-                throw InteractionError.viewOnly(.accessibilityPermissionRequired)
-            }
-            settingsStore.didRequestAccessibility = true
-            _ = interactionCoordinator.requestAccessibilityAccess()
-        } else {
-            _ = interactionCoordinator.refreshAccessibilityPermission()
-        }
-        refreshPermissions()
-
-        guard interactionCoordinator.accessibilityPermissionStatus == .granted else {
-            throw InteractionError.viewOnly(.accessibilityPermissionRequired)
-        }
-    }
-
-    private func presentAccessibilityRationale() -> Bool {
-        let copy = model?.copy ?? FuwaCopy()
-        let alert = NSAlert()
-        alert.alertStyle = .informational
-        alert.messageText = copy.text(.accessibilityRationaleTitle)
-        alert.informativeText = copy.text(.accessibilityRationaleNote)
-        alert.addButton(withTitle: copy.text(.continueAction))
-        alert.addButton(withTitle: copy.text(.notNow))
-        NSApp.activate(ignoringOtherApps: true)
-        return alert.runModal() == .alertFirstButtonReturn
-    }
-
     private func configureCoordinatorCallbacks(model: AppModel) {
         pinCoordinator.onPinsChanged = { [weak model] snapshots in
             model?.updatePins(snapshots)
@@ -405,7 +340,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func configurePrivacyLifecycle() {
         privacyLifecycle.onPrivacyBoundary = { [weak self] _ in
             self?.discardPopoverIntent()
-            self?.model?.disengageInteraction()
             self?.pinCoordinator.clearAllImmediately()
         }
         privacyLifecycle.onEnvironmentRefresh = { [weak self] in
@@ -416,14 +350,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func refreshPermissions() {
         let screenRecordingGranted = CGPreflightScreenCaptureAccess()
         if !screenRecordingGranted, pinCoordinator.pinCount > 0 {
-            model?.disengageInteraction()
             pinCoordinator.clearAllImmediately()
         }
 
-        _ = interactionCoordinator.refreshAccessibilityPermission()
         model?.updatePermissions(
-            screenRecording: screenRecordingPermissionState,
-            accessibility: accessibilityPermissionState
+            screenRecording: screenRecordingPermissionState
         )
         model?.updateLaunchAtLoginState(launchAtLoginController.state)
     }
@@ -431,13 +362,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var screenRecordingPermissionState: FuwaPermissionState {
         if CGPreflightScreenCaptureAccess() { return .granted }
         return settingsStore.didRequestScreenRecording ? .denied : .unknown
-    }
-
-    private var accessibilityPermissionState: FuwaPermissionState {
-        if interactionCoordinator.accessibilityPermissionStatus == .granted {
-            return .granted
-        }
-        return settingsStore.didRequestAccessibility ? .denied : .unknown
     }
 
     private func openPrivacySettings(anchor: String) {

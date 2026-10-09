@@ -23,11 +23,6 @@ enum PinCoordinatorError: LocalizedError {
     }
 }
 
-struct PinInteractionTarget {
-    let descriptor: WindowDescriptor
-    let windowTitle: String?
-}
-
 @MainActor
 final class PinCoordinator {
     static let maximumPinCount = 8
@@ -89,28 +84,6 @@ final class PinCoordinator {
 
     func focusControls(_ id: UUID) {
         sessionsByID[id]?.focusControls()
-    }
-
-    func interactionTarget(for id: UUID) throws -> PinInteractionTarget {
-        guard let session = sessionsByID[id] else {
-            throw PinCoordinatorError.pinNotFound
-        }
-        let previousDescriptor = session.descriptor
-        guard let currentDescriptor = WindowInventory.currentDescriptor(
-            for: previousDescriptor.id,
-            ownerPID: previousDescriptor.ownerPID
-        ) else {
-            throw TargetResolutionError.intentDisappeared(
-                windowID: previousDescriptor.id
-            )
-        }
-        let snapshot = session.snapshot
-        return PinInteractionTarget(
-            descriptor: currentDescriptor,
-            windowTitle: snapshot.windowTitle == snapshot.applicationName
-                ? nil
-                : snapshot.windowTitle
-        )
     }
 
     func snapshotFrontmostIntent() throws -> TargetIntentSnapshot {
