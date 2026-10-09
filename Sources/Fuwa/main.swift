@@ -30,9 +30,8 @@ if let existing = NSRunningApplication.runningApplications(
 let application = NSApplication.shared
 let applicationDelegate = AppDelegate()
 application.delegate = applicationDelegate
-// Login-item startup stays in the menu bar. Opening the management window
-// supplies Dock presence until that window is closed.
-application.setActivationPolicy(.accessory)
+// Honor the saved Dock preference at startup, including login-item launches.
+FuwaDockPresence.update(keepInDock: AppSettingsStore().keepInDock)
 
 withExtendedLifetime((applicationDelegate, instanceLock)) {
     application.run()

@@ -4,9 +4,8 @@ import SwiftUI
 @MainActor
 struct MainView: View {
     @ObservedObject var model: AppModel
-    @State private var choosingWindow = false
-    @State private var settingsSelected = false
     private var copy: FuwaCopy { model.copy }
+    private var settingsSelected: Bool { model.route == .settings }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -19,10 +18,10 @@ struct MainView: View {
                 }
                 VStack(spacing: 4) {
                     navigation(copy.text(.pins), symbol: "pin", selected: !settingsSelected) {
-                        settingsSelected = false
+                        model.showPins()
                     }
                     navigation(copy.text(.settings), symbol: "gearshape", selected: settingsSelected) {
-                        settingsSelected = true
+                        model.showSettings()
                     }
                     .keyboardShortcut(",", modifiers: .command)
                 }
@@ -48,7 +47,7 @@ struct MainView: View {
                             .font(.system(size: 18, weight: .semibold))
                         Spacer()
                         if !settingsSelected {
-                            Button { choosingWindow = true } label: {
+                            Button(action: model.chooseWindow) {
                                 Label(copy.text(.chooseWindow), systemImage: "plus")
                             }
                             .buttonStyle(FuwaPrimaryButtonStyle(expands: false))
@@ -78,7 +77,7 @@ struct MainView: View {
                 if settingsSelected {
                     SettingsView(model: model)
                 } else {
-                    PinsView(model: model, showsPinAction: false)
+                    PinsView(model: model)
                     Spacer(minLength: 0)
                     Divider()
                     HStack {
@@ -96,7 +95,9 @@ struct MainView: View {
         }
         .fuwaLightSurface()
         .environment(\.locale, Locale(identifier: copy.language.localeIdentifier))
-        .sheet(isPresented: $choosingWindow) { WindowPickerView(model: model) }
+        .sheet(isPresented: Binding(get: { model.isChoosingWindow }, set: { model.setWindowPickerPresented($0) })) {
+            WindowPickerView(model: model)
+        }
     }
 
     private func navigation(_ title: String, symbol: String, selected: Bool, action: @escaping () -> Void) -> some View {

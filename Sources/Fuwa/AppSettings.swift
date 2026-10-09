@@ -6,6 +6,7 @@ import ServiceManagement
 final class AppSettingsStore {
     private enum Key {
         static let language = "language"
+        static let keepInDock = "keepInDock"
         static let shortcut = "shortcut"
         static let didRequestScreenRecording = "didRequestScreenRecording"
     }
@@ -21,6 +22,12 @@ final class AppSettingsStore {
     var language: FuwaLanguagePreference {
         get { FuwaLanguagePreference(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .system }
         set { defaults.set(newValue.rawValue, forKey: Key.language) }
+    }
+
+    // Existing installations retain their regular-app presentation by default.
+    var keepInDock: Bool {
+        get { defaults.object(forKey: Key.keepInDock) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.keepInDock) }
     }
 
     var shortcut: KeyboardShortcut {

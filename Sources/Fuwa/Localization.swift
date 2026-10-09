@@ -82,7 +82,6 @@ enum FuwaString: String, CaseIterable, Sendable {
     case manageWindows
     case appTagline
     case pinFrontWindow
-    case pinning
     case pins
     case noPinsBody
     case live
@@ -101,7 +100,6 @@ enum FuwaString: String, CaseIterable, Sendable {
     case clearAll
     case settings
     case general
-    case back
     case permissions
     case screenRecording
     case ready
@@ -110,6 +108,8 @@ enum FuwaString: String, CaseIterable, Sendable {
     case permissionNotEnabled
     case openSettings
     case screenRecordingNote
+    case keepInDock
+    case keepInDockNote
     case captureQuality
     case captureQualityNote
     case captureQualityHelp
@@ -147,7 +147,6 @@ enum FuwaString: String, CaseIterable, Sendable {
     case viewLatestRelease
     case viewLatestReleaseHint
     case about
-    case moreActions
     case quit
     case version
     case dismiss
@@ -215,7 +214,6 @@ struct FuwaCopy: Sendable {
         .manageWindows: "Your windows",
         .appTagline: "Keep the window you need on top.",
         .pinFrontWindow: "Pin Front Window",
-        .pinning: "Pinning…",
         .pins: "Pins",
         .noPinsBody: "Open a reference or tutorial window, then press the shortcut to keep it on top.",
         .live: "Live",
@@ -234,7 +232,6 @@ struct FuwaCopy: Sendable {
         .clearAll: "Unpin All",
         .settings: "Settings",
         .general: "General",
-        .back: "Back",
         .permissions: "Permissions",
         .screenRecording: "Screen Recording",
         .ready: "Allowed",
@@ -243,6 +240,8 @@ struct FuwaCopy: Sendable {
         .permissionNotEnabled: "Not enabled",
         .openSettings: "Open Settings",
         .screenRecordingNote: "Fuwa needs to read a window’s picture to show it in a pinned view. Pictures stay on this Mac.",
+        .keepInDock: "Keep in Dock",
+        .keepInDockNote: "When off, Fuwa’s Dock icon is hidden. You can still open Fuwa from the menu bar.",
         .captureQuality: "Picture Quality",
         .captureQualityNote: "Adjust the picture quality of this pinned window.",
         .captureQualityHelp: "Each newly pinned window starts at original quality. Lowering it affects only this window and uses less memory, but may blur text and details. Resume a paused picture before adjusting.",
@@ -280,7 +279,6 @@ struct FuwaCopy: Sendable {
         .viewLatestRelease: "View Latest Release",
         .viewLatestReleaseHint: "Opens the latest Fuwa release in your browser.",
         .about: "About Fuwa",
-        .moreActions: "More Actions",
         .quit: "Quit Fuwa",
         .version: "Version",
         .dismiss: "Dismiss",
@@ -331,7 +329,6 @@ struct FuwaCopy: Sendable {
         .manageWindows: "你的窗口",
         .appTagline: "把需要的窗口置顶，方便随时查看。",
         .pinFrontWindow: "固定最前方窗口",
-        .pinning: "正在固定…",
         .pins: "已固定",
         .noPinsBody: "打开要参考的图片、文档或教程窗口，再按快捷键置顶。",
         .live: "实时画面",
@@ -350,7 +347,6 @@ struct FuwaCopy: Sendable {
         .clearAll: "全部取消固定",
         .settings: "设置",
         .general: "通用",
-        .back: "返回",
         .permissions: "权限",
         .screenRecording: "屏幕录制",
         .ready: "已授权",
@@ -359,6 +355,8 @@ struct FuwaCopy: Sendable {
         .permissionNotEnabled: "未开启",
         .openSettings: "打开设置",
         .screenRecordingNote: "Fuwa 需要读取窗口画面，才能显示置顶浮窗。画面只在本机处理。",
+        .keepInDock: "保留 Dock 图标",
+        .keepInDockNote: "关闭后隐藏 Dock 图标，仍可从菜单栏打开 Fuwa。",
         .captureQuality: "画面清晰度",
         .captureQualityNote: "调整这个置顶窗口的清晰度。",
         .captureQualityHelp: "每个新置顶的窗口默认保留原始画面。调低只影响这个窗口，可节省内存，但文字和细节可能变模糊。暂停画面时，需先取消暂停才能调整。",
@@ -396,7 +394,6 @@ struct FuwaCopy: Sendable {
         .viewLatestRelease: "查看最新版本",
         .viewLatestReleaseHint: "在浏览器中打开 Fuwa 最新版本页面。",
         .about: "关于 Fuwa",
-        .moreActions: "更多操作",
         .quit: "退出 Fuwa",
         .version: "版本",
         .dismiss: "关闭",

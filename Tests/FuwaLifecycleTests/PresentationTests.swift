@@ -26,19 +26,19 @@ struct PresentationTests {
     @Test func menusExposeAvailabilityAndWindowSpecificActions() throws {
         _ = NSApplication.shared
         let model = AppModel(copy: FuwaCopy(language: .english))
-        let controller = StatusBarController(model: model)
+        let controller = StatusBarController(model: model, statusItem: nil)
         defer { controller.invalidate() }
-        let empty = controller.makeQuickMenu()
-        #expect(empty.items.first(where: { $0.title == "Unpin All" })?.isEnabled == false)
+        let empty = controller.makeMenu()
+        #expect(!empty.items.contains(where: { $0.identifier?.rawValue == "clearAll" }))
         #expect(empty.items.contains(where: { $0.title == "Quit Fuwa" && $0.isEnabled }))
         let closed = pin(.frozen(.sourceClosed))
         model.updatePins([closed])
-        let submenu = try #require(controller.makeQuickMenu().items.first(where: { $0.submenu != nil })?.submenu)
+        let submenu = try #require(controller.makeMenu().items.first(where: { $0.submenu != nil })?.submenu)
         #expect(!submenu.items.contains(where: { $0.title == "Go to Original Window" }))
         #expect(submenu.items.contains(where: { $0.title == "Unpin" && $0.isEnabled }))
         #expect(!submenu.items.contains(where: { $0.title == "Resume" }))
         model.updatePins([pin(.live)])
-        let liveMenu = try #require(controller.makeQuickMenu().items.first(where: { $0.submenu != nil })?.submenu)
+        let liveMenu = try #require(controller.makeMenu().items.first(where: { $0.submenu != nil })?.submenu)
         #expect(liveMenu.items.contains(where: { $0.title == "Pause Picture" && $0.isEnabled }))
         #expect(!liveMenu.items.contains(where: { $0.title == "Go to Original Window" }))
     }
@@ -72,13 +72,13 @@ struct PresentationTests {
         #expect(store.language == .system)
         let model = AppModel(languagePreference: store.language)
         model.onLanguageChanged = { store.language = $0 }
-        let controller = StatusBarController(model: model)
+        let controller = StatusBarController(model: model, statusItem: nil)
         defer { controller.invalidate() }
         model.setLanguage(.english)
-        #expect(controller.makeQuickMenu().items.contains { $0.title == "Quit Fuwa" })
+        #expect(controller.makeMenu().items.contains { $0.title == "Quit Fuwa" })
         model.setLanguage(.simplifiedChinese)
         #expect(model.copy.text(.settings) == "设置")
-        #expect(!controller.makeQuickMenu().items.contains { $0.title == "Quit Fuwa" })
+        #expect(!controller.makeMenu().items.contains { $0.title == "Quit Fuwa" })
         let relaunched = AppModel(languagePreference: AppSettingsStore(defaults: defaults).language)
         #expect(relaunched.copy.language == .simplifiedChinese)
         model.setLanguage(.system)
@@ -86,7 +86,7 @@ struct PresentationTests {
         for preference in FuwaLanguagePreference.allCases {
             model.setLanguage(preference)
             #expect(AppSettingsStore(defaults: defaults).language == preference)
-            #expect(controller.makeQuickMenu().items.contains { $0.title == model.copy.text(.quit) })
+            #expect(controller.makeMenu().items.contains { $0.title == model.copy.text(.quit) })
             let restored = AppModel(languagePreference: AppSettingsStore(defaults: defaults).language)
             #expect(restored.copy.language == preference.resolved)
         }
@@ -94,15 +94,83 @@ struct PresentationTests {
         #expect(store.language == .system)
     }
 
-    @Test func closingAndReopeningManagementReportsDockPresence() {
-        _ = NSApplication.shared
-        var visibility = [Bool]()
-        let controller = MainWindowController(model: AppModel()) { visibility.append($0) }
+    @Test func dockPreferencePersistsAndKeepsTheDefaultForExistingUsers() throws {
+        let suite = "FuwaDockTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = AppSettingsStore(defaults: defaults)
+        #expect(store.keepInDock)
+        let model = AppModel(keepInDock: store.keepInDock)
+        var changes = [Bool]()
+        model.onKeepInDockChanged = { store.keepInDock = $0; changes.append($0) }
+        model.setKeepInDock(false)
+        model.setKeepInDock(false)
+        #expect(changes == [false])
+        let relaunched = AppModel(keepInDock: AppSettingsStore(defaults: defaults).keepInDock)
+        #expect(!relaunched.keepInDock)
+        model.setKeepInDock(true)
+        #expect(AppSettingsStore(defaults: defaults).keepInDock)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["FUWA_HEADLESS_TESTS"] != "1",
+                  "Visible window verification requires a dedicated desktop"))
+    func dockToggleChangesPolicyWithMainWindowOpenAndSurvivesReopening() {
+        let app = NSApplication.shared
+        let previousPolicy = app.activationPolicy()
+        let model = AppModel(keepInDock: true)
+        model.onKeepInDockChanged = { FuwaDockPresence.update(keepInDock: $0) }
+        let controller = MainWindowController(model: model)
+        let mirror = NSPanel(contentRect: NSRect(x: 80, y: 80, width: 160, height: 100),
+                             styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        mirror.isReleasedWhenClosed = false
+        mirror.hidesOnDeactivate = false
+        mirror.level = .floating
+        let closedWindow = NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: false)
+        closedWindow.isReleasedWhenClosed = false
+        defer {
+            controller.window.close()
+            mirror.close()
+            closedWindow.close()
+            app.setActivationPolicy(previousPolicy)
+        }
+        func settle() { RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.2)) }
+        FuwaDockPresence.update(keepInDock: model.keepInDock)
         controller.present()
+        mirror.orderFrontRegardless()
+        settle()
+        let mainFrame = controller.window.frame
+        let mirrorFrame = mirror.frame
+        let mainCanHide = controller.window.canHide
+        #expect(app.activationPolicy() == .regular)
+        #expect(controller.window.isVisible)
+
+        model.setKeepInDock(false)
+        settle()
+        #expect(app.activationPolicy() == .accessory)
+        #expect(!app.isHidden)
+        #expect(controller.window.isVisible)
+        #expect(controller.window.frame == mainFrame)
+        #expect(controller.window.canHide == mainCanHide)
+        #expect(mirror.isVisible && mirror.frame == mirrorFrame && mirror.level == .floating)
+        #expect(!mirror.hidesOnDeactivate)
+        #expect(!closedWindow.isVisible)
         controller.window.close()
+        // Simulate Launch Services promoting the app when it is reopened.
+        app.setActivationPolicy(.regular)
         controller.present()
+        settle()
+        #expect(app.activationPolicy() == .accessory)
+        #expect(controller.window.isVisible)
+
+        model.setKeepInDock(true)
+        settle()
+        #expect(app.activationPolicy() == .regular)
+        #expect(!app.isHidden)
+        #expect(controller.window.isVisible)
+        #expect(mirror.isVisible && mirror.frame == mirrorFrame)
+        #expect(!closedWindow.isVisible)
         controller.window.close()
-        #expect(visibility == [true, false, true, false])
+        #expect(app.activationPolicy() == .regular)
     }
 
     @Test func qualityChangesOnlyTheRequestedPinAndNewPinsStartAtOriginalQuality() throws {
@@ -175,20 +243,79 @@ struct PresentationTests {
         #expect(!model.hasPermissionWarning)
     }
 
-    @Test func popoverFitsSmallListsAndKeepsLargeListsBounded() {
-        func size(_ count: Int, route: FuwaPopoverRoute = .pins,
-                  notice: Bool = false, type: DynamicTypeSize = .large) -> NSSize {
-            FuwaPopoverLayout.preferredContentSize(route: route, pinCount: count,
-                hasNotice: notice, hasPermissionWarning: false, dynamicTypeSize: type)
+    @Test func menuActionsNavigateTheSharedWindowAndExposeEveryLanguage() throws {
+        let app = NSApplication.shared
+        for language in FuwaLanguage.allCases {
+            let model = AppModel(copy: FuwaCopy(language: language))
+            var opened = 0
+            var actions = FuwaAppActions()
+            actions.openMainWindow = { opened += 1 }
+            model.configure(actions: actions)
+            let controller = StatusBarController(model: model, statusItem: nil)
+            defer { controller.invalidate() }
+            let menu = controller.makeMenu()
+            func select(_ key: FuwaString) throws {
+                let index = try #require(menu.items.firstIndex { $0.identifier?.rawValue == key.rawValue })
+                app.sendAction(try #require(menu.items[index].action), to: controller, from: menu.items[index])
+            }
+            try select(.chooseWindow)
+            #expect(model.route == .pins && model.isChoosingWindow && opened == 1)
+            try select(.settings)
+            #expect(model.route == .settings && !model.isChoosingWindow && opened == 2)
+            controller.menuWillOpen(menu)
+            controller.menuDidClose(menu)
+            #expect(model.route == .settings)
+            try select(.openFuwa)
+            #expect(model.route == .pins && opened == 3)
+            #expect(menu.items.first?.title.hasPrefix(model.copy.text(.pinFrontWindow)) == true)
+            #expect(menu.items.filter { $0.identifier?.rawValue == "settings" }.count == 1)
+            #expect(menu.items.contains { $0.title == model.copy.text(.emptyTitle) && !$0.isEnabled })
+            #expect(menu.items.contains { $0.title == model.copy.text(.about) })
+            let longTitle = String(repeating: "窗口の長いタイトル", count: 12)
+            model.updatePins([PinSnapshot(id: UUID(), sourceWindowID: 100, applicationName: "Preview",
+                bundleIdentifier: nil, windowTitle: longTitle, state: .live, errorMessage: nil)])
+            let row = try #require(controller.makeMenu().items.first { $0.submenu != nil })
+            #expect(row.toolTip == "Preview — \(longTitle)")
+            #expect(row.title.contains("…"))
+            #expect((row.title as NSString).size(withAttributes: [.font: NSFont.menuFont(ofSize: 0)]).width <= 320)
         }
-        #expect(size(1).height < size(2).height)
-        #expect(size(2).height < size(8).height)
-        #expect(size(8) == size(12))
-        #expect(size(2).height < size(2, route: .settings).height)
-        #expect(size(0, route: .settings) == size(8, route: .settings))
-        #expect(size(2, notice: true).height > size(2).height)
-        #expect(size(2, type: .accessibility3).width > size(2).width)
-        #expect(size(2, type: .accessibility3).height > size(2).height)
+    }
+
+    @Test func menuClosingLetsTheSelectedActionClaimItsTargetAndDoesNotClearANewerMenu() async throws {
+        _ = NSApplication.shared
+        let model = AppModel()
+        var prepared = false
+        var claimed = false
+        var discarded = 0
+        var actions = FuwaAppActions()
+        actions.beginPinFrontWindow = {
+            #expect(prepared)
+            prepared = false
+            claimed = true
+            return {}
+        }
+        model.configure(actions: actions)
+        let controller = StatusBarController(model: model, statusItem: nil,
+            onWillShowMenu: { prepared = true },
+            onDidCloseMenu: { prepared = false; discarded += 1 })
+        defer { controller.invalidate() }
+        let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
+        controller.menuDidClose(menu)
+        let pinItem = try #require(menu.items.first { $0.identifier?.rawValue == "pinFrontWindow" })
+        NSApp.sendAction(try #require(pinItem.action), to: controller, from: pinItem)
+        #expect(claimed)
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(!prepared && discarded == 1)
+
+        controller.menuWillOpen(menu)
+        controller.menuDidClose(menu)
+        controller.menuWillOpen(menu)
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(prepared && discarded == 1)
+        controller.menuDidClose(menu)
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(!prepared && discarded == 2)
     }
 
     @Test func allCopyKeysAndPlaceholdersHaveEveryLanguage() {

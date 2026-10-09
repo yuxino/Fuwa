@@ -3,7 +3,7 @@ import Combine
 import Foundation
 import FuwaCore
 
-enum FuwaPopoverRoute: Equatable {
+enum FuwaMainRoute: Equatable {
     case pins
     case settings
 }
@@ -32,7 +32,7 @@ struct FuwaNotice: Identifiable, Equatable {
 struct FuwaAppActions {
     typealias PinFrontWindowOperation = @MainActor () async throws -> Void
 
-    /// Synchronously claims the target prepared for this popover, then returns
+    /// Synchronously claims the target prepared for the menu, then returns
     /// the asynchronous capture work. Keeping the claim outside `Task` prevents
     /// a close event from discarding an operation the user already started.
     var beginPinFrontWindow: @MainActor () throws -> PinFrontWindowOperation = { {} }
@@ -63,13 +63,17 @@ struct FuwaAppActions {
 final class AppModel: ObservableObject {
     @Published private(set) var copy: FuwaCopy
     @Published private(set) var languagePreference: FuwaLanguagePreference
+    @Published private(set) var keepInDock: Bool
     let version: String
 
     @Published private(set) var pins: [PinSnapshot] = [] {
         didSet { onStatusPresentationChanged?() }
     }
-    @Published private(set) var route: FuwaPopoverRoute = .pins
-    @Published private(set) var notice: FuwaNotice?
+    @Published private(set) var route: FuwaMainRoute = .pins
+    @Published private(set) var isChoosingWindow = false
+    @Published private(set) var notice: FuwaNotice? {
+        didSet { onStatusPresentationChanged?() }
+    }
     @Published private(set) var shortcut: KeyboardShortcut {
         didSet { onStatusPresentationChanged?() }
     }
@@ -77,7 +81,9 @@ final class AppModel: ObservableObject {
         didSet { onStatusPresentationChanged?() }
     }
     @Published private(set) var launchAtLoginState: FuwaLaunchAtLoginState
-    @Published private(set) var screenRecordingPermission: FuwaPermissionState
+    @Published private(set) var screenRecordingPermission: FuwaPermissionState {
+        didSet { onStatusPresentationChanged?() }
+    }
     @Published private(set) var busyPinIDs = Set<UUID>()
     @Published private(set) var isPinningFrontWindow = false
     @Published private(set) var isClearingAll = false
@@ -85,15 +91,16 @@ final class AppModel: ObservableObject {
     @Published private(set) var isUpdatingLaunchAtLogin = false
     @Published private(set) var softwareUpdate: SoftwareUpdateState
 
+    var onKeepInDockChanged: ((Bool) -> Void)?
     var onLanguageChanged: ((FuwaLanguagePreference) -> Void)?
     var onStatusPresentationChanged: (() -> Void)?
-    var onRequestDismissPopover: (() -> Void)?
 
     private var actions: FuwaAppActions
 
     init(
         copy: FuwaCopy? = nil,
         languagePreference: FuwaLanguagePreference = .system,
+        keepInDock: Bool = true,
         version: String = "0.1.9",
         shortcut: KeyboardShortcut = .defaultPin,
         shortcutIsActive: Bool = true,
@@ -103,6 +110,7 @@ final class AppModel: ObservableObject {
     ) {
         self.copy = copy ?? FuwaCopy(language: languagePreference.resolved)
         self.languagePreference = languagePreference
+        self.keepInDock = keepInDock
         self.version = version
         self.shortcut = shortcut
         self.shortcutIsActive = shortcutIsActive
@@ -117,6 +125,12 @@ final class AppModel: ObservableObject {
         copy = FuwaCopy(language: preference.resolved)
         onLanguageChanged?(preference)
         onStatusPresentationChanged?()
+    }
+
+    func setKeepInDock(_ enabled: Bool) {
+        guard enabled != keepInDock else { return }
+        keepInDock = enabled
+        onKeepInDockChanged?(enabled)
     }
 
     func setCaptureQuality(_ quality: CaptureQuality, for id: UUID) {
@@ -164,6 +178,7 @@ final class AppModel: ObservableObject {
     }
 
     func showSettings() {
+        isChoosingWindow = false
         route = .settings
     }
 
@@ -175,8 +190,15 @@ final class AppModel: ObservableObject {
         presentError(error)
     }
 
-    func dismissPopover() {
-        onRequestDismissPopover?()
+    func chooseWindow() {
+        guard !isPinningFrontWindow, !isClearingAll else { return }
+        showPins()
+        isChoosingWindow = true
+        openMainWindow()
+    }
+
+    func setWindowPickerPresented(_ presented: Bool) {
+        isChoosingWindow = presented
     }
 
     func openScreenRecordingSettings() {

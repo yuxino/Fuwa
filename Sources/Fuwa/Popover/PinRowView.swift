@@ -7,7 +7,6 @@ struct PinRowView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var detailsIndent = 36
     let pin: PinSnapshot
-    var compact = false
 
     private var copy: FuwaCopy { model.copy }
     private var isBusy: Bool { model.busyPinIDs.contains(pin.id) || model.isClearingAll }
@@ -16,7 +15,7 @@ struct PinRowView: View {
         VStack(alignment: .leading, spacing: 6) {
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 14) {
-                    windowDetails.frame(minWidth: compact ? 110 : 160, maxWidth: .infinity)
+                    windowDetails.frame(minWidth: 160, maxWidth: .infinity)
                     actions
                 }
                 VStack(alignment: .leading, spacing: 8) {
@@ -26,13 +25,13 @@ struct PinRowView: View {
             }
             if let message = pin.errorMessage, !message.isEmpty {
                 Text(message)
-                    .font(compact ? .caption2 : .caption)
+                    .font(.caption)
                     .foregroundStyle(pin.stateColor)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, detailsIndent)
             }
         }
-        .padding(.vertical, compact ? 10 : 14)
+        .padding(.vertical, 14)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(pin.applicationName), \(pin.windowTitle), \(pin.stateTitle(copy))")
     }
@@ -42,7 +41,7 @@ struct PinRowView: View {
             FuwaApplicationIcon(
                 bundleIdentifier: pin.bundleIdentifier,
                 applicationName: pin.applicationName,
-                size: compact ? 24 : 28
+                size: 28
             )
             VStack(alignment: .leading, spacing: 4) {
                 Button { model.showControls(pin.id) } label: {
@@ -54,14 +53,14 @@ struct PinRowView: View {
                 .fuwaLinkCursor()
                 .disabled(!pin.canShowControls)
                 .accessibilityHint(copy.text(.showControls))
-                .font(compact ? .caption.weight(.medium) : .callout.weight(.medium))
+                .font(.callout.weight(.medium))
                 .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 2)
                 .truncationMode(.middle)
                 .help("\(copy.text(.showControls)): \(pin.windowTitle)")
                 (Text(pin.windowTitle == pin.applicationName ? "" : "\(pin.applicationName) · ")
                     .foregroundColor(FuwaAppearance.secondaryText)
                  + Text(pin.stateTitle(copy)).foregroundColor(pin.stateColor))
-                    .font(compact ? .caption2 : .caption)
+                    .font(.caption)
                     .foregroundStyle(pin.stateColor)
                     .lineLimit(1)
             }
