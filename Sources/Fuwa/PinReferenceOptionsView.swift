@@ -47,12 +47,15 @@ struct PinReferenceOptionsView: View {
     @ObservedObject var model: AppModel
     let pin: PinSnapshot
     @State private var applications: [PinApplicationChoice] = []
-    @State private var section: PinOptionsSection
+    @Binding var section: PinOptionsSection
+    let maximumHeight: CGFloat
+    @State private var tabsHeight: CGFloat = 30
 
-    init(model: AppModel, pin: PinSnapshot, initialSection: PinOptionsSection = .picture) {
+    init(model: AppModel, pin: PinSnapshot, section: Binding<PinOptionsSection>, maximumHeight: CGFloat) {
         self.model = model
         self.pin = pin
-        _section = State(initialValue: initialSection)
+        _section = section
+        self.maximumHeight = maximumHeight
     }
 
     private var copy: FuwaCopy { model.copy }
@@ -61,30 +64,37 @@ struct PinReferenceOptionsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Picker(copy.text(.pinOptions), selection: $section) {
-                ForEach(PinOptionsSection.allCases) { section in
-                    Text(copy.text(section.titleKey)).tag(section)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .font(.caption)
-            .accessibilityIdentifier("pin-options-sections")
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    switch section {
-                    case .picture: pictureOptions
-                    case .visibility: visibilityOptions
-                    case .performance: performanceOptions
+            HStack(spacing: 3) {
+                ForEach(PinOptionsSection.allCases) { item in
+                    Button { section = item } label: {
+                        Text(copy.text(item.titleKey))
+                            .font(.caption.weight(section == item ? .semibold : .medium))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, minHeight: 28)
                     }
+                    .buttonStyle(FuwaRowButtonStyle(selected: section == item))
+                    .fuwaLinkCursor()
+                    .accessibilityAddTraits(section == item ? .isSelected : [])
+                    .accessibilityIdentifier("pin-options-section-\(item.rawValue)")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.trailing, 3)
-                .padding(.vertical, 2)
-                .disabled(!canUpdate)
             }
-            .frame(maxHeight: .infinity)
-            .scrollIndicators(.visible)
+            .padding(3)
+            .background(FuwaAppearance.sidebar, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(FuwaAppearance.border.opacity(0.7)))
+            .accessibilityIdentifier("pin-options-sections")
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabsHeight = $0 }
+            // Use each section's natural height when it fits. Only the options
+            // scroll on short screens; tabs and playback stay reachable.
+            ViewThatFits(in: .vertical) {
+                sectionContent.fixedSize(horizontal: false, vertical: true)
+                ScrollView {
+                    sectionContent
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.trailing, 3)
+                }
+                .scrollIndicators(.visible)
+            }
+            .frame(maxHeight: max(0, maximumHeight - tabsHeight - 12))
         }
         .onAppear(perform: refreshApplications)
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didLaunchApplicationNotification)) { _ in
@@ -96,14 +106,27 @@ struct PinReferenceOptionsView: View {
         .onChange(of: pin.options.applicationScopeBundleIdentifier) { _, _ in refreshApplications() }
     }
 
+    private var sectionContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            switch section {
+            case .picture: pictureOptions
+            case .visibility: visibilityOptions
+            case .performance: performanceOptions
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 2)
+        .disabled(!canUpdate)
+    }
+
     private var pictureOptions: some View {
         VStack(alignment: .leading, spacing: 16) {
             optionRow(title: .presentationMode, help: .presentationModeHelp) {
-                choiceMenu(title: .presentationMode,
-                    value: copy.text(pin.options.presentationMode == .followSource ? .followOriginal : .referenceWindow)) {
+                HStack(spacing: 5) {
                     ForEach(PinPresentationMode.allCases, id: \.self) { mode in
-                        checkedChoice(copy.text(mode == .followSource ? .followOriginal : .referenceWindow),
-                                      selected: pin.options.presentationMode == mode) {
+                        selectableChoice(copy.text(mode == .followSource ? .followOriginal : .referenceWindow),
+                                         selected: pin.options.presentationMode == mode) {
+                            guard pin.options.presentationMode != mode else { return }
                             change {
                                 $0.presentationMode = mode
                                 if mode == .followSource { $0.captureRegion = nil }
@@ -114,15 +137,18 @@ struct PinReferenceOptionsView: View {
                     }
                 }
             }
+            Divider().opacity(0.5)
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 4) {
+                    Text(copy.text(.captureArea)).font(.caption.weight(.medium))
+                    FuwaHelpIcon(title: copy.text(.captureArea), text: copy.text(.cropAreaHelp))
+                    Spacer(minLength: 6)
                     Text(copy.text(pin.options.captureRegion == nil ? .fullWindow : .selectedArea))
                         .font(.caption).foregroundStyle(FuwaAppearance.secondaryText)
-                    FuwaHelpIcon(title: copy.text(.chooseArea), text: copy.text(.cropAreaHelp))
                 }
                 ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 8) { cropButton; resetCropButton }
-                    VStack(alignment: .leading, spacing: 8) { cropButton; resetCropButton }
+                    HStack(spacing: 8) { cropButton; if pin.options.captureRegion != nil { resetCropButton } }
+                    VStack(alignment: .leading, spacing: 8) { cropButton; if pin.options.captureRegion != nil { resetCropButton } }
                 }
             }
             Divider().opacity(0.5)
@@ -133,16 +159,16 @@ struct PinReferenceOptionsView: View {
     private var visibilityOptions: some View {
         VStack(alignment: .leading, spacing: 16) {
             optionRow(title: .showInSpaces, help: .spaceScopeHelp) {
-                choiceMenu(title: .showInSpaces,
-                    value: copy.text(pin.options.spaceScope == .allSpaces ? .allSpaces : .currentSpace)) {
+                HStack(spacing: 5) {
                     ForEach(PinSpaceScope.allCases, id: \.self) { scope in
-                        checkedChoice(copy.text(scope == .allSpaces ? .allSpaces : .currentSpace),
-                                      selected: pin.options.spaceScope == scope) {
+                        selectableChoice(copy.text(scope == .allSpaces ? .allSpaces : .currentSpace),
+                                         selected: pin.options.spaceScope == scope) {
                             change { $0.spaceScope = scope }
                         }
                     }
                 }
             }
+            Divider().opacity(0.5)
             VStack(alignment: .leading, spacing: 7) {
                 helpToggle(.onlyWhenAppActive, help: .applicationScopeHelp, isOn: Binding(
                     get: { pin.options.applicationScopeBundleIdentifier != nil },
@@ -170,15 +196,17 @@ struct PinReferenceOptionsView: View {
 
     private var performanceOptions: some View {
         VStack(alignment: .leading, spacing: 16) {
-            optionRow(title: .frameRate, help: .frameRateHelp) {
-                choiceMenu(title: .frameRate, value: frameRateTitle(pin.options.frameRate)) {
+            optionRow(title: .frameRate, help: .frameRateHelp, value: frameRateTitle(pin.options.frameRate)) {
+                HStack(spacing: 3) {
                     ForEach(PinFrameRate.allCases, id: \.self) { rate in
-                        checkedChoice(frameRateTitle(rate), selected: pin.options.frameRate == rate) {
+                        selectableChoice(String(rate.rawValue), selected: pin.options.frameRate == rate) {
                             change { $0.frameRate = rate }
                         }
+                        .accessibilityLabel(frameRateTitle(rate))
                     }
                 }
             }
+            Divider().opacity(0.5)
             helpToggle(.reduceRateWhenIdle, help: .reduceRateWhenIdleHelp,
                 isOn: Binding(get: { pin.options.reducesFrameRateWhenIdle }, set: { value in
                     change { $0.reducesFrameRateWhenIdle = value }
@@ -192,10 +220,11 @@ struct PinReferenceOptionsView: View {
 
     private var cropButton: some View {
         Button { model.beginCropSelection(pin.id) } label: {
-            Label(copy.text(.chooseArea), systemImage: "crop")
+            Label(copy.text(pin.options.captureRegion == nil ? .chooseArea : .rechooseArea), systemImage: "crop")
                 .fixedSize(horizontal: false, vertical: true)
         }
         .buttonStyle(FuwaQuietButtonStyle())
+        .fuwaLinkCursor()
         .disabled(!pin.canChooseArea || busy)
         .help(copy.text(.cropAreaHelp))
     }
@@ -203,6 +232,7 @@ struct PinReferenceOptionsView: View {
     private var resetCropButton: some View {
         Button(copy.text(.resetArea)) { change { $0.captureRegion = nil } }
             .buttonStyle(FuwaPlainButtonStyle())
+            .fuwaLinkCursor()
             .disabled(pin.options.captureRegion == nil || !pin.canChooseArea || busy)
     }
 
@@ -230,12 +260,17 @@ struct PinReferenceOptionsView: View {
             selectedBundleIdentifier: selectedIdentifier, selectedName: knownName ?? installedName)
     }
 
-    private func optionRow<Content: View>(title: FuwaString, help: FuwaString,
+    private func optionRow<Content: View>(title: FuwaString, help: FuwaString, value: String? = nil,
                                          @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 4) {
                 Text(copy.text(title)).font(.caption.weight(.medium))
                 FuwaHelpIcon(title: copy.text(title), text: copy.text(help))
+                if let value {
+                    Spacer(minLength: 6)
+                    Text(value).font(.caption).monospacedDigit()
+                        .foregroundStyle(FuwaAppearance.secondaryText)
+                }
             }
             content()
         }
@@ -275,5 +310,19 @@ struct PinReferenceOptionsView: View {
         Button(action: action) {
             if selected { Label(title, systemImage: "checkmark") } else { Text(title) }
         }
+    }
+
+    private func selectableChoice(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.caption.weight(selected ? .semibold : .regular)).monospacedDigit()
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 6).padding(.vertical, 7)
+                .frame(maxWidth: .infinity, minHeight: 32)
+        }
+        .buttonStyle(FuwaRowButtonStyle(selected: selected))
+        .fuwaLinkCursor()
+        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(FuwaAppearance.border.opacity(selected ? 1 : 0.6)))
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }

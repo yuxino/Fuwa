@@ -109,6 +109,7 @@ enum FuwaString: String, CaseIterable, Sendable {
     case notifyWhenIdle, notifyWhenIdleHelp
     case settings
     case general
+    case keyboardShortcuts, startupAndDock, rechooseArea, captureArea
     case permissions
     case screenRecording
     case ready
@@ -191,13 +192,19 @@ struct FuwaCopy: Sendable {
     }
 
     // Build the combined dictionaries once rather than allocating during every view update.
-    private static let completeEnglish = english.merging(referenceTranslations(.english)) { _, new in new }
-    private static let completeSimplifiedChinese = simplifiedChinese.merging(referenceTranslations(.simplifiedChinese)) { _, new in new }
-    private static let completeTraditionalChinese = traditionalChinese.merging(referenceTranslations(.traditionalChinese)) { _, new in new }
-    private static let completeJapanese = japanese.merging(referenceTranslations(.japanese)) { _, new in new }
-    private static let completeKorean = korean.merging(referenceTranslations(.korean)) { _, new in new }
-    private static let completeFrench = french.merging(referenceTranslations(.french)) { _, new in new }
-    private static let completeGerman = german.merging(referenceTranslations(.german)) { _, new in new }
+    private static let completeEnglish = complete(english, language: .english)
+    private static let completeSimplifiedChinese = complete(simplifiedChinese, language: .simplifiedChinese)
+    private static let completeTraditionalChinese = complete(traditionalChinese, language: .traditionalChinese)
+    private static let completeJapanese = complete(japanese, language: .japanese)
+    private static let completeKorean = complete(korean, language: .korean)
+    private static let completeFrench = complete(french, language: .french)
+    private static let completeGerman = complete(german, language: .german)
+
+    private static func complete(_ base: [FuwaString: String], language: FuwaLanguage) -> [FuwaString: String] {
+        base.merging(referenceTranslations(language)) { _, new in new }
+            .merging(settingsInteractionTranslations(language)) { _, new in new }
+            .merging(pinInteractionTranslations(language)) { _, new in new }
+    }
 
     func hasTranslation(for key: FuwaString) -> Bool { translations[key] != nil }
 

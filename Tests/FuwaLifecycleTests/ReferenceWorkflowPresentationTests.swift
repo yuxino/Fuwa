@@ -123,11 +123,25 @@ struct ReferenceWorkflowPresentationTests {
                     let host = NSHostingView(rootView: PinControlsView(model: model, pinID: snapshot.id,
                         maximumHeight: height, initialSection: section).frame(width: width)
                         .environment(\.dynamicTypeSize, .accessibility3))
-                    #expect(abs(host.fittingSize.height - height) <= 1)
+                    #expect(host.fittingSize.height <= height + 1)
+                    #expect(host.fittingSize.height > 100)
                     #expect(abs(host.fittingSize.width - width) <= 1)
                 }
             }
         }
         #expect(app.windows.filter(\.isVisible).count == visibleWindows)
+    }
+
+    @Test func shorterSectionsDoNotLeaveAnEmptyFixedHeightPanel() {
+        _ = NSApplication.shared
+        let model = AppModel(copy: FuwaCopy(language: .english))
+        let snapshot = pin()
+        model.updatePins([snapshot])
+        let picture = NSHostingView(rootView: PinControlsView(model: model, pinID: snapshot.id,
+            initialSection: .picture).frame(width: 380))
+        let performance = NSHostingView(rootView: PinControlsView(model: model, pinID: snapshot.id,
+            initialSection: .performance).frame(width: 380))
+        #expect(performance.fittingSize.height < picture.fittingSize.height)
+        #expect(performance.fittingSize.height < 460)
     }
 }

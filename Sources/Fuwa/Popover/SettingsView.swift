@@ -9,89 +9,44 @@ struct SettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                sectionTitle(copy.text(.general))
-
-                languageControls
-                    .padding(.vertical, 12)
-
-                Divider().opacity(0.5)
-
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 12) {
-                        shortcutDescription
-                        Spacer(minLength: 10)
-                        ShortcutRecorder(model: model)
-                            .frame(maxWidth: 170, alignment: .trailing)
-                    }
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        shortcutDescription
-                        ShortcutRecorder(model: model)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+            VStack(alignment: .leading, spacing: 20) {
+                settingsGroup(copy.text(.general)) {
+                    languageControls
+                        .padding(.vertical, 10)
                 }
-                .padding(.vertical, 12)
 
-                Divider().opacity(0.5)
-
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 12) {
-                        visibilityShortcutDescription
-                        Spacer(minLength: 10)
-                        ShortcutRecorder(model: model, purpose: .visibility)
-                            .frame(maxWidth: 170, alignment: .trailing)
-                    }
-                    VStack(alignment: .leading, spacing: 10) {
-                        visibilityShortcutDescription
-                        ShortcutRecorder(model: model, purpose: .visibility)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                settingsGroup(copy.text(.keyboardShortcuts)) {
+                    pinShortcutControls
+                        .padding(.vertical, 10)
+                    rowDivider
+                    visibilityShortcutControls
+                        .padding(.vertical, 10)
                 }
-                .padding(.vertical, 12)
 
-                Divider().opacity(0.5)
-
-                launchAtLoginControls
-                .padding(.vertical, 12)
-
-                Divider().opacity(0.5)
-
-                HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Text(copy.text(.keepInDock)).font(FuwaTypography.settingTitle)
-                        FuwaHelpIcon(title: copy.text(.keepInDock), text: copy.text(.keepInDockNote))
-                    }
-                    Spacer(minLength: 8)
-                    Toggle(copy.text(.keepInDock), isOn: Binding(
-                        get: { model.keepInDock },
-                        set: { model.setKeepInDock($0) }
-                    ))
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .help(copy.text(.keepInDockNote))
-                    .accessibilityHint(copy.text(.keepInDockNote))
+                settingsGroup(copy.text(.startupAndDock)) {
+                    launchAtLoginControls
+                        .padding(.vertical, 10)
+                    rowDivider
+                    keepInDockControls
+                        .padding(.vertical, 10)
                 }
-                .padding(.vertical, 12)
 
-                sectionDivider
-                sectionTitle(copy.text(.permissions))
+                settingsGroup(copy.text(.permissions)) {
+                    PermissionSettingsRow(
+                        title: copy.text(.screenRecording),
+                        note: copy.text(.screenRecordingNote),
+                        state: model.screenRecordingPermission,
+                        copy: copy,
+                        openSettings: model.openScreenRecordingSettings
+                    )
+                }
 
-                PermissionSettingsRow(
-                    title: copy.text(.screenRecording),
-                    note: copy.text(.screenRecordingNote),
-                    state: model.screenRecordingPermission,
-                    copy: copy,
-                    openSettings: model.openScreenRecordingSettings
-                )
+                settingsGroup(copy.text(.softwareUpdate)) {
+                    softwareUpdateControls
+                        .padding(.vertical, 10)
+                }
 
-                sectionDivider
-                sectionTitle(copy.text(.softwareUpdate))
-                softwareUpdateControls
-                    .padding(.vertical, 12)
-
-                sectionDivider
+                rowDivider
 
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 10) {
@@ -111,14 +66,67 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .padding(.vertical, 12)
+                .padding(.bottom, 4)
             }
             .padding(.horizontal, 24)
-            .padding(.top, 6)
-            .padding(.bottom, 12)
+            .padding(.top, 18)
+            .padding(.bottom, 20)
         }
         .scrollIndicators(.automatic)
         .fuwaDropdowns()
+    }
+
+    private var pinShortcutControls: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                shortcutDescription
+                Spacer(minLength: 10)
+                ShortcutRecorder(model: model)
+                    .frame(maxWidth: 170, alignment: .trailing)
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                shortcutDescription
+                ShortcutRecorder(model: model)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var visibilityShortcutControls: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                visibilityShortcutDescription
+                Spacer(minLength: 10)
+                ShortcutRecorder(model: model, purpose: .visibility)
+                    .frame(maxWidth: 170, alignment: .trailing)
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                visibilityShortcutDescription
+                ShortcutRecorder(model: model, purpose: .visibility)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var keepInDockControls: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 4) {
+                Text(copy.text(.keepInDock))
+                    .font(FuwaTypography.settingTitle)
+                    .fixedSize(horizontal: false, vertical: true)
+                FuwaHelpIcon(title: copy.text(.keepInDock), text: copy.text(.keepInDockNote))
+            }
+            Spacer(minLength: 8)
+            Toggle(copy.text(.keepInDock), isOn: Binding(
+                get: { model.keepInDock },
+                set: { model.setKeepInDock($0) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .help(copy.text(.keepInDockNote))
+            .accessibilityHint(copy.text(.keepInDockNote))
+        }
     }
 
     private var languageControls: some View {
@@ -398,20 +406,30 @@ struct SettingsView: View {
             .accessibilityHint(copy.text(.launchAtLoginApproval))
     }
 
-    private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(FuwaTypography.sectionTitle)
-            .foregroundStyle(FuwaAppearance.secondaryText)
-            .padding(.top, 14)
-            .padding(.bottom, 2)
-            .accessibilityAddTraits(.isHeader)
+    private func settingsGroup<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 10) {
+                Text(title)
+                    .font(FuwaTypography.sectionTitle)
+                    .foregroundStyle(FuwaAppearance.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                rowDivider
+            }
+            VStack(alignment: .leading, spacing: 0, content: content)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
     }
 
-    private var sectionDivider: some View {
-        Divider()
+    private var rowDivider: some View {
+        Rectangle()
+            .fill(FuwaAppearance.border)
+            .frame(height: 1)
             .opacity(0.5)
-            .padding(.top, 8)
-            .padding(.bottom, 4)
             .accessibilityHidden(true)
     }
 }

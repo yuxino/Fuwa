@@ -74,82 +74,107 @@ struct PinPlaybackButton: View {
 }
 
 @MainActor
-struct PinActionsView: View {
-    @ObservedObject var model: AppModel
-    let pin: PinSnapshot
-    var compact = false
-    private var busy: Bool { model.busyPinIDs.contains(pin.id) || model.isClearingAll }
-
-    var body: some View {
-        HStack(spacing: 8) {
-            PinPlaybackButton(model: model, pin: pin)
-            Spacer(minLength: 0)
-            Button {
-                model.unpin(pin.id)
-            } label: {
-                if compact {
-                    Image(systemName: "pin.slash")
-                } else {
-                    Label(model.copy.text(.unpin), systemImage: "pin.slash")
-                }
-            }
-            .help(model.copy.text(.removeExplanation))
-            .accessibilityLabel(model.copy.text(.unpin))
-            .disabled(busy)
-        }
-        .font(.caption)
-        .buttonStyle(FuwaQuietButtonStyle())
-    }
-}
-
-@MainActor
 struct PinControlsView: View {
     @ObservedObject var model: AppModel
     let pinID: UUID
     var maximumHeight: CGFloat = 460
-    var initialSection: PinOptionsSection = .picture
     var onHeightChanged: (CGFloat) -> Void = { _ in }
     var onDismiss: () -> Void = {}
+    @State private var section: PinOptionsSection
+    @State private var headerHeight: CGFloat = 48
+    @State private var footerHeight: CGFloat = 28
     @Environment(\.dismiss) private var dismiss
+
+    init(model: AppModel, pinID: UUID, maximumHeight: CGFloat = 460,
+         initialSection: PinOptionsSection = .picture,
+         onHeightChanged: @escaping (CGFloat) -> Void = { _ in },
+         onDismiss: @escaping () -> Void = {}) {
+        self.model = model
+        self.pinID = pinID
+        self.maximumHeight = maximumHeight
+        self.onHeightChanged = onHeightChanged
+        self.onDismiss = onDismiss
+        _section = State(initialValue: initialSection)
+    }
 
     var body: some View {
         if let pin = model.pins.first(where: { $0.id == pinID }) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .top, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(pin.windowTitle).font(.caption.weight(.semibold))
-                            .lineLimit(1).truncationMode(.middle)
-                            .help(pin.windowTitle)
-                        pinStatus(pin)
+            VStack(alignment: .leading, spacing: 0) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .center, spacing: 10) {
+                        windowDetails(pin)
+                        PinPlaybackButton(model: model, pin: pin)
+                        dismissButton
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    if model.busyPinIDs.contains(pin.id) || pin.isAwaitingFreshFrame {
-                        ProgressView().controlSize(.mini)
-                            .accessibilityLabel(model.copy.text(.restoringPicture))
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .top, spacing: 8) {
+                            windowDetails(pin)
+                            dismissButton
+                        }
+                        PinPlaybackButton(model: model, pin: pin)
                     }
-                    Button {
-                        onDismiss()
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark").font(.caption.weight(.medium))
-                    }
-                    .buttonStyle(FuwaQuietButtonStyle())
-                    .accessibilityLabel(model.copy.text(.closeControls))
-                    .help(model.copy.text(.closeControls))
                 }
-                PinActionsView(model: model, pin: pin, compact: true)
-                Divider().opacity(0.5).padding(.vertical, 4)
-                PinReferenceOptionsView(model: model, pin: pin, initialSection: initialSection)
-                    .frame(maxHeight: .infinity)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
+                Divider().opacity(0.5).padding(.vertical, 12)
+                PinReferenceOptionsView(model: model, pin: pin, section: $section,
+                    maximumHeight: max(24, maximumHeight - headerHeight - footerHeight - 74))
+                Divider().opacity(0.5).padding(.top, 12)
+                HStack {
+                    Button { model.unpin(pin.id) } label: {
+                        Label(model.copy.text(.unpin), systemImage: "pin.slash")
+                    }
+                    .buttonStyle(FuwaPlainButtonStyle())
+                    .fuwaLinkCursor()
+                    .disabled(model.busyPinIDs.contains(pin.id) || model.isClearingAll)
+                    .help(model.copy.text(.removeExplanation))
+                    .accessibilityHint(model.copy.text(.removeExplanation))
+                    Spacer(minLength: 0)
+                }
+                .padding(.top, 8)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { footerHeight = $0 - 8 }
             }
-            .padding(12)
-            .frame(height: maximumHeight)
+            .padding(14)
+            .frame(maxHeight: maximumHeight, alignment: .top)
             .fixedSize(horizontal: false, vertical: true)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { onHeightChanged($0) }
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(FuwaAppearance.border, lineWidth: 1))
             .fuwaLightSurface()
             .accessibilityElement(children: .contain)
         }
+    }
+
+    private var dismissButton: some View {
+        Button {
+            onDismiss()
+            dismiss()
+        } label: {
+            Image(systemName: "xmark").font(.caption.weight(.medium))
+        }
+        .buttonStyle(FuwaPlainButtonStyle())
+        .fuwaLinkCursor()
+        .accessibilityLabel(model.copy.text(.closeControls))
+        .help(model.copy.text(.closeControls))
+    }
+
+    private func windowDetails(_ pin: PinSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(pin.windowTitle).font(.callout.weight(.semibold))
+                .lineLimit(1).truncationMode(.middle)
+                .help(pin.windowTitle)
+            HStack(spacing: 6) {
+                if pin.applicationName != pin.windowTitle {
+                    Text(pin.applicationName)
+                        .font(.caption2).foregroundStyle(FuwaAppearance.secondaryText)
+                        .lineLimit(1).truncationMode(.middle)
+                }
+                pinStatus(pin)
+                if model.busyPinIDs.contains(pin.id) || pin.isAwaitingFreshFrame {
+                    ProgressView().controlSize(.mini)
+                        .accessibilityLabel(model.copy.text(.restoringPicture))
+                }
+            }
+        }
+        .frame(minWidth: 80, maxWidth: .infinity, alignment: .leading)
     }
     private func pinStatus(_ pin: PinSnapshot) -> some View {
         pin.statusText(model.copy)
@@ -166,11 +191,22 @@ final class PinControlsPanel: NSPanel {
 
     override func resignKey() {
         super.resignKey()
-        dismissControls()
+        // A transient help popover can briefly own key focus. Keep its anchor alive.
+        if FuwaHelpButton.openHelp(in: contentView) == nil { dismissControls() }
     }
 
     override func cancelOperation(_ sender: Any?) {
-        dismissControls()
+        if let button = FuwaHelpButton.openHelp(in: contentView) {
+            button.closeHelp()
+            makeKey()
+            makeFirstResponder(button)
+        } else {
+            dismissControls()
+        }
+    }
+
+    func finishHelpInteraction() {
+        if !isKeyWindow { dismissControls() }
     }
 
     private func dismissControls() {
