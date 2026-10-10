@@ -19,8 +19,6 @@ struct OffscreenPresentationTests {
             let model = AppModel(copy: FuwaCopy(language: language), version: "1.2.0", screenRecordingPermission: .granted)
             try save(SettingsView(model: model).frame(width: 546, height: 520).fuwaLightSurface(), to: "\(output)/\(language)-settings.png")
             try save(SettingsView(model: model).frame(width: 546, height: 600).fuwaLightSurface(), to: "\(output)/\(language)-settings-full.png")
-            try save(FuwaHelpExplanation(title: model.copy.text(.notifyWhenIdle), text: model.copy.text(.notifyWhenIdleHelp)),
-                to: "\(output)/\(language)-help.png")
             try save(SettingsView(model: model).frame(width: 364, height: 520).fuwaLightSurface(), to: "\(output)/\(language)-settings-compact.png")
             try save(SettingsView(model: model).frame(width: 436, height: 660).environment(\.dynamicTypeSize, .accessibility3).fuwaLightSurface(), to: "\(output)/\(language)-settings-large-text.png")
             let ungranted = AppModel(copy: FuwaCopy(language: language), version: "1.2.0", screenRecordingPermission: .unknown)

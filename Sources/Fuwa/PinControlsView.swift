@@ -191,22 +191,11 @@ final class PinControlsPanel: NSPanel {
 
     override func resignKey() {
         super.resignKey()
-        // A transient help popover can briefly own key focus. Keep its anchor alive.
-        if FuwaHelpButton.openHelp(in: contentView) == nil { dismissControls() }
+        dismissControls()
     }
 
     override func cancelOperation(_ sender: Any?) {
-        if let button = FuwaHelpButton.openHelp(in: contentView) {
-            button.closeHelp()
-            makeKey()
-            makeFirstResponder(button)
-        } else {
-            dismissControls()
-        }
-    }
-
-    func finishHelpInteraction() {
-        if !isKeyWindow { dismissControls() }
+        dismissControls()
     }
 
     private func dismissControls() {
