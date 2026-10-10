@@ -163,8 +163,8 @@ struct FuwaHelpExplanation: View {
             Text(text).font(.callout).foregroundStyle(FuwaAppearance.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(14)
-        .frame(width: 300, alignment: .leading)
+        .padding(12)
+        .frame(width: 220, alignment: .leading)
         .fuwaLightSurface()
         .accessibilityElement(children: .contain)
     }

@@ -106,7 +106,7 @@ enum FuwaString: String, CaseIterable, Sendable {
     case showInSpaces, allSpaces, currentSpace, spaceScopeHelp
     case onlyWhenAppActive, activeApplication, applicationScopeHelp, noApplicationsAvailable
     case frameRate, frameRateValue, frameRateHelp, reduceRateWhenIdle, reduceRateWhenIdleHelp
-    case notifyWhenIdle, notifyWhenIdleHelp
+    case notifyWhenIdle, notifyWhenIdleHelp, notifyWhenIdleNote, reduceRateWhenIdleNote
     case settings
     case general
     case keyboardShortcuts, startupAndDock, rechooseArea, captureArea

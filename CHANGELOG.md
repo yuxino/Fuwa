@@ -6,19 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-10
+
 ### English
 
-- Temporarily hide and restore all pinned pictures with a separate, customizable shortcut; keep their settings and playback choices.
-- Move and resize an independent reference window, or select an area of its picture to keep visible.
-- Choose all Spaces or the current Space, and optionally show a reference only while a selected app is active.
-- Remember frame rates by source app, reduce updates while the picture is idle, and optionally show a picture-inactivity indicator.
+- Move and resize an independent reference window, or select just the part of a picture you need.
+- Temporarily hide and restore all pinned pictures with a separate, customizable shortcut. Playback choices and settings are preserved.
+- Show references across all Spaces, in the current Space, or only while a selected app is active. Remember frame rates by source app and save resources when the picture is still.
+- Group Settings more clearly and make window options and help popovers narrower. The optional “Picture unchanged” setting now explains what appears and where.
+- Requires macOS 14 or later. Update through Settings, or quit Fuwa and replace the app in Applications. The Apple Silicon/Intel universal package retains the existing local signature and signed updater; it is not Apple Developer ID signed or notarized.
+- Automated checks and generated-window capture checks passed on Apple Silicon. Intel hardware, physical external displays and a complete updater installation were not revalidated.
 
 ### 中文
 
-- 使用独立、可自定义的快捷键暂时隐藏和恢复全部置顶画面，保留设置及播放选择。
-- 使用可独立移动、调整大小的参考窗口，或框选画面中的局部区域持续查看。
-- 选择在所有空间或当前空间显示，也可仅在指定应用处于前台时显示参考画面。
-- 按来源应用记住帧率，画面静止时减少更新，并可开启画面停止变化的提示。
+- 使用可独立移动、调整大小的参考窗，或框选只需要查看的局部画面。
+- 使用独立、可自定义的快捷键暂时隐藏和恢复全部置顶画面，保留播放选择与设置。
+- 选择在所有空间、当前空间，或仅在指定应用处于前台时显示参考画面。按来源应用记住帧率，画面静止时自动节省资源。
+- 重新整理设置分组，收窄窗口选项和帮助弹窗。可选的“画面未变化”提示说明了显示内容及位置。
+- 需要 macOS 14 或更新版本。可在设置中更新，或退出 Fuwa 后替换“应用程序”中的应用。Apple Silicon/Intel 通用包沿用现有本地签名和签名更新源，未使用 Apple Developer ID 签名或 Apple 公证。
+- 自动检查和测试窗口捕获检查已在 Apple Silicon 上通过；本次未重新验收 Intel 实机、实体外接屏及完整更新安装流程。
 
 ## [1.1.1] - 2026-10-10
 

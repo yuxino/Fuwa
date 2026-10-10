@@ -106,12 +106,14 @@ struct PinRowView: View {
 
 /// Leave room for the popover arrow and AppKit's screen-edge margins.
 enum PinOptionsPopoverLayout {
+    static let preferredWidth: CGFloat = 320
+
     static func size(available: CGSize) -> CGSize {
         guard available.width.isFinite, available.height.isFinite,
               available.width > 40, available.height > 40 else {
-            return CGSize(width: 380, height: 460)
+            return CGSize(width: preferredWidth, height: 460)
         }
-        return CGSize(width: min(380, available.width - 40), height: min(460, available.height - 40))
+        return CGSize(width: min(preferredWidth, available.width - 40), height: min(460, available.height - 40))
     }
 }
 

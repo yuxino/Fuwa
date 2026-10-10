@@ -46,12 +46,12 @@ struct ReferenceWorkflowPresentationTests {
     }
 
     @Test func popoverLeavesRoomForScreenEdgesAndUsesTheAvailableDisplay() {
-        #expect(PinOptionsPopoverLayout.size(available: CGSize(width: 1512, height: 900)) == CGSize(width: 380, height: 460))
+        #expect(PinOptionsPopoverLayout.size(available: CGSize(width: 1512, height: 900)) == CGSize(width: 320, height: 460))
         let small = PinOptionsPopoverLayout.size(available: CGSize(width: 320, height: 300))
         #expect(small.width <= 280 && small.height <= 260)
         let short = PinOptionsPopoverLayout.size(available: CGSize(width: 1200, height: 340))
-        #expect(short.width == 380 && short.height == 300)
-        #expect(PinOptionsPopoverLayout.size(available: .zero) == CGSize(width: 380, height: 460))
+        #expect(short.width == 320 && short.height == 300)
+        #expect(PinOptionsPopoverLayout.size(available: .zero) == CGSize(width: 320, height: 460))
     }
 
     @Test func appChoicesPreserveSourceAndSelectedAppsAndDeduplicateBundleIDs() {
@@ -119,7 +119,7 @@ struct ReferenceWorkflowPresentationTests {
             snapshot.options.applicationScopeBundleIdentifier = "test.fuwa.reference"
             model.updatePins([snapshot])
             for section in PinOptionsSection.allCases {
-                for (width, height) in [(CGFloat(380), CGFloat(460)), (320, 300)] {
+                for (width, height) in [(CGFloat(320), CGFloat(460)), (280, 300)] {
                     let host = NSHostingView(rootView: PinControlsView(model: model, pinID: snapshot.id,
                         maximumHeight: height, initialSection: section).frame(width: width)
                         .environment(\.dynamicTypeSize, .accessibility3))
@@ -138,9 +138,9 @@ struct ReferenceWorkflowPresentationTests {
         let snapshot = pin()
         model.updatePins([snapshot])
         let picture = NSHostingView(rootView: PinControlsView(model: model, pinID: snapshot.id,
-            initialSection: .picture).frame(width: 380))
+            initialSection: .picture).frame(width: 320))
         let performance = NSHostingView(rootView: PinControlsView(model: model, pinID: snapshot.id,
-            initialSection: .performance).frame(width: 380))
+            initialSection: .performance).frame(width: 320))
         #expect(performance.fittingSize.height < picture.fittingSize.height)
         #expect(performance.fittingSize.height < 460)
     }

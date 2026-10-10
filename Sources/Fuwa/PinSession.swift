@@ -971,7 +971,8 @@ final class PinSession {
         updateSpaceMembership()
         if let presentationModel {
             let controls = PinControlsPanel(
-                contentRect: NSRect(x: frame.minX, y: frame.maxY, width: 380, height: controlsHeight),
+                contentRect: NSRect(x: frame.minX, y: frame.maxY,
+                                    width: PinOptionsPopoverLayout.preferredWidth, height: controlsHeight),
                 styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false
             )
             controlsMaxHeight = maximumControlsHeight(for: panel.frame)
@@ -1037,7 +1038,8 @@ final class PinSession {
             host.rootView = makeControlsView(model: presentationModel)
         }
         let frame = FloatingControlsLayout.frame(source: panel.frame, visible: screens[index].visibleFrame,
-                                                 size: CGSize(width: 380, height: min(controlsHeight, maxHeight)))
+                                                 size: CGSize(width: PinOptionsPopoverLayout.preferredWidth,
+                                                              height: min(controlsHeight, maxHeight)))
         if controlsPanel.frame != frame { controlsPanel.setFrame(frame, display: true) }
     }
 
