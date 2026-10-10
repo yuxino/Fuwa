@@ -5,7 +5,15 @@
   <p>
     <a href="https://fuwa.yuxino.cn"><strong>官方网站</strong></a>
     · <a href="https://github.com/yuxino/fuwa/releases"><strong>查看发布版本</strong></a>
-    · <a href="README_EN.md"><strong>English</strong></a>
+  </p>
+  <p>
+    <strong>简体中文</strong>
+    · <a href="README_ZH_TW.md">繁體中文</a>
+    · <a href="README_EN.md">English</a>
+    · <a href="README_JA.md">日本語</a>
+    · <a href="README_KO.md">한국어</a>
+    · <a href="README_FR.md">Français</a>
+    · <a href="README_DE.md">Deutsch</a>
   </p>
   <p>
     <a href="https://github.com/yuxino/fuwa/releases/latest"><img src="https://img.shields.io/github/v/release/yuxino/fuwa?style=flat&amp;logo=github&amp;logoColor=white" alt="最新版本"></a>
