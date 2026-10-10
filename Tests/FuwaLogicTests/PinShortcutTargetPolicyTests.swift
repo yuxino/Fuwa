@@ -9,8 +9,9 @@ func runPinShortcutTargetPolicyTests(runner: inout LogicTestRunner) {
     let bounds = CGRect(x: 120, y: 100, width: 400, height: 300)
     let point = CGPoint(x: 200, y: 200)
     func window(_ id: CGWindowID, alpha: Double = 1, bounds: CGRect = bounds,
-                bundle: String? = nil) -> WindowDescriptor {
-        WindowDescriptor(id: id, ownerPID: 999, ownerBundleIdentifier: bundle, alpha: alpha, bounds: bounds)
+                bundle: String? = nil, layer: Int = 0, ownerPID: pid_t = 999) -> WindowDescriptor {
+        WindowDescriptor(id: id, ownerPID: ownerPID, ownerBundleIdentifier: bundle,
+                         layer: layer, alpha: alpha, bounds: bounds)
     }
     func select(_ windows: [WindowDescriptor], at point: CGPoint = point) -> UUID? {
         PinShortcutTargetPolicy.pinnedPicture(in: windows, at: point, overlayPinIDs: overlays)
@@ -37,6 +38,18 @@ func runPinShortcutTargetPolicyTests(runner: inout LogicTestRunner) {
         in: [window(301, bundle: "com.apple.screencaptureui"), window(101)],
         at: point, overlayPinIDs: overlays, frontmostProcessID: 999) == nil,
                   "focused system UI preserves the existing no-fallthrough boundary")
+    let cursorLevel = Int(CGWindowLevelForKey(.cursorWindow))
+    let cursorBounds = CGRect(x: 190, y: 190, width: 28, height: 40)
+    let cursor = window(2, bounds: cursorBounds, layer: cursorLevel)
+    runner.expect(select([cursor, window(301, bundle: "com.apple.screencaptureui"),
+                          window(302, bundle: "com.apple.dock"), window(101), window(201)]) == first,
+                  "the system cursor surface with no bundle identifier does not hide the hovered picture")
+    runner.expect(PinShortcutTargetPolicy.pinnedPicture(
+        in: [cursor, window(101), window(201, ownerPID: 2037)], at: point,
+        overlayPinIDs: overlays, frontmostProcessID: 2037) == first,
+                  "the hovered picture wins after another application becomes frontmost")
+    runner.expect(select([window(201, layer: cursorLevel - 1), window(101)]) == nil,
+                  "anonymous high-level windows remain blockers below the exact system cursor level")
     runner.expect(select([window(201, alpha: 0), window(101)]) == first,
                   "fully transparent surfaces do not block the pinned picture")
     runner.expect(select([window(101)], at: CGPoint(x: CGFloat.nan, y: 200)) == nil,
