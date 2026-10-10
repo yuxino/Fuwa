@@ -78,6 +78,10 @@ cd fuwa
 
 [Privacy](PRIVACY.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Independent implementation](docs/independent-implementation.md)
 
+## Community
+
+[LINUX DO](https://linux.do) · A community for tech enthusiasts.
+
 ## License
 
 [MIT](LICENSE) © 2026 yuxino and Fuwa contributors
