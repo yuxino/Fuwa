@@ -134,7 +134,7 @@ def generate(arguments: argparse.Namespace) -> None:
         f"https://github.com/yuxino/fuwa/releases/download/v{arguments.version}"
     )
     names = {
-        "macos": f"Fuwa-{arguments.version}.zip",
+        "macos": f"Fuwa-{arguments.version}.dmg",
     }
     assets: dict[str, dict[str, object]] = {}
     for key, name in names.items():
@@ -191,7 +191,7 @@ def verify(arguments: argparse.Namespace) -> None:
     if not isinstance(build, int) or build < 1:
         fail("latest.json build is invalid")
     expected_names = {
-        "macos-universal": f"Fuwa-{version}.zip",
+        "macos-universal": f"Fuwa-{version}.dmg",
     }
     assets = latest.get("assets")
     if not isinstance(assets, dict) or set(assets) != set(expected_names):

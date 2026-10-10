@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### English
+
+- Move the mouse over a floating picture and press the pin shortcut to remove that picture. Help now explains actions in plain language and appears on hover.
+- Download a DMG and drag Fuwa into Applications to install. Future in-app updates use the same signed DMG.
+
+### 中文
+
+- 鼠标放在浮窗上时，按固定快捷键就能取消这个浮窗的置顶。帮助改用悬停提示，说明也更容易看懂。
+- 下载 DMG，打开后把 Fuwa 拖进 Applications 就能安装。后续应用内更新也使用同一个签名 DMG。
+
 ## [1.2.0] - 2026-10-10
 
 ### English

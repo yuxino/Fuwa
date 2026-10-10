@@ -45,11 +45,11 @@ Fuwa 1.2.0 的独立参考窗、局部画面、隐藏／恢复和显示规则见
 
 ## 安装
 
-从 [GitHub Releases](https://github.com/yuxino/fuwa/releases) 下载 `Fuwa-<版本>.zip`，解压后把 `Fuwa.app` 移到 `/Applications`。每个公开包都附有 `.sha256` 校验文件：
+从 [GitHub Releases](https://github.com/yuxino/fuwa/releases) 下载 `Fuwa-<版本>.dmg`，打开后把 `Fuwa.app` 拖到旁边的 `Applications` 文件夹。每个公开包都附有 `.sha256` 校验文件：
 
 ```sh
 cd ~/Downloads
-shasum -a 256 -c "Fuwa-<版本>.zip.sha256"
+shasum -a 256 -c "Fuwa-<版本>.dmg.sha256"
 ```
 
 请将 `<版本>` 替换为实际版本号。v0.1.4 及更早版本需要手动安装 v0.1.5 或更高版本一次，之后可在 Fuwa 设置中点击“检查更新”。应用只接受内置公钥验证通过的固定 GitHub feed 和安装包，失败时不会降级为未签名安装。
