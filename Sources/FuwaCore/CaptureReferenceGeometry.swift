@@ -39,7 +39,9 @@ public enum CaptureReferenceGeometry {
                                       within previous: NormalizedCaptureRegion?) -> NormalizedCaptureRegion? {
         guard imageRect.width > 0, imageRect.height > 0 else { return nil }
         let clipped = selection.standardized.intersection(imageRect)
-        guard !clipped.isNull, clipped.width >= 3, clipped.height >= 3 else { return nil }
+        guard !clipped.isNull,
+              clipped.width >= min(3, imageRect.width),
+              clipped.height >= min(3, imageRect.height) else { return nil }
         let base = sanitized(previous) ?? NormalizedCaptureRegion(x: 0, y: 0, width: 1, height: 1)
         return sanitized(NormalizedCaptureRegion(
             x: base.x + Double((clipped.minX - imageRect.minX) / imageRect.width) * base.width,
@@ -64,13 +66,33 @@ public enum CaptureReferenceGeometry {
         // Keep the top-left corner stable while resizing the bottom-right handle.
         let ratio = aspect.height / aspect.width
         var width = max(max(96, 64 / ratio), requestedWidth)
+        var minimumWidth: CGFloat = 0
+        var minimumHeight: CGFloat = 0
         if let maximumSize, maximumSize.width.isFinite, maximumSize.height.isFinite,
            maximumSize.width > 0, maximumSize.height > 0 {
-            // A thin crop must fit without enforcing a minimum height that
-            // expands its width to many screens (and conversely for tall crops).
+            minimumWidth = min(96, maximumSize.width)
+            minimumHeight = min(64, maximumSize.height)
+            let proportionalMinimum = max(minimumWidth, minimumHeight / ratio)
+            if minimumWidth * ratio > maximumSize.height {
+                // A tall picture needs a wider outer frame than its pixels.
+                // Resize that frame using its current proportions, so a smaller
+                // request can reduce height even after width reaches its minimum.
+                // Reconciliation with the current width preserves that height.
+                let outerRatio = frame.width.isFinite && frame.height.isFinite
+                    && frame.width > 0 && frame.height > 0 ? frame.height / frame.width : ratio
+                let height = max(minimumHeight, min(maximumSize.height, max(0, requestedWidth) * outerRatio))
+                return CGRect(x: frame.minX, y: frame.maxY - height, width: minimumWidth, height: height)
+            }
+            if proportionalMinimum > maximumSize.width || proportionalMinimum * ratio > maximumSize.height {
+                // A very wide picture cannot meet both interaction minimums
+                // proportionally. Give its aspect-fitted pixels a
+                // usable outer frame rather than a sub-point mouse target.
+                width = max(minimumWidth, requestedWidth)
+            }
             width = min(width, maximumSize.width, maximumSize.height / ratio)
         }
-        let height = width * ratio
+        let height = max(minimumHeight, width * ratio)
+        width = max(minimumWidth, width)
         return CGRect(x: frame.minX, y: frame.maxY - height, width: width, height: height)
     }
 }

@@ -7,13 +7,19 @@ These workflows are in development and have not been published in a release.
 Pin a window as usual with `⌥⌘P`. The default view follows its original window
 and lets clicks pass through. Open its controls from the gear in Fuwa's list or
 from the window's menu-bar submenu.
+The controls group choices into **Picture**, **Visibility** and **Performance**;
+playback and group navigation remain visible when the options need scrolling.
 
 - Choose **Reference Window** to move and resize the picture independently.
   Drag the picture to move it and use the lower-right handle to resize. This
   controls the reference, without moving or typing into its source.
+  Right-click the reference to open its controls.
 - Use **Choose Area** while the picture is live and visible. Drag over the
   captured picture to select a region; Escape cancels. Use Full Window returns to the
   full picture. The selection remains relative to the source window.
+  After changing the area or restoring a hidden picture, wait for fresh pixels
+  before pausing or selecting another area. Pausing, hiding or changing its
+  picture settings cancels any open area selector.
 - **Hide All Pictures** temporarily conceals references. **Show All Pictures**
   restores them, preserving manual pause choices. The default shortcut is
   `⌥⇧⌘P`; change it separately from the pin shortcut in Settings. Unpin All
@@ -38,11 +44,16 @@ content; pin it again after those privacy boundaries.
 
 仍可使用 `⌥⌘P` 固定窗口。默认画面跟随原窗口，并允许鼠标操作穿透。
 从 Fuwa 列表中的齿轮或菜单栏的窗口子菜单打开控件。
+控件分为**画面、显示条件、性能**三组；选项需要滚动时，播放操作和分组导航
+仍保持可见。
 
 - 选择**参考窗口**后，可独立移动和调整画面大小。拖动画面移动，使用右下角
   手柄调整大小。这些操作只改变参考窗口，不会移动原窗口或向它输入内容。
+  右键点击参考窗口也可打开控件。
 - 画面正在播放且可见时，使用**选择区域**在捕获画面上拖动框选。Escape 取消，
   “显示完整窗口”恢复完整画面。区域相对原窗口定位。
+  切换区域或恢复隐藏的画面后，需要等新画面到达，才能暂停或继续框选。
+  暂停、隐藏或改变画面设置会取消已打开的区域选择。
 - **隐藏全部画面**暂时收起参考内容，**显示全部画面**恢复，并保留手动暂停
   的选择。默认快捷键是 `⌥⇧⌘P`，可在设置中独立修改。全部取消固定会移除
   参考内容；新增固定窗口会显示这一组画面。

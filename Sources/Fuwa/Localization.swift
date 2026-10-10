@@ -100,6 +100,7 @@ enum FuwaString: String, CaseIterable, Sendable {
     case clearAll
     case hideAllPins, showAllPins, pinsHiddenNote, hidden, pictureIdle, pictureIdleNote
     case visibilityShortcut, visibilityShortcutNote, visibilityShortcutInactive
+    case pictureOptions, visibilityOptions, performanceOptions, closeControls, pinShortcut, restoringPicture
     case pinOptions, pinOptionsNote, presentationMode, followOriginal, referenceWindow, presentationModeHelp, referenceInstructions
     case chooseArea, resetArea, cropInstructions, cropAreaHelp, fullWindow, selectedArea
     case showInSpaces, allSpaces, currentSpace, spaceScopeHelp

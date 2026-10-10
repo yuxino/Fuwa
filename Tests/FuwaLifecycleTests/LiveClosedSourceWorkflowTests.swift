@@ -58,6 +58,11 @@ extension LiveReferenceWorkflowTests {
             #expect(closedSourceLuminance(first, xFraction: 0.25) < 0.15)
             #expect(closedSourceLuminance(first, xFraction: 0.75) > 0.85)
 
+            var options = pin.options
+            options.presentationMode = .reference
+            options.captureRegion = NormalizedCaptureRegion(x: 0.5, y: 0, width: 0.5, height: 1)
+            pin.setOptions(options)
+            #expect(pin.snapshot.isAwaitingFreshFrame)
             try await pin.setPresentationSuppressed(true)
             #expect(pin.snapshot.isHidden)
             #expect(!panel.isVisible)
@@ -76,6 +81,8 @@ extension LiveReferenceWorkflowTests {
                 #expect(windowID == source.id)
             }
             #expect(pin.state == .frozen(.sourceClosed))
+            #expect(pin.options.captureRegion == nil,
+                    "A source closed before its crop arrives retains full-picture coordinates")
             #expect(!pin.snapshot.isHidden)
             #expect(!closedSourceHasCaptureStream(pin))
             #expect(try view.makeFrozenImage().dataProvider?.data as Data? == retained,

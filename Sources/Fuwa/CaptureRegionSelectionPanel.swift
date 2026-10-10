@@ -14,12 +14,16 @@ final class CaptureRegionSelectionPanel: NSPanel, NSWindowDelegate {
         selectionView = CaptureRegionSelectionView(image: image, previousRegion: previousRegion)
         self.onSelection = onSelection
         self.onCancellation = onCancellation
-        let visible = NSScreen.screens.first(where: { $0.frame.intersects(sourceFrame) })?.visibleFrame
+        let screens = NSScreen.screens
+        let screenIndex = FloatingControlsLayout.screenIndex(source: sourceFrame, screens: screens.map(\.frame))
+        let visible = screenIndex.map { screens[$0].visibleFrame }
             ?? NSScreen.main?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1200, height: 800)
-        let size = CGSize(width: min(900, visible.width * 0.8), height: min(680, visible.height * 0.8))
-        super.init(contentRect: CGRect(x: visible.midX - size.width / 2, y: visible.midY - size.height / 2,
+        let style: NSWindow.StyleMask = [.titled, .closable, .resizable, .nonactivatingPanel]
+        let available = NSWindow.contentRect(forFrameRect: visible.insetBy(dx: 16, dy: 16), styleMask: style)
+        let size = CGSize(width: min(900, available.width * 0.9), height: min(680, available.height * 0.9))
+        super.init(contentRect: CGRect(x: available.midX - size.width / 2, y: available.midY - size.height / 2,
                                       width: size.width, height: size.height),
-                   styleMask: [.titled, .closable, .resizable, .nonactivatingPanel],
+                   styleMask: style,
                    backing: .buffered, defer: false)
         title = copy.text(.chooseArea)
         level = .floating
@@ -27,30 +31,25 @@ final class CaptureRegionSelectionPanel: NSPanel, NSWindowDelegate {
         hidesOnDeactivate = false
         sharingType = .none
         collectionBehavior = [.canJoinAllApplications, .fullScreenAuxiliary]
-        minSize = CGSize(width: 420, height: 300)
+        minSize = CGSize(width: min(420, visible.width - 32), height: min(300, visible.height - 32))
         delegate = self
-        let container = NSView(frame: CGRect(origin: .zero, size: size))
-        selectionView.frame = CGRect(x: 0, y: 0, width: size.width, height: size.height - 58)
-        selectionView.autoresizingMask = [.width, .height]
-        container.addSubview(selectionView)
         let instruction = NSTextField(wrappingLabelWithString: copy.text(.cropInstructions))
         instruction.font = .systemFont(ofSize: 12)
         instruction.textColor = .secondaryLabelColor
-        instruction.frame = CGRect(x: 16, y: size.height - 49, width: size.width - 124, height: 40)
-        instruction.autoresizingMask = [.width, .minYMargin]
-        container.addSubview(instruction)
         let cancel = NSButton(title: copy.text(.cancel), target: self, action: #selector(cancelSelection))
         cancel.bezelStyle = .rounded
-        cancel.frame = CGRect(x: size.width - 100, y: size.height - 44, width: 84, height: 28)
-        cancel.autoresizingMask = [.minXMargin, .minYMargin]
         cancel.keyEquivalent = "\u{1b}"
-        container.addSubview(cancel)
+        let container = CaptureRegionSelectionContentView(frame: CGRect(origin: .zero, size: size),
+                                                          selectionView: selectionView, instruction: instruction,
+                                                          cancelButton: cancel)
         contentView = container
+        container.layoutSubtreeIfNeeded()
         selectionView.onSelection = { [weak self] region in
             guard let self else { return }
             let action = self.onSelection
             self.onSelection = nil
             self.onCancellation = nil
+            self.selectionView.clearImage()
             self.close()
             action?(region)
         }
@@ -81,6 +80,49 @@ final class CaptureRegionSelectionPanel: NSPanel, NSWindowDelegate {
         selectionView.onSelection = nil
         selectionView.clearImage()
         close()
+    }
+}
+
+/// Let required instructions wrap without covering the image when narrowed.
+@MainActor
+private final class CaptureRegionSelectionContentView: NSView {
+    let selectionView: NSView
+    let instruction: NSTextField
+    let cancelButton: NSButton
+
+    init(frame: CGRect, selectionView: NSView, instruction: NSTextField, cancelButton: NSButton) {
+        self.selectionView = selectionView
+        self.instruction = instruction
+        self.cancelButton = cancelButton
+        super.init(frame: frame)
+        addSubview(selectionView)
+        addSubview(instruction)
+        addSubview(cancelButton)
+        needsLayout = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        let buttonWidth = max(72, cancelButton.fittingSize.width)
+        let textWidth = max(1, bounds.width - buttonWidth - 48)
+        let font = instruction.font ?? .systemFont(ofSize: 12)
+        let textHeight = ceil((instruction.stringValue as NSString).boundingRect(
+            with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font]
+        ).height) + 4
+        let headerHeight = max(58, textHeight + 20)
+        selectionView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: max(0, bounds.height - headerHeight))
+        instruction.frame = CGRect(x: 16, y: bounds.height - 10 - textHeight, width: textWidth, height: textHeight)
+        cancelButton.frame = CGRect(x: bounds.width - buttonWidth - 16,
+                                    y: bounds.height - headerHeight / 2 - 14, width: buttonWidth, height: 28)
     }
 }
 

@@ -4,7 +4,13 @@ extension FuwaCopy {
     static func referenceTranslations(_ language: FuwaLanguage) -> [FuwaString: String] {
         switch language {
         case .english: [
-            .referenceInstructions: "Drag the picture to move it; drag the lower-right corner to resize.",
+            .restoringPicture: "Restoring picture…",
+            .pictureOptions: "Picture",
+            .visibilityOptions: "Visibility",
+            .performanceOptions: "Performance",
+            .closeControls: "Close Controls",
+            .pinShortcut: "Pin / Unpin Shortcut",
+            .referenceInstructions: "Drag the picture to move it; drag the lower-right corner to resize. Right-click for window options.",
             .hideAllPins: "Hide All Pictures", .showAllPins: "Show All Pictures",
             .pinsHiddenNote: "Pictures are hidden. Your pins and paused pictures are kept.", .hidden: "Hidden",
             .pictureIdle: "Picture unchanged", .pictureIdleNote: "The picture has stopped changing. Check the original app for its progress.",
@@ -27,7 +33,13 @@ extension FuwaCopy {
             .notifyWhenIdle: "Mark when picture stops changing", .notifyWhenIdleHelp: "Shows a quiet marker when the picture stays unchanged. This does not mean the original task has finished."
         ]
         case .simplifiedChinese: [
-            .referenceInstructions: "拖动画面移动，拖动右下角调整大小。",
+            .restoringPicture: "正在恢复画面…",
+            .pictureOptions: "画面",
+            .visibilityOptions: "显示条件",
+            .performanceOptions: "性能",
+            .closeControls: "关闭控制面板",
+            .pinShortcut: "固定／取消固定快捷键",
+            .referenceInstructions: "拖动画面移动，拖动右下角调整大小。右键打开窗口选项。",
             .hideAllPins: "隐藏全部画面", .showAllPins: "显示全部画面",
             .pinsHiddenNote: "画面已隐藏，固定窗口和暂停的画面仍然保留。", .hidden: "已隐藏",
             .pictureIdle: "画面未变化", .pictureIdleNote: "画面已停止变化，请到原应用确认进度。",
@@ -50,7 +62,13 @@ extension FuwaCopy {
             .notifyWhenIdle: "标记画面停止变化", .notifyWhenIdleHelp: "画面一段时间未变化时显示标记，不代表原任务已经完成。"
         ]
         case .traditionalChinese: [
-            .referenceInstructions: "拖曳畫面移動，拖曳右下角調整大小。",
+            .restoringPicture: "正在恢復畫面…",
+            .pictureOptions: "畫面",
+            .visibilityOptions: "顯示條件",
+            .performanceOptions: "效能",
+            .closeControls: "關閉控制面板",
+            .pinShortcut: "固定／取消固定快捷鍵",
+            .referenceInstructions: "拖曳畫面移動，拖曳右下角調整大小。按右鍵開啟視窗選項。",
             .hideAllPins: "隱藏所有畫面", .showAllPins: "顯示所有畫面",
             .pinsHiddenNote: "畫面已隱藏，固定視窗和暫停的畫面仍然保留。", .hidden: "已隱藏",
             .pictureIdle: "畫面未變化", .pictureIdleNote: "畫面已停止變化，請到原應用程式確認進度。",
@@ -73,7 +91,13 @@ extension FuwaCopy {
             .notifyWhenIdle: "標記畫面停止變化", .notifyWhenIdleHelp: "畫面一段時間未變化時顯示標記，不代表原工作已經完成。"
         ]
         case .japanese: [
-            .referenceInstructions: "映像をドラッグして移動し、右下の角をドラッグしてサイズを変更します。",
+            .restoringPicture: "映像を復元中…",
+            .pictureOptions: "映像",
+            .visibilityOptions: "表示条件",
+            .performanceOptions: "負荷",
+            .closeControls: "操作パネルを閉じる",
+            .pinShortcut: "固定／解除ショートカット",
+            .referenceInstructions: "映像をドラッグして移動し、右下の角をドラッグしてサイズを変更します。右クリックでウィンドウの設定を開きます。",
             .hideAllPins: "すべての映像を隠す", .showAllPins: "すべての映像を表示",
             .pinsHiddenNote: "映像を隠しています。固定したウィンドウと一時停止中の映像は保持されます。", .hidden: "非表示",
             .pictureIdle: "映像に変化なし", .pictureIdleNote: "映像が変化しなくなりました。元のアプリで進行状況を確認してください。",
@@ -96,7 +120,13 @@ extension FuwaCopy {
             .notifyWhenIdle: "映像の変化が止まったら印を表示", .notifyWhenIdleHelp: "映像がしばらく変化しないと控えめな印を表示します。元の作業の完了を示すものではありません。"
         ]
         case .korean: [
-            .referenceInstructions: "화면을 드래그하여 이동하고 오른쪽 아래 모서리를 드래그하여 크기를 바꿉니다.",
+            .restoringPicture: "화면 복원 중…",
+            .pictureOptions: "화면",
+            .visibilityOptions: "표시 조건",
+            .performanceOptions: "성능",
+            .closeControls: "조작 패널 닫기",
+            .pinShortcut: "고정 / 해제 단축키",
+            .referenceInstructions: "화면을 드래그하여 이동하고 오른쪽 아래 모서리를 드래그하여 크기를 바꿉니다.오른쪽 클릭으로 창 옵션을 엽니다.",
             .hideAllPins: "모든 화면 숨기기", .showAllPins: "모든 화면 표시",
             .pinsHiddenNote: "화면을 숨겼습니다. 고정한 창과 일시 정지한 화면은 유지됩니다.", .hidden: "숨김",
             .pictureIdle: "화면 변화 없음", .pictureIdleNote: "화면이 더 이상 변하지 않습니다. 원래 앱에서 진행 상황을 확인하세요.",
@@ -119,7 +149,13 @@ extension FuwaCopy {
             .notifyWhenIdle: "화면 변화가 멈추면 표시", .notifyWhenIdleHelp: "화면이 한동안 변하지 않으면 작은 표시를 보여 줍니다. 원래 작업이 완료되었다는 뜻은 아닙니다."
         ]
         case .french: [
-            .referenceInstructions: "Faites glisser l’image pour la déplacer, et le coin inférieur droit pour la redimensionner.",
+            .restoringPicture: "Rétablissement de l’image…",
+            .pictureOptions: "Image",
+            .visibilityOptions: "Visibilité",
+            .performanceOptions: "Performances",
+            .closeControls: "Fermer les commandes",
+            .pinShortcut: "Raccourci épingler / détacher",
+            .referenceInstructions: "Faites glisser l’image pour la déplacer, et le coin inférieur droit pour la redimensionner. Un clic droit ouvre les options de la fenêtre.",
             .hideAllPins: "Masquer toutes les images", .showAllPins: "Afficher toutes les images",
             .pinsHiddenNote: "Les images sont masquées. Les épingles et les images en pause sont conservées.", .hidden: "Masquée",
             .pictureIdle: "Image inchangée", .pictureIdleNote: "L’image ne change plus. Vérifiez l’avancement dans l’app d’origine.",
@@ -142,7 +178,13 @@ extension FuwaCopy {
             .notifyWhenIdle: "Signaler une image qui ne change plus", .notifyWhenIdleHelp: "Affiche un repère discret si l’image reste inchangée. Cela ne signifie pas que la tâche d’origine est terminée."
         ]
         case .german: [
-            .referenceInstructions: "Ziehe das Bild zum Verschieben und die untere rechte Ecke zum Ändern der Größe.",
+            .restoringPicture: "Bild wird wiederhergestellt…",
+            .pictureOptions: "Bild",
+            .visibilityOptions: "Sichtbarkeit",
+            .performanceOptions: "Leistung",
+            .closeControls: "Bedienelemente schließen",
+            .pinShortcut: "Kurzbefehl zum Anheften / Lösen",
+            .referenceInstructions: "Ziehe das Bild zum Verschieben und die untere rechte Ecke zum Ändern der Größe. Ein Rechtsklick öffnet die Fensteroptionen.",
             .hideAllPins: "Alle Bilder ausblenden", .showAllPins: "Alle Bilder einblenden",
             .pinsHiddenNote: "Die Bilder sind ausgeblendet. Angeheftete Fenster und pausierte Bilder bleiben erhalten.", .hidden: "Ausgeblendet",
             .pictureIdle: "Bild unverändert", .pictureIdleNote: "Das Bild ändert sich nicht mehr. Prüfe den Fortschritt in der ursprünglichen App.",

@@ -4,7 +4,12 @@ import FuwaCore
 /// Global hiding and a pin's application rule are independent. Restoring the
 /// group must never make a reference appear over an unrelated application.
 struct PinVisibilityPolicy {
-    var arePinsHidden = false
+    var arePinsHidden = false {
+        didSet {
+            if arePinsHidden != oldValue { globalVisibilityRevision &+= 1 }
+        }
+    }
+    private(set) var globalVisibilityRevision: UInt64 = 0
     private(set) var activeApplicationBundleIdentifier: String?
     private let ownBundleIdentifier: String?
 
@@ -30,6 +35,15 @@ struct PinVisibilityPolicy {
         if arePinsHidden { return true }
         guard let application = options.applicationScopeBundleIdentifier else { return false }
         return application != activeApplicationBundleIdentifier
+    }
+
+    /// A completed add reveals an already hidden group, but a visibility choice
+    /// made while its target was resolving takes precedence over the older add.
+    @discardableResult
+    mutating func revealAfterAddingPin(ifUnchangedSince revision: UInt64) -> Bool {
+        guard globalVisibilityRevision == revision, arePinsHidden else { return false }
+        arePinsHidden = false
+        return true
     }
 }
 

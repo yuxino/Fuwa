@@ -325,8 +325,8 @@ struct SettingsView: View {
     private var shortcutDescription: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                Text(copy.text(.shortcut)).font(FuwaTypography.settingTitle)
-                FuwaHelpIcon(title: copy.text(.shortcut), text: copy.text(.shortcutNote))
+                Text(copy.text(.pinShortcut)).font(FuwaTypography.settingTitle)
+                FuwaHelpIcon(title: copy.text(.pinShortcut), text: copy.text(.shortcutNote))
             }
 
             if !model.shortcutIsActive {

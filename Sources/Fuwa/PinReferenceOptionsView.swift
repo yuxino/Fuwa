@@ -10,7 +10,7 @@ struct PinApplicationChoice: Equatable, Identifiable {
     /// Include a selected or source app even if it has exited while controls are open.
     static func choices(running: [(bundleIdentifier: String, name: String)],
                         sourceBundleIdentifier: String?, sourceName: String,
-                        selectedBundleIdentifier: String?) -> [Self] {
+                        selectedBundleIdentifier: String?, selectedName: String? = nil) -> [Self] {
         var names = [String: String]()
         for app in running where !app.bundleIdentifier.isEmpty {
             if names[app.bundleIdentifier] == nil { names[app.bundleIdentifier] = app.name }
@@ -19,7 +19,7 @@ struct PinApplicationChoice: Equatable, Identifiable {
             names[sourceBundleIdentifier] = sourceName
         }
         if let selectedBundleIdentifier, names[selectedBundleIdentifier] == nil {
-            names[selectedBundleIdentifier] = selectedBundleIdentifier
+            names[selectedBundleIdentifier] = selectedName ?? selectedBundleIdentifier
         }
         return names.map { Self(bundleIdentifier: $0.key, name: $0.value) }
             .sorted { lhs, rhs in
@@ -29,19 +29,75 @@ struct PinApplicationChoice: Equatable, Identifiable {
     }
 }
 
+enum PinOptionsSection: String, CaseIterable, Identifiable {
+    case picture, visibility, performance
+    var id: Self { self }
+    var titleKey: FuwaString {
+        switch self {
+        case .picture: .pictureOptions
+        case .visibility: .visibilityOptions
+        case .performance: .performanceOptions
+        }
+    }
+}
+
 /// Per-pin choices are separate from the source app and never forward input to it.
 @MainActor
 struct PinReferenceOptionsView: View {
     @ObservedObject var model: AppModel
     let pin: PinSnapshot
     @State private var applications: [PinApplicationChoice] = []
+    @State private var section: PinOptionsSection
+
+    init(model: AppModel, pin: PinSnapshot, initialSection: PinOptionsSection = .picture) {
+        self.model = model
+        self.pin = pin
+        _section = State(initialValue: initialSection)
+    }
 
     private var copy: FuwaCopy { model.copy }
     private var busy: Bool { model.busyPinIDs.contains(pin.id) || model.isClearingAll }
     private var canUpdate: Bool { pin.canShowControls && !busy }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
+            Picker(copy.text(.pinOptions), selection: $section) {
+                ForEach(PinOptionsSection.allCases) { section in
+                    Text(copy.text(section.titleKey)).tag(section)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .font(.caption)
+            .accessibilityIdentifier("pin-options-sections")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    switch section {
+                    case .picture: pictureOptions
+                    case .visibility: visibilityOptions
+                    case .performance: performanceOptions
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 3)
+                .padding(.vertical, 2)
+                .disabled(!canUpdate)
+            }
+            .frame(maxHeight: .infinity)
+            .scrollIndicators(.visible)
+        }
+        .onAppear(perform: refreshApplications)
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didLaunchApplicationNotification)) { _ in
+            refreshApplications()
+        }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didTerminateApplicationNotification)) { _ in
+            refreshApplications()
+        }
+        .onChange(of: pin.options.applicationScopeBundleIdentifier) { _, _ in refreshApplications() }
+    }
+
+    private var pictureOptions: some View {
+        VStack(alignment: .leading, spacing: 16) {
             optionRow(title: .presentationMode, help: .presentationModeHelp) {
                 choiceMenu(title: .presentationMode,
                     value: copy.text(pin.options.presentationMode == .followSource ? .followOriginal : .referenceWindow)) {
@@ -70,6 +126,12 @@ struct PinReferenceOptionsView: View {
                 }
             }
             Divider().opacity(0.5)
+            PinQualityControls(model: model, pin: pin)
+        }
+    }
+
+    private var visibilityOptions: some View {
+        VStack(alignment: .leading, spacing: 16) {
             optionRow(title: .showInSpaces, help: .spaceScopeHelp) {
                 choiceMenu(title: .showInSpaces,
                     value: copy.text(pin.options.spaceScope == .allSpaces ? .allSpaces : .currentSpace)) {
@@ -103,7 +165,11 @@ struct PinReferenceOptionsView: View {
                     }
                 }
             }
-            Divider().opacity(0.5)
+        }
+    }
+
+    private var performanceOptions: some View {
+        VStack(alignment: .leading, spacing: 16) {
             optionRow(title: .frameRate, help: .frameRateHelp) {
                 choiceMenu(title: .frameRate, value: frameRateTitle(pin.options.frameRate)) {
                     ForEach(PinFrameRate.allCases, id: \.self) { rate in
@@ -121,18 +187,7 @@ struct PinReferenceOptionsView: View {
                 isOn: Binding(get: { pin.options.notifiesWhenIdle }, set: { value in
                     change { $0.notifiesWhenIdle = value }
                 }))
-            Divider().opacity(0.5)
-            PinQualityControls(model: model, pin: pin)
         }
-        .disabled(!canUpdate)
-        .onAppear(perform: refreshApplications)
-        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didLaunchApplicationNotification)) { _ in
-            refreshApplications()
-        }
-        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didTerminateApplicationNotification)) { _ in
-            refreshApplications()
-        }
-        .onChange(of: pin.options.applicationScopeBundleIdentifier) { _, _ in refreshApplications() }
     }
 
     private var cropButton: some View {
@@ -162,13 +217,17 @@ struct PinReferenceOptionsView: View {
     }
 
     private func refreshApplications() {
+        let selectedIdentifier = pin.options.applicationScopeBundleIdentifier
+        let knownName = applications.first(where: { $0.bundleIdentifier == selectedIdentifier })?.name
+        let installedName = selectedIdentifier.flatMap { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }
+            .map { (FileManager.default.displayName(atPath: $0.path) as NSString).deletingPathExtension }
         applications = PinApplicationChoice.choices(
             running: NSWorkspace.shared.runningApplications.compactMap { app in
                 guard app.activationPolicy == .regular, !app.isTerminated,
                       let identifier = app.bundleIdentifier, identifier != Bundle.main.bundleIdentifier else { return nil }
                 return (identifier, app.localizedName ?? identifier)
             }, sourceBundleIdentifier: pin.bundleIdentifier, sourceName: pin.applicationName,
-            selectedBundleIdentifier: pin.options.applicationScopeBundleIdentifier)
+            selectedBundleIdentifier: selectedIdentifier, selectedName: knownName ?? installedName)
     }
 
     private func optionRow<Content: View>(title: FuwaString, help: FuwaString,
@@ -203,6 +262,7 @@ struct PinReferenceOptionsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .menuStyle(.borderlessButton)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 8).padding(.vertical, 6)
         .background(FuwaAppearance.canvas, in: RoundedRectangle(cornerRadius: 5))
         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(FuwaAppearance.border))

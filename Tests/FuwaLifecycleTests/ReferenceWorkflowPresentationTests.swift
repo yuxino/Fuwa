@@ -33,6 +33,27 @@ struct ReferenceWorkflowPresentationTests {
         }
     }
 
+    @Test func restoredPinWaitsForFreshPixelsBeforeOfferingAnArea() {
+        var restoring = pin(idle: true, notify: true)
+        restoring.isAwaitingFreshFrame = true
+        for language in FuwaLanguage.allCases {
+            let copy = FuwaCopy(language: language)
+            #expect(restoring.stateTitle(copy) == copy.text(.restoringPicture))
+            #expect(!restoring.statusTitle(copy).contains(copy.text(.pictureIdle)))
+            #expect(!restoring.canChooseArea)
+            #expect(restoring.canShowControls)
+        }
+    }
+
+    @Test func popoverLeavesRoomForScreenEdgesAndUsesTheAvailableDisplay() {
+        #expect(PinOptionsPopoverLayout.size(available: CGSize(width: 1512, height: 900)) == CGSize(width: 380, height: 460))
+        let small = PinOptionsPopoverLayout.size(available: CGSize(width: 320, height: 300))
+        #expect(small.width <= 280 && small.height <= 260)
+        let short = PinOptionsPopoverLayout.size(available: CGSize(width: 1200, height: 340))
+        #expect(short.width == 380 && short.height == 300)
+        #expect(PinOptionsPopoverLayout.size(available: .zero) == CGSize(width: 380, height: 460))
+    }
+
     @Test func appChoicesPreserveSourceAndSelectedAppsAndDeduplicateBundleIDs() {
         let choices = PinApplicationChoice.choices(
             running: [("app.editor", "Editor"), ("app.editor", "Editor (other process)"), ("", "Helper")],
@@ -42,6 +63,9 @@ struct ReferenceWorkflowPresentationTests {
         #expect(choices.first(where: { $0.bundleIdentifier == "app.editor" })?.name == "Editor")
         #expect(choices.first(where: { $0.bundleIdentifier == "app.source" })?.name == "Source")
         #expect(choices.contains(where: { $0.bundleIdentifier == "app.closed" }))
+        let remembered = PinApplicationChoice.choices(running: [], sourceBundleIdentifier: nil,
+            sourceName: "Source", selectedBundleIdentifier: "app.closed", selectedName: "Working Editor")
+        #expect(remembered.first?.name == "Working Editor")
     }
 
     @Test func hideAndRestoreNativeMenuRemainSeparateFromRemovingPins() async throws {
@@ -94,11 +118,14 @@ struct ReferenceWorkflowPresentationTests {
             snapshot.options.presentationMode = .reference
             snapshot.options.applicationScopeBundleIdentifier = "test.fuwa.reference"
             model.updatePins([snapshot])
-            for (width, height) in [(CGFloat(380), CGFloat(460)), (320, 300)] {
-                let host = NSHostingView(rootView: PinControlsView(model: model, pinID: snapshot.id,
-                    maximumHeight: height).frame(width: width).environment(\.dynamicTypeSize, .accessibility3))
-                #expect(abs(host.fittingSize.height - height) <= 1)
-                #expect(abs(host.fittingSize.width - width) <= 1)
+            for section in PinOptionsSection.allCases {
+                for (width, height) in [(CGFloat(380), CGFloat(460)), (320, 300)] {
+                    let host = NSHostingView(rootView: PinControlsView(model: model, pinID: snapshot.id,
+                        maximumHeight: height, initialSection: section).frame(width: width)
+                        .environment(\.dynamicTypeSize, .accessibility3))
+                    #expect(abs(host.fittingSize.height - height) <= 1)
+                    #expect(abs(host.fittingSize.width - width) <= 1)
+                }
             }
         }
         #expect(app.windows.filter(\.isVisible).count == visibleWindows)

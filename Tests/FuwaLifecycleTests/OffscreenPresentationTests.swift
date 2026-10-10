@@ -49,6 +49,18 @@ struct OffscreenPresentationTests {
             try save(PinControlsView(model: model, pinID: reference.id, maximumHeight: 300)
                 .frame(width: 320).environment(\.dynamicTypeSize, .accessibility3),
                 to: "\(output)/\(language)-reference-controls-small.png")
+            for section in [PinOptionsSection.visibility, .performance] {
+                try save(PinControlsView(model: model, pinID: reference.id, initialSection: section)
+                    .frame(width: 380), to: "\(output)/\(language)-reference-controls-\(section.rawValue).png")
+                try save(PinControlsView(model: model, pinID: reference.id, maximumHeight: 300,
+                    initialSection: section).frame(width: 320).environment(\.dynamicTypeSize, .accessibility3),
+                    to: "\(output)/\(language)-reference-controls-\(section.rawValue)-small.png")
+            }
+            var restoringReference = reference
+            restoringReference.isAwaitingFreshFrame = true
+            model.updatePins([restoringReference])
+            try save(PinControlsView(model: model, pinID: reference.id).frame(width: 380),
+                to: "\(output)/\(language)-reference-controls-restoring.png")
             var hiddenReference = reference
             hiddenReference.isHidden = true
             model.updatePins([hiddenReference, paused])

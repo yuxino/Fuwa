@@ -166,6 +166,7 @@ final class PinCoordinator {
         }
 
         let requestedGeneration = operationGeneration
+        let requestedVisibilityRevision = visibilityPolicy.globalVisibilityRevision
         defer {
             pendingPinRequests.finish(windowID: intent.descriptor.id, token: requestToken)
         }
@@ -188,7 +189,12 @@ final class PinCoordinator {
         }
         // Adding a new reference is an explicit request to see the group again.
         // Application-specific rules still apply to each existing reference.
-        setPinsHidden(false)
+        if visibilityPolicy.revealAfterAddingPin(ifUnchangedSince: requestedVisibilityRevision) {
+            onVisibilityChanged?(false)
+            // Restore the existing group even if this new capture fails to start.
+            // Otherwise its visible policy would disagree with retained hidden panels.
+            requestVisibilityUpdate()
+        }
         session.presentationModel = presentationModel
         configureCallbacks(for: session)
         sessionsByID[session.id] = session

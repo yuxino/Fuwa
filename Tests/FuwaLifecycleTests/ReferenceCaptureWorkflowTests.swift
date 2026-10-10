@@ -69,9 +69,91 @@ struct ReferenceCaptureWorkflowTests {
             let thin = CaptureReferenceGeometry.resizedFrame(original, requestedWidth: 600, aspect: aspect,
                                                             maximumSize: CGSize(width: 900, height: 650))
             #expect(thin.width <= 900 && thin.height <= 650)
-            #expect(abs(thin.width / thin.height - aspect.width / aspect.height) < 0.00001)
+            #expect(thin.width >= 96 && thin.height >= 64)
+            let picture = CaptureReferenceGeometry.aspectFit(imageSize: aspect, in: thin)
+            #expect(abs(picture.width / picture.height - aspect.width / aspect.height) < 0.00001)
             #expect(thin.minX == original.minX && thin.maxY == original.maxY)
         }
+        let narrower = CaptureReferenceGeometry.resizedFrame(original, requestedWidth: 320,
+            aspect: CGSize(width: 5000, height: 3), maximumSize: CGSize(width: 900, height: 650))
+        #expect(narrower.width == 320 && narrower.height == 64)
+    }
+
+    @Test func tallReferenceCanShrinkAtMinimumWidthAndKeepItsSizeOnReconciliation() {
+        let aspect = CGSize(width: 3, height: 5000)
+        let limit = CGSize(width: 900, height: 650)
+        let initial = CaptureReferenceGeometry.resizedFrame(
+            CGRect(x: -700, y: 400, width: 600, height: 300), requestedWidth: 600,
+            aspect: aspect, maximumSize: limit
+        )
+        #expect(initial.width == 96 && initial.height == 300)
+
+        // The corner handle maps a 150 pt upward drag through the outer frame's
+        // ratio. Width stays operable while the picture's displayed height shrinks.
+        let requestedWidth = initial.width - 150 / (initial.height / initial.width)
+        let smaller = CaptureReferenceGeometry.resizedFrame(
+            initial, requestedWidth: requestedWidth, aspect: aspect, maximumSize: limit
+        )
+        #expect(smaller.width == 96 && smaller.height == 150)
+        #expect(smaller.minX == initial.minX && smaller.maxY == initial.maxY)
+        let reconciled = CaptureReferenceGeometry.resizedFrame(
+            smaller, requestedWidth: smaller.width, aspect: aspect, maximumSize: limit
+        )
+        #expect(reconciled == smaller)
+
+        let smallest = CaptureReferenceGeometry.resizedFrame(
+            smaller, requestedWidth: -100, aspect: aspect, maximumSize: limit
+        )
+        #expect(smallest.width == 96 && smallest.height == 64)
+        let largest = CaptureReferenceGeometry.resizedFrame(
+            smaller, requestedWidth: 2000, aspect: aspect, maximumSize: limit
+        )
+        #expect(largest.width == 96 && largest.height == limit.height)
+        let picture = CaptureReferenceGeometry.aspectFit(imageSize: aspect, in: smaller)
+        #expect(abs(picture.width / picture.height - aspect.width / aspect.height) < 0.00001)
+        #expect(picture.width <= smaller.width && picture.height <= smaller.height)
+    }
+
+    @Test func thinImageCanStillSelectItsCompleteHeight() throws {
+        let imageRect = CGRect(x: 0, y: 150, width: 600, height: 0.5)
+        let selection = try #require(CaptureReferenceGeometry.selectedRegion(
+            selection: CGRect(x: 150, y: 149, width: 300, height: 4), imageRect: imageRect, within: nil
+        ))
+        #expect(selection == NormalizedCaptureRegion(x: 0.25, y: 0, width: 0.5, height: 1))
+    }
+
+    @Test func restoringLivePictureCannotChooseFromTheOldFrame() {
+        var restored = PinSnapshot(id: UUID(), sourceWindowID: 100, applicationName: "Reference",
+            bundleIdentifier: nil, windowTitle: "Progress", state: .live, errorMessage: nil)
+        #expect(restored.canChooseArea)
+        restored.isAwaitingFreshFrame = true
+        #expect(!restored.canChooseArea)
+        restored.isAwaitingFreshFrame = false
+        #expect(restored.canChooseArea)
+    }
+
+    @Test func referenceStatusDoesNotBlockDragAndContextMenuKeepsPictureOptionsReachable() throws {
+        _ = NSApplication.shared
+        let view = CaptureView(frame: CGRect(x: 0, y: 0, width: 320, height: 180))
+        defer { view.clearAllPixels() }
+        view.setIdleIndicator(title: "Picture unchanged", explanation: "Check the source app.")
+        view.layoutSubtreeIfNeeded()
+        let badge = try #require(view.subviews.first)
+        let hitPoint = CGPoint(x: badge.frame.midX, y: badge.frame.midY)
+        #expect(badge.hitTest(hitPoint) == nil)
+        #expect(view.hitTest(hitPoint) === view)
+        #expect(view.resizeHandleRect == CGRect(x: 296, y: 0, width: 24, height: 24))
+        let event = try #require(NSEvent.mouseEvent(with: .rightMouseDown, location: .zero,
+            modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 1, clickCount: 1, pressure: 1))
+        var requestedControls = false
+        view.onRequestControls = { requestedControls = true }
+        view.controlsTitle = "Picture Options"
+        #expect(view.menu(for: event) == nil)
+        view.isReferencePresentation = true
+        let menu = try #require(view.menu(for: event))
+        #expect(menu.items.count == 1 && menu.items[0].title == "Picture Options")
+        menu.performActionForItem(at: 0)
+        #expect(requestedControls)
     }
 
     @Test func idleDependsOnPictureChangesAndRecoversChosenRate() {
@@ -175,6 +257,63 @@ struct ReferenceCaptureWorkflowTests {
         let after = Mirror(reflecting: selection).descendant("image")!
         #expect(Mirror(reflecting: after).children.isEmpty)
         #expect(!selected && !canceled)
+    }
+
+    @Test func nativeCropDragCommitsTopRightQuarterAndClearsPreview() throws {
+        _ = NSApplication.shared
+        let context = try #require(CGContext(data: nil, width: 1000, height: 500, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        var selected: NormalizedCaptureRegion?
+        let chooser = CaptureRegionSelectionPanel(image: try #require(context.makeImage()), previousRegion: nil,
+            sourceFrame: CGRect(x: 10, y: 10, width: 100, height: 100), copy: FuwaCopy(language: .english),
+            onSelection: { selected = $0 }, onCancellation: {})
+        defer { chooser.dismissForTeardown() }
+        let content = try #require(chooser.contentView)
+        content.layoutSubtreeIfNeeded()
+        let selection = try #require(content.subviews.first)
+        let imageRect = CaptureReferenceGeometry.aspectFit(imageSize: CGSize(width: 1000, height: 500),
+            in: selection.bounds.insetBy(dx: 12, dy: 12))
+        let startPoint = CGPoint(x: imageRect.midX, y: imageRect.maxY)
+        let endPoint = CGPoint(x: imageRect.maxX, y: imageRect.midY)
+        func event(_ type: NSEvent.EventType, point: CGPoint) throws -> NSEvent {
+            try #require(NSEvent.mouseEvent(with: type, location: selection.convert(point, to: nil),
+                modifierFlags: [], timestamp: 0, windowNumber: chooser.windowNumber, context: nil,
+                eventNumber: 1, clickCount: 1, pressure: 1))
+        }
+        // CGRect.contains excludes maxY; begin just inside the visible image.
+        let insetStart = CGPoint(x: startPoint.x, y: startPoint.y - 0.01)
+        selection.mouseDown(with: try event(.leftMouseDown, point: insetStart))
+        selection.mouseDragged(with: try event(.leftMouseDragged, point: endPoint))
+        selection.mouseUp(with: try event(.leftMouseUp, point: endPoint))
+        let region = try #require(selected)
+        #expect(abs(region.x - 0.5) < 0.0001 && abs(region.y) < 0.0001)
+        #expect(abs(region.width - 0.5) < 0.0001 && abs(region.height - 0.5) < 0.0001)
+        let retainedImage = try #require(Mirror(reflecting: selection).descendant("image"))
+        #expect(Mirror(reflecting: retainedImage).children.isEmpty)
+        #expect(!chooser.isVisible)
+    }
+
+    @Test func narrowCropInstructionsStayAboveImageInEveryLanguage() throws {
+        let context = try #require(CGContext(data: nil, width: 20, height: 10, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        for language in FuwaLanguage.allCases {
+            let chooser = CaptureRegionSelectionPanel(image: try #require(context.makeImage()), previousRegion: nil,
+                sourceFrame: CGRect(x: 10, y: 10, width: 100, height: 100), copy: FuwaCopy(language: language),
+                onSelection: { _ in }, onCancellation: {})
+            defer { chooser.dismissForTeardown() }
+            chooser.minSize = .zero
+            chooser.setContentSize(CGSize(width: 320, height: 280))
+            let content = try #require(chooser.contentView)
+            content.layoutSubtreeIfNeeded()
+            let selection = try #require(content.subviews.first)
+            let instruction = try #require(content.subviews.compactMap { $0 as? NSTextField }.first)
+            let cancel = try #require(content.subviews.compactMap { $0 as? NSButton }.first)
+            #expect(instruction.frame.minY > selection.frame.maxY)
+            #expect(instruction.frame.maxY <= content.bounds.maxY)
+            #expect(instruction.frame.maxX < cancel.frame.minX)
+            #expect(cancel.frame.maxX <= content.bounds.maxX)
+            #expect(instruction.frame.height >= 16)
+        }
     }
 
     private func makeSample(width: Int, height: Int, value: UInt8) throws -> CMSampleBuffer {

@@ -55,6 +55,41 @@ struct PinVisibilityWorkflowTests {
         // application rules never silently replace the user's Space choice.
     }
 
+    @Test func addingPinRevealsHiddenGroupAndStillHonorsApplicationRule() {
+        var policy = PinVisibilityPolicy(activeApplicationBundleIdentifier: "org.example.editor", ownBundleIdentifier: "app.fuwa")
+        var options = PinOptions()
+        options.applicationScopeBundleIdentifier = "org.example.browser"
+        policy.arePinsHidden = true
+        let requestRevision = policy.globalVisibilityRevision
+        let revealedGroup = policy.revealAfterAddingPin(ifUnchangedSince: requestRevision)
+        #expect(revealedGroup)
+        #expect(!policy.arePinsHidden)
+        #expect(policy.suppresses(options))
+        policy.applicationActivated(bundleIdentifier: "org.example.browser")
+        #expect(!policy.suppresses(options))
+    }
+
+    @Test func latePinCompletionPreservesNewerHideIntent() {
+        var policy = PinVisibilityPolicy(activeApplicationBundleIdentifier: "org.example.editor", ownBundleIdentifier: "app.fuwa")
+        let visibleRequest = policy.globalVisibilityRevision
+        policy.arePinsHidden = true
+        let olderAddRevealedGroup = policy.revealAfterAddingPin(ifUnchangedSince: visibleRequest)
+        #expect(!olderAddRevealedGroup)
+        #expect(policy.arePinsHidden)
+
+        let hiddenRequest = policy.globalVisibilityRevision
+        policy.arePinsHidden = false
+        policy.arePinsHidden = true
+        let addRevealedAfterNewerShowHide = policy.revealAfterAddingPin(ifUnchangedSince: hiddenRequest)
+        #expect(!addRevealedAfterNewerShowHide)
+        #expect(policy.arePinsHidden)
+
+        let latestRequest = policy.globalVisibilityRevision
+        let latestAddRevealedGroup = policy.revealAfterAddingPin(ifUnchangedSince: latestRequest)
+        #expect(latestAddRevealedGroup)
+        #expect(!policy.arePinsHidden)
+    }
+
     @Test func overlappingHideAndRestoreConvergeToLatestIntent() async throws {
         let reconciler = PinVisibilityReconciler()
         let entered = VisibilitySignal()

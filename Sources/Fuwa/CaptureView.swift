@@ -34,15 +34,28 @@ enum FrozenFrameError: LocalizedError {
 final class CaptureView: NSView {
     private let displayLayer = AVSampleBufferDisplayLayer()
     private let frozenLayer = CALayer()
+    private let referenceBorderLayer = CAShapeLayer()
+    private let referenceHandleBackgroundLayer = CAShapeLayer()
     private let referenceHandleLayer = CAShapeLayer()
-    private let idleIndicator = NSTextField(labelWithString: "")
+    private let idleIndicator = CapturePassiveStatusLabel(labelWithString: "")
     private var retainedImage: CGImage?
     private var latestCompletePixelBuffer: CVPixelBuffer?
     private var hasReceivedCompleteFrame = false
     private var firstFrameBridgeLifecycle = FirstFrameBridgeLifecycle()
-    var isReferencePresentation = false { didSet { referenceHandleLayer.isHidden = !isReferencePresentation } }
+    var isReferencePresentation = false {
+        didSet {
+            referenceHandleLayer.isHidden = !isReferencePresentation
+            referenceHandleBackgroundLayer.isHidden = !isReferencePresentation
+            referenceBorderLayer.isHidden = !isReferencePresentation
+            layer?.backgroundColor = isReferencePresentation ? NSColor.windowBackgroundColor.cgColor : NSColor.clear.cgColor
+            window?.invalidateCursorRects(for: self)
+            needsLayout = true
+        }
+    }
     var referenceAspect = CGSize(width: 1, height: 1)
     var onReferenceFrameChanged: (() -> Void)?
+    var onRequestControls: (() -> Void)?
+    var controlsTitle = ""
     private var resizeStart: (location: NSPoint, frame: NSRect)?
 
     override init(frame frameRect: NSRect) {
@@ -64,11 +77,19 @@ final class CaptureView: NSView {
         frozenLayer.minificationFilter = .trilinear
         frozenLayer.isHidden = true
         layer.addSublayer(frozenLayer)
+        referenceBorderLayer.fillColor = nil
+        referenceBorderLayer.strokeColor = NSColor.separatorColor.cgColor
+        referenceBorderLayer.lineWidth = 1
+        referenceBorderLayer.isHidden = true
+        layer.addSublayer(referenceBorderLayer)
+        referenceHandleBackgroundLayer.fillColor = NSColor.black.withAlphaComponent(0.64).cgColor
+        referenceHandleBackgroundLayer.isHidden = true
+        layer.addSublayer(referenceHandleBackgroundLayer)
         referenceHandleLayer.fillColor = nil
         referenceHandleLayer.strokeColor = NSColor.white.withAlphaComponent(0.9).cgColor
         referenceHandleLayer.lineWidth = 2
         referenceHandleLayer.shadowColor = NSColor.black.cgColor
-        referenceHandleLayer.shadowOpacity = 0.8
+        referenceHandleLayer.shadowOpacity = 0
         referenceHandleLayer.shadowRadius = 1
         referenceHandleLayer.shadowOffset = .zero
         referenceHandleLayer.isHidden = true
@@ -97,6 +118,11 @@ final class CaptureView: NSView {
         CATransaction.setDisableActions(true)
         displayLayer.frame = bounds
         frozenLayer.frame = bounds
+        referenceBorderLayer.frame = bounds
+        referenceBorderLayer.path = CGPath(rect: bounds.insetBy(dx: 0.5, dy: 0.5), transform: nil)
+        referenceHandleBackgroundLayer.frame = bounds
+        referenceHandleBackgroundLayer.path = CGPath(roundedRect: resizeHandleRect.insetBy(dx: 2, dy: 2),
+                                                      cornerWidth: 3, cornerHeight: 3, transform: nil)
         referenceHandleLayer.frame = bounds
         let path = CGMutablePath()
         for offset in [CGFloat(4), 9, 14] {
@@ -111,12 +137,43 @@ final class CaptureView: NSView {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { isReferencePresentation }
 
+    var resizeHandleRect: CGRect {
+        CGRect(x: max(bounds.minX, bounds.maxX - 24), y: bounds.minY,
+               width: min(24, bounds.width), height: min(24, bounds.height))
+    }
+
+    override func resetCursorRects() {
+        guard isReferencePresentation else { return }
+        addCursorRect(bounds, cursor: .openHand)
+        let resizeCursor: NSCursor
+        if #available(macOS 15, *) { resizeCursor = .frameResize(position: .bottomRight, directions: .all) }
+        else { resizeCursor = .resizeLeftRight }
+        addCursorRect(resizeHandleRect, cursor: resizeCursor)
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard isReferencePresentation, onRequestControls != nil else { return nil }
+        let menu = NSMenu()
+        let controls = NSMenuItem(title: controlsTitle, action: #selector(requestControls), keyEquivalent: "")
+        controls.target = self
+        menu.addItem(controls)
+        return menu
+    }
+
+    @objc private func requestControls() { onRequestControls?() }
+
     override func mouseDown(with event: NSEvent) {
         guard isReferencePresentation, let window else { return }
+        if event.modifierFlags.contains(.control), let menu = menu(for: event) {
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+            return
+        }
         let point = convert(event.locationInWindow, from: nil)
-        if point.x >= bounds.maxX - 24, point.y <= bounds.minY + 24 {
+        if resizeHandleRect.contains(point) {
             resizeStart = (NSEvent.mouseLocation, window.frame)
         } else {
+            NSCursor.closedHand.push()
+            defer { NSCursor.pop() }
             window.performDrag(with: event)
             onReferenceFrameChanged?()
         }
@@ -127,7 +184,7 @@ final class CaptureView: NSView {
         let pointer = NSEvent.mouseLocation
         let dx = pointer.x - resizeStart.location.x
         let dy = resizeStart.location.y - pointer.y
-        let ratio = referenceAspect.height / max(1, referenceAspect.width)
+        let ratio = resizeStart.frame.height / max(1, resizeStart.frame.width)
         let delta = abs(dy) > abs(dx * ratio) ? dy / max(0.001, ratio) : dx
         window.setFrame(CaptureReferenceGeometry.resizedFrame(
             resizeStart.frame, requestedWidth: resizeStart.frame.width + delta, aspect: referenceAspect,
@@ -380,4 +437,10 @@ final class CaptureView: NSView {
         }
         return true
     }
+}
+
+/// Status remains readable to accessibility and hover help without blocking drag.
+@MainActor
+private final class CapturePassiveStatusLabel: NSTextField {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }

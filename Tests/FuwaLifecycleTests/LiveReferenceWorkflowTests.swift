@@ -58,6 +58,14 @@ struct LiveReferenceWorkflowTests {
             #expect(session.options.presentationMode == .reference)
             let region = try #require(session.options.captureRegion)
             #expect(abs(region.x - 0.65) < 0.001 && abs(region.y - 0.65) < 0.001)
+            #expect(session.snapshot.isAwaitingFreshFrame)
+            #expect(!session.snapshot.canChooseArea)
+            session.beginCropSelection()
+            #expect(Mirror(reflecting: session).descendant("cropPanel") as? CaptureRegionSelectionPanel == nil)
+            do {
+                try await session.freeze()
+                Issue.record("A pending crop must not pause the previous region's pixels")
+            } catch { #expect(session.state == .live) }
             var options = session.options
             options.frameRate = .fifteen
             options.notifiesWhenIdle = true
@@ -67,10 +75,27 @@ struct LiveReferenceWorkflowTests {
                 return image.width < full.width / 2 && image.height < full.height * 3 / 4
             }
             let crop = try view.makeFrozenImage()
+            try await wait { !session.snapshot.isAwaitingFreshFrame }
             #expect(abs(Double(crop.width) / Double(full.width) - 0.25) < 0.02)
             #expect(abs(Double(crop.height) / Double(full.height) - 0.25) < 0.02)
             #expect(luminance(crop) > 0.85, "Bottom-right crop must contain white pixels, not the upper gray region")
             try save(crop, name: "cropped-generated-window")
+            // Equal-sized regions cannot be distinguished by dimensions.
+            // Fresh generations must carry the requested source coordinates.
+            options = session.options
+            options.captureRegion = NormalizedCaptureRegion(x: 0.1, y: 0.65, width: 0.25, height: 0.25)
+            session.setOptions(options)
+            #expect(session.snapshot.isAwaitingFreshFrame)
+            try await wait { !session.snapshot.isAwaitingFreshFrame }
+            #expect(luminance(try view.makeFrozenImage()) < 0.15)
+            options.captureRegion = region
+            session.setOptions(options)
+            #expect(session.snapshot.isAwaitingFreshFrame)
+            // Hide during reconfiguration, then restore the requested region.
+            try await session.setPresentationSuppressed(true)
+            try await session.setPresentationSuppressed(false)
+            try await wait { !session.snapshot.isAwaitingFreshFrame }
+            #expect(luminance(try view.makeFrozenImage()) > 0.85)
             let panel = try #require(Mirror(reflecting: session).descendant("panel") as? NSPanel)
             #expect(!panel.ignoresMouseEvents)
             let independent = panel.frame.offsetBy(dx: 100, dy: 40)
