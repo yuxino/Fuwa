@@ -19,14 +19,26 @@ struct PinShortcutIntentTests {
             let result = NSPanel(contentRect: frame,
                 styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             result.isReleasedWhenClosed = false
-            result.backgroundColor = .white
+            result.backgroundColor = .clear
+            result.isOpaque = false
+            result.sharingType = .none
+            let view = NSView(frame: NSRect(origin: .zero, size: frame.size))
+            view.wantsLayer = true
+            view.layer?.backgroundColor = NSColor.white.cgColor
+            result.contentView = view
             result.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + level)
             result.ignoresMouseEvents = true
+            result.hidesOnDeactivate = false
+            result.hasShadow = false
+            // Test removal directly, without WindowServer fade-out surfaces.
+            result.animationBehavior = .none
+            result.collectionBehavior = [.canJoinAllApplications, .canJoinAllSpaces,
+                                         .fullScreenAuxiliary, .stationary, .ignoresCycle]
             return result
         }
-        let first = panel(level: 10)
-        let second = panel(level: 11)
-        let blocker = panel(level: 12)
+        let first = panel(level: 0)
+        let second = panel(level: 1)
+        let blocker = panel(level: 2)
         defer { blocker.close(); second.close(); first.close() }
         let originalFrontPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
         let firstID = UUID()

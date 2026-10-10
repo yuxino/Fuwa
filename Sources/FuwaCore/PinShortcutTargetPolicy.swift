@@ -23,8 +23,12 @@ public enum PinShortcutTargetPolicy {
            orderedWindows.contains(where: { $0.ownerPID == frontmostProcessID && isSystemUI($0) }) {
             return nil
         }
+        let cursorLevel = Int(CGWindowLevelForKey(.cursorWindow))
         for window in orderedWindows {
-            if isSystemUI(window) { continue }
+            // WindowServer can include the visible mouse cursor as a small
+            // opaque surface without an application bundle. Its rectangle
+            // overlaps the pointer but never occludes a picture's shortcut.
+            if window.layer == cursorLevel || isSystemUI(window) { continue }
             let bounds = window.bounds
             guard window.alpha.isFinite, window.alpha > 0.01,
                   bounds.minX.isFinite, bounds.minY.isFinite,
