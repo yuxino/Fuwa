@@ -69,6 +69,10 @@ cd fuwa
 
 [隐私](PRIVACY.md) · [贡献](CONTRIBUTING.md) · [安全](SECURITY.md) · [独立实现说明](docs/independent-implementation.md)
 
+## 社区
+
+[LINUX DO](https://linux.do) · 技术交流社区。
+
 ## 许可证
 
 [MIT](LICENSE) © 2026 yuxino and Fuwa contributors
