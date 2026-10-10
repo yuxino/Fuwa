@@ -32,7 +32,7 @@ class MacOSOnlyTests(unittest.TestCase):
         self.assertNotIn("windows-", workflow.lower())
         for requirement in (
             "FuwaLogicTests", "-strict-concurrency=complete", "-warnings-as-errors",
-            "scripts/test-update-metadata.py", "scripts/test-macos-only.py",
+            "scripts/test-update-metadata.py", "scripts/test-macos-only.py", "scripts/test-dmg-layout.py",
             "scripts/test-verify-release-checksum.sh", "scripts/generate-app-icon.sh --check",
         ):
             self.assertIn(requirement, workflow)
@@ -46,9 +46,9 @@ class MacOSOnlyTests(unittest.TestCase):
         self.assertNotIn("/artifacts", workflow)
         self.assertIn("publish Fuwa ${RELEASE_TAG} with unnotarized macOS assets", workflow)
         self.assertEqual(shell_array(workflow, "base_assets"),
-                         ["$macos_zip", "${macos_zip}.sha256"])
+                         ["$macos_dmg", "${macos_dmg}.sha256"])
         self.assertEqual(shell_array(workflow, "expected_assets"), [
-            "$macos_zip", "${macos_zip}.sha256", "${macos_zip}.sig",
+            "$macos_dmg", "${macos_dmg}.sha256", "${macos_dmg}.sig",
             "appcast.xml", "appcast.xml.sig", "latest.json", "latest.json.sig",
         ])
         self.assertEqual(shell_array(workflow, "feeds"), ["appcast.xml"])
@@ -62,9 +62,10 @@ class MacOSOnlyTests(unittest.TestCase):
             'lipo "$binary" -verify_arch arm64 x86_64',
             'codesign --verify --deep --strict --verbose=2 "$app"',
             "verify-macos-signature-pin.py", "leafCertificateSha256",
+            "hdiutil attach -readonly -nobrowse", "scripts/verify-dmg-layout.py",
             "FUWA_UPDATER_ED25519_PRIVATE_KEY", "verify-ed25519-signature.swift",
             "fuwa-altered-update.bin", "--require-signed-feeds",
-            'verify_package "$macos_zip" "$ACCEPTED_MACOS_SHA256"',
+            'verify_package "$macos_dmg" "$ACCEPTED_MACOS_SHA256"',
             '"$final_draft_snapshot" != "$asset_snapshot"',
             '"$post_publish_snapshot" != "$asset_snapshot"',
             "releases/latest",

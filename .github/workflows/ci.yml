@@ -34,6 +34,7 @@ jobs:
             scripts/test-update-metadata.py
           python3 scripts/test-update-metadata.py
           python3 scripts/test-macos-only.py
+          python3 scripts/test-dmg-layout.py
 
   swift:
     name: Strict build and logic tests

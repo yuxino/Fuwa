@@ -101,7 +101,7 @@ fi
 FUWA_VERSION="$(/usr/libexec/PlistBuddy \
     -c 'Print :CFBundleShortVersionString' \
     "${FUWA_PROJECT_DIR}/Resources/Info.plist")"
-FUWA_ARCHIVE_NAME="Fuwa-${FUWA_VERSION}.zip"
+FUWA_ARCHIVE_NAME="Fuwa-${FUWA_VERSION}.dmg"
 FUWA_ARCHIVE_PATH="${FUWA_PROJECT_DIR}/dist/${FUWA_ARCHIVE_NAME}"
 
 rm -rf "${FUWA_APP_DIR}"
@@ -206,10 +206,8 @@ if [[ "${FUWA_DESIGNATED_REQUIREMENT:l}" == *cdhash* ]]; then
     print -u2 -r -- "error: stable package unexpectedly has a build-specific cdhash requirement"
     exit 1
 fi
-pushd "${FUWA_PROJECT_DIR}/dist" >/dev/null
-/usr/bin/zip -9 -q -r -y -X "${FUWA_ARCHIVE_NAME}" "Fuwa.app"
-shasum -a 256 "${FUWA_ARCHIVE_NAME}" > "${FUWA_ARCHIVE_NAME}.sha256"
-popd >/dev/null
+FUWA_CODESIGN_IDENTITY="${FUWA_CODESIGN_IDENTITY}" \
+    "${FUWA_SCRIPT_DIR}/package-dmg.sh" "${FUWA_APP_DIR}" "${FUWA_ARCHIVE_PATH}"
 
 echo "Built ${FUWA_APP_DIR}"
 echo "Archived ${FUWA_ARCHIVE_PATH}"

@@ -10,6 +10,10 @@ Pushing a tag does not publish a Release. Publication is a separate manual
 promotion of an already reviewed draft. This runbook applies only to tags that
 include the [macOS-only decision](decisions/2026-09-06-macos-only.md); do not use
 it to re-promote historical multi-platform tags or delete their release assets.
+The DMG contract applies to tags containing the DMG packaging change. Older
+ZIP releases and their signed metadata remain intact. A manual-download DMG
+may be added to an older release only by wrapping its exact verified public app;
+never rebuild different code under an existing version or replace its signed feed.
 
 ## 1. Freeze the release commit
 
@@ -36,13 +40,19 @@ git switch --detach "v<public-version>"
 ./scripts/package-app.sh
 codesign --verify --deep --strict --verbose=2 dist/Fuwa.app
 lipo dist/Fuwa.app/Contents/MacOS/Fuwa -verify_arch arm64 x86_64
-(cd dist && shasum -a 256 -c "Fuwa-<public-version>.zip.sha256")
+(cd dist && shasum -a 256 -c "Fuwa-<public-version>.dmg.sha256")
 ```
 
 Replace the placeholders with the actual version. Confirm the full designated
 requirement matches the previous stable package. Stop if identity changes.
 The current package has no Apple Developer ID signature or notarization; the
 Release notes must say so. Do not substitute an ad-hoc-signed hosted build.
+
+Packaging creates a compressed DMG with the application and an Applications
+shortcut. It checks the image, mounts it read-only, verifies the installer layout
+and bundle code seal, and writes the SHA-256 file. Sparkle supports DMG update
+archives, so the same reviewed image is signed for manual and in-app updates.
+See [Sparkle distribution formats](https://sparkle-project.org/documentation/).
 
 The stable local certificate has no Apple Team ID. For that signing profile
 only, packaging gives the host `com.apple.security.cs.disable-library-validation`
@@ -68,8 +78,8 @@ Changing pins is a separate, explicit signing-identity migration.
 
 Create a draft Release for the existing tag and upload exactly two files:
 
-- `Fuwa-<public-version>.zip`
-- `Fuwa-<public-version>.zip.sha256`
+- `Fuwa-<public-version>.dmg`
+- `Fuwa-<public-version>.dmg.sha256`
 
 Verify the archive independently and record its SHA-256. Release notes must
 state the signing/notarization status and distinguish automated checks from
@@ -92,12 +102,13 @@ The workflow requires:
   its tag CI succeeded.
 - The stable draft initially contains exactly the two files above, and the
   accepted hash matches the archive and checksum.
-- The archive contains only `Fuwa.app`, matches the version and bundle ID,
+- The read-only DMG contains `Fuwa.app` and an `/Applications` shortcut,
+  matches the version and bundle ID,
   includes arm64/x86_64, passes deep/strict code sealing, and matches the
   pinned certificate and designated requirement in both Mach-O slices.
 - Ed25519 signing uses the existing `FUWA_UPDATER_ED25519_PRIVATE_KEY`, verifies
   valid and altered payloads, and generates the same macOS `appcast.xml` path.
-- The final inventory is exactly seven files: the zip, its `.sha256` and
+- The final inventory is exactly seven files: the DMG, its `.sha256` and
   `.sig`, `appcast.xml`, `appcast.xml.sig`, `latest.json`, and `latest.json.sig`.
   The manifest contains exactly one `macos-universal` record.
 - No asset changes between the final verification snapshot and publication;

@@ -46,11 +46,11 @@ options. See the [workflow guide](docs/floating-reference.md).
 
 ## Install
 
-Download `Fuwa-<version>.zip` from [GitHub Releases](https://github.com/yuxino/fuwa/releases), extract it, and move `Fuwa.app` to `/Applications`. Every public package has a matching `.sha256` file:
+Download `Fuwa-<version>.dmg` from [GitHub Releases](https://github.com/yuxino/fuwa/releases), open it, and drag `Fuwa.app` into the Applications folder beside it. Every public package has a matching `.sha256` file:
 
 ```sh
 cd ~/Downloads
-shasum -a 256 -c "Fuwa-<version>.zip.sha256"
+shasum -a 256 -c "Fuwa-<version>.dmg.sha256"
 ```
 
 Replace `<version>` with the actual version number. Versions v0.1.4 and earlier need one manual upgrade to v0.1.5 or later. After that, select `Check for Updates` in Fuwa Settings. Fuwa accepts only its fixed GitHub feed and packages verified by the embedded public key; verification failure never falls back to unsigned installation.

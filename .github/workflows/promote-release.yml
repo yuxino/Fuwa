@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing macOS-only release tag (must include the platform-scope change)
+        description: Existing DMG release tag (must include the DMG packaging change)
         required: true
         type: string
       macos_sha256:
-        description: Accepted SHA-256 for the macOS zip
+        description: Accepted SHA-256 for the macOS DMG
         required: true
         type: string
       confirmation:
@@ -65,7 +65,7 @@ jobs:
             printf '%s' "$ACCEPTED_MACOS_SHA256" | tr '[:upper:]' '[:lower:]'
           )"
           version="${RELEASE_TAG#v}"
-          macos_zip="Fuwa-${version}.zip"
+          macos_dmg="Fuwa-${version}.dmg"
           pins="$GITHUB_WORKSPACE/scripts/release-signing-pins.json"
 
           release_json="$(
@@ -82,7 +82,7 @@ jobs:
           fi
 
           asset_dir="$(mktemp -d "$RUNNER_TEMP/fuwa-macos-release-assets.XXXXXX")"
-          for asset_name in "$macos_zip" "${macos_zip}.sha256"; do
+          for asset_name in "$macos_dmg" "${macos_dmg}.sha256"; do
             asset_id="$(
               jq -er --arg name "$asset_name" \
                 '[.assets[] | select(.name == $name)] |
@@ -97,48 +97,35 @@ jobs:
           done
           cd "$asset_dir"
 
-          if [[ ! -f "$macos_zip" || ! -f "${macos_zip}.sha256" ]]; then
+          if [[ ! -f "$macos_dmg" || ! -f "${macos_dmg}.sha256" ]]; then
             echo "The macOS package and checksum must both be present." >&2
             exit 1
           fi
           line_count="$(
-            awk 'NF { count += 1 } END { print count + 0 }' "${macos_zip}.sha256"
+            awk 'NF { count += 1 } END { print count + 0 }' "${macos_dmg}.sha256"
           )"
           if [[ "$line_count" != "1" ]]; then
-            echo "${macos_zip}.sha256 must contain exactly one checksum record." >&2
+            echo "${macos_dmg}.sha256 must contain exactly one checksum record." >&2
             exit 1
           fi
-          read -r recorded_hash recorded_name < "${macos_zip}.sha256"
+          read -r recorded_hash recorded_name < "${macos_dmg}.sha256"
           recorded_hash="$(printf '%s' "$recorded_hash" | tr '[:upper:]' '[:lower:]')"
           recorded_name="${recorded_name#\*}"
-          actual_hash="$(shasum -a 256 "$macos_zip" | awk '{ print tolower($1) }')"
+          actual_hash="$(shasum -a 256 "$macos_dmg" | awk '{ print tolower($1) }')"
           if [[ "$recorded_hash" != "$accepted_macos_sha256" \
-              || "$recorded_name" != "$macos_zip" \
+              || "$recorded_name" != "$macos_dmg" \
               || "$actual_hash" != "$accepted_macos_sha256" ]]; then
             echo "The macOS archive does not match its accepted SHA-256." >&2
             exit 1
           fi
 
-          while IFS= read -r archive_entry; do
-            case "$archive_entry" in
-              /*|../*|*/../*|*/..)
-                echo "The macOS archive contains an unsafe path: $archive_entry" >&2
-                exit 1
-                ;;
-            esac
-          done < <(/usr/bin/unzip -Z1 "$macos_zip")
-
-          unpack_dir="$(mktemp -d "$RUNNER_TEMP/fuwa-macos-unpacked.XXXXXX")"
-          /usr/bin/ditto -x -k "$macos_zip" "$unpack_dir"
-          top_level_count="$(
-            find "$unpack_dir" -mindepth 1 -maxdepth 1 -print | wc -l | tr -d ' '
-          )"
-          app="$unpack_dir/Fuwa.app"
+          hdiutil verify "$macos_dmg"
+          mount_dir="$(mktemp -d "$RUNNER_TEMP/fuwa-macos-mounted.XXXXXX")"
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount_dir" "$macos_dmg" >/dev/null
+          trap 'hdiutil detach "$mount_dir" >/dev/null' EXIT
+          python3 "$GITHUB_WORKSPACE/scripts/verify-dmg-layout.py" "$mount_dir"
+          app="$mount_dir/Fuwa.app"
           binary="$app/Contents/MacOS/Fuwa"
-          if [[ "$top_level_count" != "1" || ! -d "$app" || ! -f "$binary" ]]; then
-            echo "The archive must contain exactly one top-level Fuwa.app bundle." >&2
-            exit 1
-          fi
 
           bundle_identifier="$(
             /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \
@@ -249,10 +236,10 @@ jobs:
           )"
           asset_dir="$(mktemp -d "$RUNNER_TEMP/fuwa-update-assets.XXXXXX")"
           metadata_dir="$(mktemp -d "$RUNNER_TEMP/fuwa-update-metadata.XXXXXX")"
-          macos_zip="Fuwa-${version}.zip"
+          macos_dmg="Fuwa-${version}.dmg"
           base_assets=(
-            "$macos_zip"
-            "${macos_zip}.sha256"
+            "$macos_dmg"
+            "${macos_dmg}.sha256"
           )
           expected_base_file="$RUNNER_TEMP/fuwa-expected-base-assets.txt"
           actual_base_file="$RUNNER_TEMP/fuwa-actual-base-assets.txt"
@@ -262,7 +249,7 @@ jobs:
             echo "Updater signing requires the exact two-file macOS draft." >&2
             exit 1
           fi
-          for asset_name in "$macos_zip"; do
+          for asset_name in "$macos_dmg"; do
             asset_id="$(
               jq -er --arg name "$asset_name" \
                 '[.assets[] | select(.name == $name)] |
@@ -296,7 +283,7 @@ jobs:
             printf '%s' "$UPDATER_PRIVATE_KEY" \
               | "$sign_update" --ed-key-file - -p "$signing_copy" > "${file}.sig"
           }
-          for asset_name in "$macos_zip"; do
+          for asset_name in "$macos_dmg"; do
             sign_detached "$asset_dir/$asset_name"
           done
 
@@ -337,7 +324,7 @@ jobs:
             --metadata-dir "$metadata_dir" \
             --require-signed-feeds
           public_key='8qWUhz/r6J3c6fVw9NVEmqvWcF4oVKwAtLFm9AkA1ZA='
-          for asset_name in "$macos_zip"; do
+          for asset_name in "$macos_dmg"; do
             swift scripts/verify-ed25519-signature.swift \
               "$public_key" "$asset_dir/$asset_name" "$asset_dir/${asset_name}.sig"
           done
@@ -348,16 +335,16 @@ jobs:
               "$metadata_dir/${metadata_name}.sig"
           done
           altered_asset="$RUNNER_TEMP/fuwa-altered-update.bin"
-          cp "$asset_dir/$macos_zip" "$altered_asset"
+          cp "$asset_dir/$macos_dmg" "$altered_asset"
           printf '\0' >> "$altered_asset"
           if swift scripts/verify-ed25519-signature.swift \
-              "$public_key" "$altered_asset" "$asset_dir/${macos_zip}.sig"; then
+              "$public_key" "$altered_asset" "$asset_dir/${macos_dmg}.sig"; then
             echo "Signature verifier accepted an altered update payload." >&2
             exit 1
           fi
 
           upload_assets=(
-            "$asset_dir/${macos_zip}.sig"
+            "$asset_dir/${macos_dmg}.sig"
             "$metadata_dir/appcast.xml"
             "$metadata_dir/appcast.xml.sig"
             "$metadata_dir/latest.json"
@@ -476,11 +463,11 @@ jobs:
           fi
           release_id="$(jq -r '.id' <<<"$release_json")"
 
-          macos_zip="Fuwa-${version}.zip"
+          macos_dmg="Fuwa-${version}.dmg"
           expected_assets=(
-            "$macos_zip"
-            "${macos_zip}.sha256"
-            "${macos_zip}.sig"
+            "$macos_dmg"
+            "${macos_dmg}.sha256"
+            "${macos_dmg}.sig"
             "appcast.xml"
             "appcast.xml.sig"
             "latest.json"
@@ -524,7 +511,7 @@ jobs:
               "$package_name" "$checksum_name" "$accepted_hash"
           }
 
-          verify_package "$macos_zip" "$ACCEPTED_MACOS_SHA256"
+          verify_package "$macos_dmg" "$ACCEPTED_MACOS_SHA256"
 
           python3 "$GITHUB_WORKSPACE/scripts/update-metadata.py" verify \
             --asset-dir "$asset_dir" \
