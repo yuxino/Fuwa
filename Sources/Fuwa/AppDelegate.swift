@@ -307,9 +307,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func handleGlobalShortcut() {
         guard !isTerminating else { return }
         discardMenuIntent()
-        let intent: TargetIntentSnapshot
+        let intent: PinShortcutIntent
         do {
-            intent = try pinCoordinator.snapshotFrontmostIntent()
+            intent = try pinCoordinator.snapshotShortcutIntent(at: NSEvent.mouseLocation)
         } catch {
             model?.report(error)
             return
@@ -318,7 +318,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                try await toggle(intent)
+                // Keep the original decision when the task runs: a vanished pin
+                // is a no-op, never an invitation to pin the window behind it.
+                guard !isTerminating else { return }
+                switch intent {
+                case .unpin(let id): await pinCoordinator.unpin(id)
+                case .toggle(let target): try await toggle(target)
+                }
             } catch PinCoordinatorError.operationCancelled {
                 return
             } catch {

@@ -7,6 +7,7 @@ if CommandLine.arguments.dropFirst().first == "--verify-app-icon" {
 
 private var runner = LogicTestRunner()
 runSelectionPolicyTests(runner: &runner)
+runPinShortcutTargetPolicyTests(runner: &runner)
 runSingleInstanceLockTests(runner: &runner)
 runPinStateTests(runner: &runner)
 runPendingPinRequestsTests(runner: &runner)

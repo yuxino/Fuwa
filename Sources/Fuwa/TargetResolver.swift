@@ -1,6 +1,12 @@
 import CoreGraphics
+import Foundation
 import FuwaCore
 import ScreenCaptureKit
+
+enum PinShortcutIntent: Sendable {
+    case unpin(UUID)
+    case toggle(TargetIntentSnapshot)
+}
 
 struct TargetIntentSnapshot: Sendable {
     let descriptor: WindowDescriptor
@@ -53,8 +59,30 @@ final class TargetResolver {
     func snapshotIntent(
         excluding overlayWindowIDs: Set<CGWindowID> = []
     ) throws -> TargetIntentSnapshot {
-        let inventory = try captureInventory()
+        try snapshotIntent(in: captureInventory(), excluding: overlayWindowIDs)
+    }
 
+    func snapshotShortcutIntent(
+        at appKitPoint: CGPoint,
+        overlayPinIDs: [CGWindowID: UUID]
+    ) throws -> PinShortcutIntent {
+        let inventory = try captureInventory()
+        let point = inventory.coordinateSpace.quartzFrame(
+            fromAppKitFrame: CGRect(origin: appKitPoint, size: .zero)
+        ).origin
+        if let id = PinShortcutTargetPolicy.pinnedPicture(
+            in: inventory.orderedWindows, at: point, overlayPinIDs: overlayPinIDs,
+            frontmostProcessID: inventory.frontmostProcessID
+        ) {
+            return .unpin(id)
+        }
+        return .toggle(try snapshotIntent(in: inventory, excluding: Set(overlayPinIDs.keys)))
+    }
+
+    private func snapshotIntent(
+        in inventory: WindowInventory,
+        excluding overlayWindowIDs: Set<CGWindowID>
+    ) throws -> TargetIntentSnapshot {
         let context = SelectionContext(
             selfProcessID: ProcessInfo.processInfo.processIdentifier,
             frontmostProcessID: inventory.frontmostProcessID,
