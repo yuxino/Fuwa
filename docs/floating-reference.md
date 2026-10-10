@@ -1,6 +1,6 @@
 # Floating references / 参考窗口
 
-These workflows are in development and have not been published in a release.
+Available in Fuwa 1.2.0 / Fuwa 1.2.0 起提供。
 
 ## English
 
@@ -32,8 +32,9 @@ playback and group navigation remain visible when the options need scrolling.
   lowers capture to 1 fps after no significant sampled picture change is detected
   for about 15 seconds; detected changes restore the selected rate. This is a
   picture heuristic, not an application progress signal.
-- The optional inactivity indicator reports that the picture stopped changing.
-  It does not distinguish completion, errors, or waiting for input.
+- **Show “Picture unchanged”** displays a status label at the upper left after
+  about 15 seconds without detected changes. It disappears when the picture
+  changes. Check task progress in the original app.
 
 Hidden live pictures stop capturing; restoring them checks the source again.
 A closed source retains its last picture as closed and cannot resume. Lock,
@@ -47,7 +48,7 @@ content; pin it again after those privacy boundaries.
 控件分为**画面、显示条件、性能**三组；选项需要滚动时，播放操作和分组导航
 仍保持可见。
 
-- 选择**参考窗口**后，可独立移动和调整画面大小。拖动画面移动，使用右下角
+- 选择**独立参考窗**后，可独立移动和调整画面大小。拖动画面移动，使用右下角
   手柄调整大小。这些操作只改变参考窗口，不会移动原窗口或向它输入内容。
   右键点击参考窗口也可打开控件。
 - 画面正在播放且可见时，使用**选择区域**在捕获画面上拖动框选。Escape 取消，
@@ -62,7 +63,8 @@ content; pin it again after those privacy boundaries.
 - 帧率会用于同一来源应用的新固定窗口。开启静止降频后，约 15 秒未检测到
   明显的采样画面变化时降至 1 帧／秒；检测到变化时恢复所选帧率。这是画面
   判断，不是应用进度信号。
-- 可选的静止提示表示画面停止变化，不区分完成、出错或等待输入。
+- 开启**显示画面未变化提示**后，约 15 秒未检测到变化时，浮窗左上角显示
+  「画面未变化」。画面变化后提示消失；任务进度请到原应用确认。
 
 隐藏时停止实时捕获，恢复时重新检查来源。原窗口关闭后保留最后画面并标记
 为已关闭，不能继续播放。锁屏、睡眠、切换用户和录屏权限被撤销时，仍清除

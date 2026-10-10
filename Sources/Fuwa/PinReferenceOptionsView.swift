@@ -207,11 +207,11 @@ struct PinReferenceOptionsView: View {
                 }
             }
             Divider().opacity(0.5)
-            helpToggle(.reduceRateWhenIdle, help: .reduceRateWhenIdleHelp,
+            helpToggle(.reduceRateWhenIdle, help: .reduceRateWhenIdleHelp, note: .reduceRateWhenIdleNote,
                 isOn: Binding(get: { pin.options.reducesFrameRateWhenIdle }, set: { value in
                     change { $0.reducesFrameRateWhenIdle = value }
                 }))
-            helpToggle(.notifyWhenIdle, help: .notifyWhenIdleHelp,
+            helpToggle(.notifyWhenIdle, help: .notifyWhenIdleHelp, note: .notifyWhenIdleNote,
                 isOn: Binding(get: { pin.options.notifiesWhenIdle }, set: { value in
                     change { $0.notifiesWhenIdle = value }
                 }))
@@ -276,11 +276,18 @@ struct PinReferenceOptionsView: View {
         }
     }
 
-    private func helpToggle(_ title: FuwaString, help: FuwaString, isOn: Binding<Bool>) -> some View {
+    private func helpToggle(_ title: FuwaString, help: FuwaString, note: FuwaString? = nil,
+                            isOn: Binding<Bool>) -> some View {
         HStack(alignment: .top, spacing: 5) {
             Toggle(isOn: isOn) {
-                Text(copy.text(title)).font(.caption)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(copy.text(title)).font(.caption)
+                    if let note {
+                        Text(copy.text(note)).font(.caption2)
+                            .foregroundStyle(FuwaAppearance.secondaryText)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
             }
             .toggleStyle(.checkbox)
             .frame(maxWidth: .infinity, alignment: .leading)

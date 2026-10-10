@@ -29,8 +29,10 @@ extension FuwaCopy {
             .noApplicationsAvailable: "No available app",
             .frameRate: "Frame Rate", .frameRateValue: "{count} fps",
             .frameRateHelp: "A lower rate uses fewer resources. Use a higher rate for video or fast motion. This changes only this picture.",
-            .reduceRateWhenIdle: "Lower rate when picture is still", .reduceRateWhenIdleHelp: "After the picture stays unchanged, capture drops to 1 fps. It returns to your selected rate when the picture changes.",
-            .notifyWhenIdle: "Mark when picture stops changing", .notifyWhenIdleHelp: "Shows a quiet marker when the picture stays unchanged. This does not mean the original task has finished."
+            .reduceRateWhenIdle: "Save resources when still", .reduceRateWhenIdleNote: "Drops to 1 fps until the picture changes.",
+            .reduceRateWhenIdleHelp: "After 15 seconds without a picture change, refresh drops to 1 fps. Changes restore your selected rate.",
+            .notifyWhenIdle: "Show “Picture unchanged”", .notifyWhenIdleNote: "In the upper-left corner of the floating picture.",
+            .notifyWhenIdleHelp: "After 15 seconds without a picture change, “Picture unchanged” appears in the upper-left corner. It disappears when the picture changes. Check task progress in the original app."
         ]
         case .simplifiedChinese: [
             .restoringPicture: "正在恢复画面…",
@@ -58,8 +60,10 @@ extension FuwaCopy {
             .noApplicationsAvailable: "暂无可选应用",
             .frameRate: "帧率", .frameRateValue: "{count} 帧／秒",
             .frameRateHelp: "较低帧率更省资源，视频或快速运动可用较高帧率。只影响这个画面。",
-            .reduceRateWhenIdle: "画面静止时降低帧率", .reduceRateWhenIdleHelp: "画面一段时间未变化后，捕获降至每秒 1 帧。发生变化时恢复所选帧率。",
-            .notifyWhenIdle: "标记画面停止变化", .notifyWhenIdleHelp: "画面一段时间未变化时显示标记，不代表原任务已经完成。"
+            .reduceRateWhenIdle: "静止时自动省资源", .reduceRateWhenIdleNote: "降至每秒 1 帧，画面变化后恢复。",
+            .reduceRateWhenIdleHelp: "画面连续 15 秒没有变化时，每秒只刷新 1 次。画面变化后恢复设置的帧率。",
+            .notifyWhenIdle: "显示画面未变化提示", .notifyWhenIdleNote: "在浮窗左上角显示「画面未变化」。",
+            .notifyWhenIdleHelp: "画面连续 15 秒没有变化，会在浮窗左上角显示「画面未变化」。画面变化后提示消失。任务进度请到原应用确认。"
         ]
         case .traditionalChinese: [
             .restoringPicture: "正在恢復畫面…",
@@ -87,8 +91,10 @@ extension FuwaCopy {
             .noApplicationsAvailable: "暫無可選應用程式",
             .frameRate: "影格率", .frameRateValue: "{count} 格／秒",
             .frameRateHelp: "較低影格率更省資源，影片或快速動作可用較高影格率。只影響這個畫面。",
-            .reduceRateWhenIdle: "畫面靜止時降低影格率", .reduceRateWhenIdleHelp: "畫面一段時間未變化後，擷取降至每秒 1 格。發生變化時恢復所選影格率。",
-            .notifyWhenIdle: "標記畫面停止變化", .notifyWhenIdleHelp: "畫面一段時間未變化時顯示標記，不代表原工作已經完成。"
+            .reduceRateWhenIdle: "靜止時自動省資源", .reduceRateWhenIdleNote: "降至每秒 1 格，畫面變化後恢復。",
+            .reduceRateWhenIdleHelp: "畫面連續 15 秒沒有變化時，每秒只更新 1 次。畫面變化後恢復設定的影格率。",
+            .notifyWhenIdle: "顯示畫面未變化提示", .notifyWhenIdleNote: "在浮窗左上角顯示「畫面未變化」。",
+            .notifyWhenIdleHelp: "畫面連續 15 秒沒有變化，會在浮窗左上角顯示「畫面未變化」。畫面變化後提示消失。工作進度請到原應用程式確認。"
         ]
         case .japanese: [
             .restoringPicture: "映像を復元中…",
@@ -116,8 +122,10 @@ extension FuwaCopy {
             .noApplicationsAvailable: "選択できるアプリがありません",
             .frameRate: "フレームレート", .frameRateValue: "{count} fps",
             .frameRateHelp: "低いレートは負荷を減らします。動画や速い動きには高いレートを使えます。この映像だけに適用されます。",
-            .reduceRateWhenIdle: "静止中はフレームレートを下げる", .reduceRateWhenIdleHelp: "映像がしばらく変化しないと 1 fps に下がります。変化すると選択したレートに戻ります。",
-            .notifyWhenIdle: "映像の変化が止まったら印を表示", .notifyWhenIdleHelp: "映像がしばらく変化しないと控えめな印を表示します。元の作業の完了を示すものではありません。"
+            .reduceRateWhenIdle: "静止中は負荷を抑える", .reduceRateWhenIdleNote: "1 fps に下げ、変化すると元に戻します。",
+            .reduceRateWhenIdleHelp: "映像が 15 秒間変化しないと 1 fps に下がります。変化すると設定したレートに戻ります。",
+            .notifyWhenIdle: "「映像に変化なし」を表示", .notifyWhenIdleNote: "参考ウィンドウの左上に表示します。",
+            .notifyWhenIdleHelp: "映像が 15 秒間変化しないと、左上に「映像に変化なし」と表示します。変化すると消えます。作業の進行状況は元のアプリで確認してください。"
         ]
         case .korean: [
             .restoringPicture: "화면 복원 중…",
@@ -145,8 +153,10 @@ extension FuwaCopy {
             .noApplicationsAvailable: "선택 가능한 앱 없음",
             .frameRate: "프레임 속도", .frameRateValue: "{count} fps",
             .frameRateHelp: "낮은 속도는 자원을 절약합니다. 동영상이나 빠른 움직임에는 높은 속도를 사용하세요. 이 화면에만 적용됩니다.",
-            .reduceRateWhenIdle: "화면이 멈춰 있으면 속도 낮추기", .reduceRateWhenIdleHelp: "화면이 한동안 변하지 않으면 1 fps로 낮아집니다. 변화가 생기면 선택한 속도로 돌아갑니다.",
-            .notifyWhenIdle: "화면 변화가 멈추면 표시", .notifyWhenIdleHelp: "화면이 한동안 변하지 않으면 작은 표시를 보여 줍니다. 원래 작업이 완료되었다는 뜻은 아닙니다."
+            .reduceRateWhenIdle: "변화가 없으면 자원 절약", .reduceRateWhenIdleNote: "1 fps로 낮추고 변화가 생기면 복원합니다.",
+            .reduceRateWhenIdleHelp: "화면이 15초 동안 변하지 않으면 1 fps로 낮아집니다. 변화가 생기면 설정한 속도로 돌아갑니다.",
+            .notifyWhenIdle: "‘화면 변화 없음’ 표시", .notifyWhenIdleNote: "떠 있는 화면의 왼쪽 위에 표시합니다.",
+            .notifyWhenIdleHelp: "화면이 15초 동안 변하지 않으면 왼쪽 위에 ‘화면 변화 없음’을 표시합니다. 변화가 생기면 사라집니다. 작업 진행 상황은 원래 앱에서 확인하세요."
         ]
         case .french: [
             .restoringPicture: "Rétablissement de l’image…",
@@ -174,8 +184,10 @@ extension FuwaCopy {
             .noApplicationsAvailable: "Aucune app disponible",
             .frameRate: "Fréquence", .frameRateValue: "{count} images/s",
             .frameRateHelp: "Une fréquence basse économise les ressources. Choisissez une fréquence élevée pour la vidéo ou les mouvements rapides. Cela ne concerne que cette image.",
-            .reduceRateWhenIdle: "Réduire la fréquence si l’image est fixe", .reduceRateWhenIdleHelp: "Si l’image reste inchangée, la capture passe à 1 image/s. Elle reprend la fréquence choisie dès que l’image change.",
-            .notifyWhenIdle: "Signaler une image qui ne change plus", .notifyWhenIdleHelp: "Affiche un repère discret si l’image reste inchangée. Cela ne signifie pas que la tâche d’origine est terminée."
+            .reduceRateWhenIdle: "Économiser sur une image fixe", .reduceRateWhenIdleNote: "Passe à 1 image/s jusqu’à un changement.",
+            .reduceRateWhenIdleHelp: "Après 15 secondes sans changement, la capture passe à 1 image/s. Un changement rétablit la fréquence choisie.",
+            .notifyWhenIdle: "Afficher « Image inchangée »", .notifyWhenIdleNote: "En haut à gauche de l’image flottante.",
+            .notifyWhenIdleHelp: "Après 15 secondes sans changement, « Image inchangée » apparaît en haut à gauche. Le repère disparaît dès que l’image change. Vérifiez l’avancement dans l’app d’origine."
         ]
         case .german: [
             .restoringPicture: "Bild wird wiederhergestellt…",
@@ -203,8 +215,10 @@ extension FuwaCopy {
             .noApplicationsAvailable: "Keine App verfügbar",
             .frameRate: "Bildrate", .frameRateValue: "{count} Bilder/s",
             .frameRateHelp: "Eine niedrige Rate spart Ressourcen. Für Videos oder schnelle Bewegungen eignet sich eine höhere Rate. Dies gilt nur für dieses Bild.",
-            .reduceRateWhenIdle: "Bildrate bei ruhendem Bild senken", .reduceRateWhenIdleHelp: "Bleibt das Bild unverändert, sinkt die Aufnahme auf 1 Bild/s. Bei Änderungen gilt wieder die gewählte Rate.",
-            .notifyWhenIdle: "Unverändertes Bild kennzeichnen", .notifyWhenIdleHelp: "Zeigt eine dezente Markierung, wenn das Bild unverändert bleibt. Die ursprüngliche Aufgabe muss deshalb noch nicht abgeschlossen sein."
+            .reduceRateWhenIdle: "Bei ruhendem Bild Ressourcen sparen", .reduceRateWhenIdleNote: "1 Bild/s, bis sich das Bild wieder ändert.",
+            .reduceRateWhenIdleHelp: "Nach 15 Sekunden ohne Bildänderung sinkt die Aufnahme auf 1 Bild/s. Änderungen stellen die gewählte Rate wieder her.",
+            .notifyWhenIdle: "„Bild unverändert“ anzeigen", .notifyWhenIdleNote: "Links oben im schwebenden Bild.",
+            .notifyWhenIdleHelp: "Nach 15 Sekunden ohne Bildänderung erscheint links oben „Bild unverändert“. Bei Änderungen verschwindet der Hinweis. Prüfe den Fortschritt in der ursprünglichen App."
         ]
         }
     }

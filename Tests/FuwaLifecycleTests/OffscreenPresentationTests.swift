@@ -16,14 +16,14 @@ struct OffscreenPresentationTests {
         try FileManager.default.createDirectory(atPath: output, withIntermediateDirectories: true)
         let before = app.windows.filter(\.isVisible).count
         for language in FuwaLanguage.allCases {
-            let model = AppModel(copy: FuwaCopy(language: language), version: "1.1.1", screenRecordingPermission: .granted)
+            let model = AppModel(copy: FuwaCopy(language: language), version: "1.2.0", screenRecordingPermission: .granted)
             try save(SettingsView(model: model).frame(width: 546, height: 520).fuwaLightSurface(), to: "\(output)/\(language)-settings.png")
             try save(SettingsView(model: model).frame(width: 546, height: 600).fuwaLightSurface(), to: "\(output)/\(language)-settings-full.png")
-            try save(FuwaHelpExplanation(title: model.copy.text(.keepInDock), text: model.copy.text(.keepInDockNote)),
+            try save(FuwaHelpExplanation(title: model.copy.text(.notifyWhenIdle), text: model.copy.text(.notifyWhenIdleHelp)),
                 to: "\(output)/\(language)-help.png")
             try save(SettingsView(model: model).frame(width: 364, height: 520).fuwaLightSurface(), to: "\(output)/\(language)-settings-compact.png")
             try save(SettingsView(model: model).frame(width: 436, height: 660).environment(\.dynamicTypeSize, .accessibility3).fuwaLightSurface(), to: "\(output)/\(language)-settings-large-text.png")
-            let ungranted = AppModel(copy: FuwaCopy(language: language), version: "1.1.1", screenRecordingPermission: .unknown)
+            let ungranted = AppModel(copy: FuwaCopy(language: language), version: "1.2.0", screenRecordingPermission: .unknown)
             try save(SettingsView(model: ungranted).frame(width: 364, height: 920).fuwaLightSurface(), to: "\(output)/\(language)-permissions-compact.png")
             try save(MainView(model: model).frame(width: 720, height: 540), to: "\(output)/\(language)-empty.png")
             let pin = PinSnapshot(id: UUID(), sourceWindowID: 123, applicationName: "Reference",
@@ -34,9 +34,9 @@ struct OffscreenPresentationTests {
             model.updatePins([pin, paused, frozen])
             try save(MainView(model: model).frame(width: 720, height: 540), to: "\(output)/\(language)-pins.png")
             try save(MainView(model: model).frame(width: 640, height: 460), to: "\(output)/\(language)-pins-compact.png")
-            try save(PinControlsView(model: model, pinID: pin.id).frame(width: 380), to: "\(output)/\(language)-controls.png")
-            try save(PinControlsView(model: model, pinID: paused.id).frame(width: 380), to: "\(output)/\(language)-paused-controls.png")
-            try save(PinControlsView(model: model, pinID: pin.id).frame(width: 380).environment(\.dynamicTypeSize, .accessibility3), to: "\(output)/\(language)-controls-large-text.png")
+            try save(PinControlsView(model: model, pinID: pin.id).frame(width: PinOptionsPopoverLayout.preferredWidth), to: "\(output)/\(language)-controls.png")
+            try save(PinControlsView(model: model, pinID: paused.id).frame(width: PinOptionsPopoverLayout.preferredWidth), to: "\(output)/\(language)-paused-controls.png")
+            try save(PinControlsView(model: model, pinID: pin.id).frame(width: PinOptionsPopoverLayout.preferredWidth).environment(\.dynamicTypeSize, .accessibility3), to: "\(output)/\(language)-controls-large-text.png")
             var referenceOptions = PinOptions()
             referenceOptions.presentationMode = .reference
             referenceOptions.captureRegion = NormalizedCaptureRegion(x: 0.1, y: 0.1, width: 0.6, height: 0.5)
@@ -48,13 +48,13 @@ struct OffscreenPresentationTests {
                 windowTitle: "A reference window with a long title for layout verification",
                 state: .live, errorMessage: nil, options: referenceOptions, isIdle: true)
             model.updatePins([reference, paused])
-            try save(PinControlsView(model: model, pinID: reference.id).frame(width: 380), to: "\(output)/\(language)-reference-controls.png")
+            try save(PinControlsView(model: model, pinID: reference.id).frame(width: PinOptionsPopoverLayout.preferredWidth), to: "\(output)/\(language)-reference-controls.png")
             try save(PinControlsView(model: model, pinID: reference.id, maximumHeight: 300)
                 .frame(width: 320).environment(\.dynamicTypeSize, .accessibility3),
                 to: "\(output)/\(language)-reference-controls-small.png")
             for section in [PinOptionsSection.visibility, .performance] {
                 try save(PinControlsView(model: model, pinID: reference.id, initialSection: section)
-                    .frame(width: 380), to: "\(output)/\(language)-reference-controls-\(section.rawValue).png")
+                    .frame(width: PinOptionsPopoverLayout.preferredWidth), to: "\(output)/\(language)-reference-controls-\(section.rawValue).png")
                 try save(PinControlsView(model: model, pinID: reference.id, maximumHeight: 300,
                     initialSection: section).frame(width: 320).environment(\.dynamicTypeSize, .accessibility3),
                     to: "\(output)/\(language)-reference-controls-\(section.rawValue)-small.png")
@@ -62,7 +62,7 @@ struct OffscreenPresentationTests {
             var restoringReference = reference
             restoringReference.isAwaitingFreshFrame = true
             model.updatePins([restoringReference])
-            try save(PinControlsView(model: model, pinID: reference.id).frame(width: 380),
+            try save(PinControlsView(model: model, pinID: reference.id).frame(width: PinOptionsPopoverLayout.preferredWidth),
                 to: "\(output)/\(language)-reference-controls-restoring.png")
             var hiddenReference = reference
             hiddenReference.isHidden = true
