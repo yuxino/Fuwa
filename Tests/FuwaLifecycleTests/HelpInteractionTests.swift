@@ -5,26 +5,23 @@ import Testing
 @Suite(.serialized)
 @MainActor
 struct HelpInteractionTests {
-    @Test func helpIsANativeButtonWithTooltipAndDisabledHoverFeedback() throws {
+    @Test func helpIsANeutralImageWithNativeTooltipAndNoClickAction() {
         _ = NSApplication.shared
-        let button = FuwaHelpButton(title: "Screen Recording", text: "Pictures stay on this Mac.")
-        #expect(button.accessibilityRole() == .button)
-        #expect(button.accessibilityLabel() == "Screen Recording")
-        #expect(button.toolTip == "Pictures stay on this Mac.")
-        button.updateTrackingAreas()
-        #expect(button.trackingAreas.contains { $0.options.contains(.activeAlways) && $0.options.contains(.inVisibleRect) })
-        let event = try #require(NSEvent.enterExitEvent(with: .mouseEntered, location: .zero,
-            modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0,
-            trackingNumber: 0, userData: nil))
-        button.mouseEntered(with: event)
-        #expect(button.isHovered)
-        button.mouseExited(with: event)
-        #expect(!button.isHovered)
-        button.update(title: "Permissions", text: "Updated help", enabled: false)
-        button.mouseEntered(with: event)
-        #expect(!button.isHovered)
-        #expect(button.toolTip == "Updated help")
-        #expect(button.accessibilityHelp() == "Updated help")
-    }
+        let view = FuwaHelpImageView(title: "Screen Recording", text: "Pictures stay on this Mac.")
+        #expect(view.accessibilityRole() == .image)
+        #expect(view.accessibilityLabel() == "Screen Recording")
+        #expect(view.toolTip == "Pictures stay on this Mac.")
+        #expect(view.contentTintColor == .secondaryLabelColor)
+        #expect(!view.isEditable)
+        #expect(!view.acceptsFirstResponder)
+        #expect(view.target == nil)
+        #expect(view.action == nil)
+        #expect(!view.accessibilityPerformPress())
 
+        view.update(title: "Permissions", text: "Updated help")
+        #expect(view.accessibilityLabel() == "Permissions")
+        #expect(view.toolTip == "Updated help")
+        #expect(view.accessibilityHelp() == "Updated help")
+        #expect(view.contentTintColor == .secondaryLabelColor)
+    }
 }
