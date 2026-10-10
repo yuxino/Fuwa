@@ -6,15 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-11
+
 ### English
 
-- Move the mouse over a floating picture and press the pin shortcut to remove that picture. Help now explains actions in plain language and appears on hover.
-- Download a DMG and drag Fuwa into Applications to install. Future in-app updates use the same signed DMG.
+- Move the pointer over a floating picture and press the pin shortcut to remove it, including after switching to another app.
+- Hover over the gray help icons to see explanations. The icons stay gray, and the wording is easier to understand.
+- Download the DMG, open it, and drag Fuwa into Applications. In-app updates use the same signed DMG.
+- Requires macOS 14 or later and supports Apple Silicon and Intel. Update from Settings, or quit Fuwa before replacing it in Applications.
+- The app uses the existing project signature and is not Apple Developer ID signed or notarized. macOS may ask you to approve its first launch in Privacy & Security. Intel hardware was not rechecked for this release.
 
 ### 中文
 
-- 鼠标放在浮窗上时，按固定快捷键就能取消这个浮窗的置顶。帮助改用悬停提示，说明也更容易看懂。
-- 下载 DMG，打开后把 Fuwa 拖进 Applications 就能安装。后续应用内更新也使用同一个签名 DMG。
+- 鼠标放在浮窗上，按固定快捷键就能取消它的置顶；切换到别的 App 后再回来也能正常使用。
+- 把鼠标放在灰色帮助图标上就能看到说明，图标不会变蓝，说明也更容易看懂。
+- 下载 DMG，打开后把 Fuwa 拖进 Applications 就能安装。应用内更新也使用同一个签名 DMG。
+- 需要 macOS 14 或更新版本，支持 Apple Silicon 和 Intel。可在设置中更新，也可先退出 Fuwa，再替换“应用程序”里的旧版。
+- 应用沿用现有项目签名，未使用 Apple Developer ID 签名或 Apple 公证。首次打开时，macOS 可能要求在“隐私与安全性”中批准。本次未重新验证 Intel 实机。
 
 ## [1.2.0] - 2026-10-10
 
