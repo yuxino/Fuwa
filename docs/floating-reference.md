@@ -7,6 +7,9 @@ Available in Fuwa 1.2.0 / Fuwa 1.2.0 起提供。
 Pin a window as usual with `⌥⌘P`. The default view follows its original window
 and lets clicks pass through. Open its controls from the gear in Fuwa's list or
 from the window's menu-bar submenu.
+In the next update, pointing at a visible floating picture and pressing the pin
+shortcut removes that picture; elsewhere the shortcut still targets the window
+you are using.
 The controls group choices into **Picture**, **Visibility** and **Performance**;
 playback and group navigation remain visible when the options need scrolling.
 
@@ -45,6 +48,8 @@ content; pin it again after those privacy boundaries.
 
 仍可使用 `⌥⌘P` 固定窗口。默认画面跟随原窗口，并允许鼠标操作穿透。
 从 Fuwa 列表中的齿轮或菜单栏的窗口子菜单打开控件。
+下一次更新起，鼠标放在已有浮窗上时，按固定快捷键会取消这个浮窗的置顶。
+鼠标在其他位置时，快捷键仍作用于当前正在使用的窗口。
 控件分为**画面、显示条件、性能**三组；选项需要滚动时，播放操作和分组导航
 仍保持可见。
 

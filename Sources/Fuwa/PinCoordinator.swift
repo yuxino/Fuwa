@@ -145,6 +145,14 @@ final class PinCoordinator {
         try resolver.snapshotIntent(excluding: overlayWindowIDs)
     }
 
+    func snapshotShortcutIntent(at point: CGPoint) throws -> PinShortcutIntent {
+        var overlayPinIDs: [CGWindowID: UUID] = [:]
+        for (id, session) in sessionsByID {
+            if let windowID = session.overlayWindowID { overlayPinIDs[windowID] = id }
+        }
+        return try resolver.snapshotShortcutIntent(at: point, overlayPinIDs: overlayPinIDs)
+    }
+
     func toggle(_ intent: TargetIntentSnapshot) async throws {
         if let sessionID = sessionIDByWindowID[intent.descriptor.id] {
             await unpin(sessionID)
