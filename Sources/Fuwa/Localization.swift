@@ -98,6 +98,15 @@ enum FuwaString: String, CaseIterable, Sendable {
     case resumeNote
     case unpin
     case clearAll
+    case hideAllPins, showAllPins, pinsHiddenNote, hidden, pictureIdle, pictureIdleNote
+    case visibilityShortcut, visibilityShortcutNote, visibilityShortcutInactive
+    case pictureOptions, visibilityOptions, performanceOptions, closeControls, pinShortcut, restoringPicture
+    case pinOptions, pinOptionsNote, presentationMode, followOriginal, referenceWindow, presentationModeHelp, referenceInstructions
+    case chooseArea, resetArea, cropInstructions, cropAreaHelp, fullWindow, selectedArea
+    case showInSpaces, allSpaces, currentSpace, spaceScopeHelp
+    case onlyWhenAppActive, activeApplication, applicationScopeHelp, noApplicationsAvailable
+    case frameRate, frameRateValue, frameRateHelp, reduceRateWhenIdle, reduceRateWhenIdleHelp
+    case notifyWhenIdle, notifyWhenIdleHelp
     case settings
     case general
     case permissions
@@ -171,15 +180,24 @@ struct FuwaCopy: Sendable {
 
     private var translations: [FuwaString: String] {
         switch language {
-        case .english: Self.english
-        case .simplifiedChinese: Self.simplifiedChinese
-        case .traditionalChinese: Self.traditionalChinese
-        case .japanese: Self.japanese
-        case .korean: Self.korean
-        case .french: Self.french
-        case .german: Self.german
+        case .english: Self.completeEnglish
+        case .simplifiedChinese: Self.completeSimplifiedChinese
+        case .traditionalChinese: Self.completeTraditionalChinese
+        case .japanese: Self.completeJapanese
+        case .korean: Self.completeKorean
+        case .french: Self.completeFrench
+        case .german: Self.completeGerman
         }
     }
+
+    // Build the combined dictionaries once rather than allocating during every view update.
+    private static let completeEnglish = english.merging(referenceTranslations(.english)) { _, new in new }
+    private static let completeSimplifiedChinese = simplifiedChinese.merging(referenceTranslations(.simplifiedChinese)) { _, new in new }
+    private static let completeTraditionalChinese = traditionalChinese.merging(referenceTranslations(.traditionalChinese)) { _, new in new }
+    private static let completeJapanese = japanese.merging(referenceTranslations(.japanese)) { _, new in new }
+    private static let completeKorean = korean.merging(referenceTranslations(.korean)) { _, new in new }
+    private static let completeFrench = french.merging(referenceTranslations(.french)) { _, new in new }
+    private static let completeGerman = german.merging(referenceTranslations(.german)) { _, new in new }
 
     func hasTranslation(for key: FuwaString) -> Bool { translations[key] != nil }
 

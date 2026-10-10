@@ -38,6 +38,10 @@ Fuwa is a macOS window pinning app. Keep a live view of an image, document, or t
 
 ## Requirements
 
+The next version's reference-window, region capture, hide/show and visibility
+options are described in the [workflow guide](docs/floating-reference.md).
+These additions are in development and are not yet in a published package.
+
 - macOS 14 or later; the release archive includes arm64 (Apple silicon) and x86_64 (Intel). Physical Intel Mac acceptance is still pending.
 - Screen Recording permission, requested only on the first pin attempt.
 

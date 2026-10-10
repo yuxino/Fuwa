@@ -31,9 +31,43 @@ struct OffscreenPresentationTests {
             model.updatePins([pin, paused, frozen])
             try save(MainView(model: model).frame(width: 720, height: 540), to: "\(output)/\(language)-pins.png")
             try save(MainView(model: model).frame(width: 640, height: 460), to: "\(output)/\(language)-pins-compact.png")
-            try save(PinControlsView(model: model, pinID: pin.id).frame(width: 380, height: 164), to: "\(output)/\(language)-controls.png")
-            try save(PinControlsView(model: model, pinID: paused.id).frame(width: 380, height: 164), to: "\(output)/\(language)-paused-controls.png")
+            try save(PinControlsView(model: model, pinID: pin.id).frame(width: 380, height: 460), to: "\(output)/\(language)-controls.png")
+            try save(PinControlsView(model: model, pinID: paused.id).frame(width: 380, height: 460), to: "\(output)/\(language)-paused-controls.png")
             try save(PinControlsView(model: model, pinID: pin.id).frame(width: 380).environment(\.dynamicTypeSize, .accessibility3), to: "\(output)/\(language)-controls-large-text.png")
+            var referenceOptions = PinOptions()
+            referenceOptions.presentationMode = .reference
+            referenceOptions.captureRegion = NormalizedCaptureRegion(x: 0.1, y: 0.1, width: 0.6, height: 0.5)
+            referenceOptions.spaceScope = .currentSpace
+            referenceOptions.applicationScopeBundleIdentifier = "test.fuwa.editor.with.a.long.application.name"
+            referenceOptions.notifiesWhenIdle = true
+            let reference = PinSnapshot(id: UUID(), sourceWindowID: 126,
+                applicationName: "Reference app with a longer name", bundleIdentifier: nil,
+                windowTitle: "A reference window with a long title for layout verification",
+                state: .live, errorMessage: nil, options: referenceOptions, isIdle: true)
+            model.updatePins([reference, paused])
+            try save(PinControlsView(model: model, pinID: reference.id).frame(width: 380), to: "\(output)/\(language)-reference-controls.png")
+            try save(PinControlsView(model: model, pinID: reference.id, maximumHeight: 300)
+                .frame(width: 320).environment(\.dynamicTypeSize, .accessibility3),
+                to: "\(output)/\(language)-reference-controls-small.png")
+            for section in [PinOptionsSection.visibility, .performance] {
+                try save(PinControlsView(model: model, pinID: reference.id, initialSection: section)
+                    .frame(width: 380), to: "\(output)/\(language)-reference-controls-\(section.rawValue).png")
+                try save(PinControlsView(model: model, pinID: reference.id, maximumHeight: 300,
+                    initialSection: section).frame(width: 320).environment(\.dynamicTypeSize, .accessibility3),
+                    to: "\(output)/\(language)-reference-controls-\(section.rawValue)-small.png")
+            }
+            var restoringReference = reference
+            restoringReference.isAwaitingFreshFrame = true
+            model.updatePins([restoringReference])
+            try save(PinControlsView(model: model, pinID: reference.id).frame(width: 380),
+                to: "\(output)/\(language)-reference-controls-restoring.png")
+            var hiddenReference = reference
+            hiddenReference.isHidden = true
+            model.updatePins([hiddenReference, paused])
+            model.updatePinsVisibility(true)
+            try save(MainView(model: model).frame(width: 640, height: 460), to: "\(output)/\(language)-pins-hidden.png")
+            model.updatePins([pin, paused, frozen])
+            model.updatePinsVisibility(false)
             model.showSettings()
             try save(MainView(model: model).frame(width: 720, height: 540), to: "\(output)/\(language)-settings-main.png")
             try save(MainView(model: model).frame(width: 720, height: 540).environment(\.colorScheme, .dark), to: "\(output)/\(language)-dark.png")

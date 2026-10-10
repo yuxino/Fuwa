@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let launchAtLoginController = LaunchAtLoginController()
 
     private var hotKey: GlobalHotKey?
+    private var visibilityHotKey: GlobalHotKey?
     private var model: AppModel?
     private var statusBarController: StatusBarController?
     private var mainWindowController: MainWindowController?
@@ -57,18 +58,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        let visibilityHotKey = GlobalHotKey(identifier: 2) { [weak self] in
+            guard let self, !isTerminating else { return }
+            self.model?.togglePinsVisibility()
+        }
+        self.visibilityHotKey = visibilityHotKey
+        var activeVisibilityShortcut = settingsStore.visibilityShortcut
+        var visibilityShortcutLaunchError: Error?
+        do {
+            try visibilityHotKey.start(shortcut: activeVisibilityShortcut)
+        } catch {
+            visibilityShortcutLaunchError = error
+            if activeVisibilityShortcut != .defaultVisibility {
+                do {
+                    try visibilityHotKey.start(shortcut: .defaultVisibility)
+                    activeVisibilityShortcut = .defaultVisibility
+                    settingsStore.visibilityShortcut = .defaultVisibility
+                } catch {
+                    visibilityShortcutLaunchError = error
+                }
+            }
+        }
+
         let model = AppModel(
             languagePreference: settingsStore.language,
             keepInDock: settingsStore.keepInDock,
             version: Self.version,
             shortcut: activeShortcut,
             shortcutIsActive: hotKey.currentShortcut != nil,
+            visibilityShortcut: activeVisibilityShortcut,
+            visibilityShortcutIsActive: visibilityHotKey.currentShortcut != nil,
             launchAtLoginState: launchAtLoginController.state,
             screenRecordingPermission: screenRecordingPermissionState
         )
         self.model = model
         model.onLanguageChanged = { [weak self, weak model] preference in
             self?.settingsStore.language = preference
+            self?.pinCoordinator.refreshPresentationCopy()
             guard let model else { return }
             NSApp.mainMenu = FuwaApplicationMenu.make(quitTitle: model.copy.text(.quit))
         }
@@ -78,6 +104,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             updateDockPresence()
         }
         pinCoordinator.presentationModel = model
+        pinCoordinator.frameRateForApplication = { [weak self] bundleIdentifier in
+            self?.settingsStore.frameRate(for: bundleIdentifier) ?? .thirty
+        }
+        pinCoordinator.onOptionsChanged = { [weak self] pin in
+            self?.settingsStore.setFrameRate(pin.options.frameRate, for: pin.bundleIdentifier)
+        }
         NSApp.mainMenu = FuwaApplicationMenu.make(quitTitle: model.copy.text(.quit))
         do {
             softwareUpdateController = try SoftwareUpdateController(model: model)
@@ -115,6 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let shortcutLaunchError {
             model.report(shortcutLaunchError)
         }
+        if let visibilityShortcutLaunchError { model.report(visibilityShortcutLaunchError) }
     }
 
     private func updateDockPresence() {
@@ -150,6 +183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         isTerminating = true
         discardMenuIntent()
         hotKey?.stop()
+        visibilityHotKey?.stop()
         privacyLifecycle.stop()
         pinCoordinator.clearAllImmediately()
         statusBarController?.invalidate()
@@ -193,6 +227,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             updateCaptureQuality: { [weak self] id, quality in
                 self?.pinCoordinator.setCaptureQuality(quality, for: id)
             },
+            updatePinOptions: { [weak self] id, options in
+                self?.pinCoordinator.setOptions(options, for: id)
+            },
+            beginCropSelection: { [weak self] id in
+                self?.pinCoordinator.beginCropSelection(id)
+            },
+            togglePinsVisibility: { [weak self] in
+                guard let self else { throw FuwaApplicationError.unavailable }
+                try await pinCoordinator.togglePinsVisibility()
+            },
             unpin: { [weak self] id in
                 guard let self else { throw FuwaApplicationError.unavailable }
                 await pinCoordinator.unpin(id)
@@ -204,10 +248,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             updateShortcut: { [weak self] shortcut in
                 guard let self else { throw FuwaApplicationError.unavailable }
                 guard let hotKey else { throw FuwaApplicationError.unavailable }
+                if let other = visibilityHotKey?.currentShortcut,
+                   shortcut.hasSameKeyCombination(as: other) { return .conflict }
                 let outcome = try hotKey.update(to: shortcut)
                 if outcome == .registered {
                     settingsStore.shortcut = shortcut
                 }
+                return outcome
+            },
+            updateVisibilityShortcut: { [weak self] shortcut in
+                guard let self, let visibilityHotKey else { throw FuwaApplicationError.unavailable }
+                if let other = hotKey?.currentShortcut,
+                   shortcut.hasSameKeyCombination(as: other) { return .conflict }
+                let outcome = try visibilityHotKey.update(to: shortcut)
+                if outcome == .registered { settingsStore.visibilityShortcut = shortcut }
                 return outcome
             },
             updateLaunchAtLogin: { [weak self] enabled in
@@ -329,7 +383,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pinCoordinator.onFailure = { [weak model] error in
             model?.report(error)
         }
+        pinCoordinator.onVisibilityChanged = { [weak model] hidden in
+            model?.updatePinsVisibility(hidden)
+        }
         model.updatePins(pinCoordinator.snapshots)
+        model.updatePinsVisibility(pinCoordinator.arePinsHidden)
     }
 
     private func configurePrivacyLifecycle() {

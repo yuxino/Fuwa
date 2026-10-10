@@ -8,6 +8,8 @@ final class AppSettingsStore {
         static let language = "language"
         static let keepInDock = "keepInDock"
         static let shortcut = "shortcut"
+        static let visibilityShortcut = "visibilityShortcut"
+        static let applicationFrameRates = "applicationFrameRates"
         static let didRequestScreenRecording = "didRequestScreenRecording"
     }
 
@@ -53,6 +55,33 @@ final class AppSettingsStore {
     var didRequestScreenRecording: Bool {
         get { defaults.bool(forKey: Key.didRequestScreenRecording) }
         set { defaults.set(newValue, forKey: Key.didRequestScreenRecording) }
+    }
+
+    var visibilityShortcut: KeyboardShortcut {
+        get {
+            guard let data = defaults.data(forKey: Key.visibilityShortcut),
+                  let shortcut = try? decoder.decode(KeyboardShortcut.self, from: data),
+                  shortcut.validationError == nil else { return .defaultVisibility }
+            return shortcut
+        }
+        set {
+            guard newValue.validationError == nil, let data = try? encoder.encode(newValue) else { return }
+            defaults.set(data, forKey: Key.visibilityShortcut)
+        }
+    }
+
+    func frameRate(for bundleIdentifier: String?) -> PinFrameRate {
+        guard let bundleIdentifier,
+              let value = defaults.dictionary(forKey: Key.applicationFrameRates)?[bundleIdentifier] as? Int,
+              let rate = PinFrameRate(rawValue: value) else { return .thirty }
+        return rate
+    }
+
+    func setFrameRate(_ frameRate: PinFrameRate, for bundleIdentifier: String?) {
+        guard let bundleIdentifier, !bundleIdentifier.isEmpty else { return }
+        var rates = defaults.dictionary(forKey: Key.applicationFrameRates) ?? [:]
+        rates[bundleIdentifier] = frameRate.rawValue
+        defaults.set(rates, forKey: Key.applicationFrameRates)
     }
 }
 

@@ -42,8 +42,13 @@ struct PinSnapshot: Identifiable, Equatable {
     let state: PinState
     let errorMessage: String?
     var captureQuality: CaptureQuality = .native
+    var options: PinOptions = PinOptions()
+    var isHidden = false
+    var isIdle = false
+    var isAwaitingFreshFrame = false
 
     var canAdjustQuality: Bool { state == .live }
+    var canChooseArea: Bool { state == .live && !isHidden && !isAwaitingFreshFrame }
 
     var canFreeze: Bool {
         state == .live
@@ -65,6 +70,7 @@ final class PinSession {
     var onGeometryChanged: (() -> Void)?
     var onFailure: ((Error) -> Void)?
     var onScreenRecordingRevoked: (() -> Void)?
+    var onOptionsChanged: ((PinOptions) -> Void)?
 
     private(set) var descriptor: WindowDescriptor
     private(set) var coordinateSpace: DisplayCoordinateSpace
@@ -83,11 +89,24 @@ final class PinSession {
     private var nextGeneration: UInt64 = 0
     private var firstFrameWatchdogTask: Task<Void, Never>?
     private var resizeTask: Task<Void, Never>?
+    private var regionRestartTask: Task<Void, Never>?
+    private var lastCompleteCaptureRegion: NormalizedCaptureRegion?
     private var teardownTask: Task<Void, Never>?
     private var missingObservationCount = 0
     private var isHandlingMissingSource = false
     private var captureQuality: CaptureQuality = .native
     private var controlsHeight: CGFloat = 164
+    private var controlsMaxHeight: CGFloat = 460
+    private(set) var options = PinOptions()
+    private var suppression = CapturePresentationSuppression()
+    private var suppressionStopTask: Task<Void, Never>?
+    private var suppressionStopGeneration: UInt64 = 0
+    private var cropPanel: CaptureRegionSelectionPanel?
+    private var activity = CapturedPictureActivity()
+    private var activityTask: Task<Void, Never>?
+    private var lastActivitySampleTime: TimeInterval = -.infinity
+    private var effectiveFrameRate = PinFrameRate.thirty
+    private var referenceFrame: CGRect?
 
     init(id: UUID = UUID(), target: ResolvedTarget) {
         self.id = id
@@ -113,7 +132,7 @@ final class PinSession {
     }
 
     var needsWindowTracking: Bool {
-        state == .starting || state == .live
+        !suppression.isSuppressed && (state == .starting || state == .live)
     }
 
     var overlayWindowID: CGWindowID? {
@@ -132,20 +151,29 @@ final class PinSession {
             windowTitle: windowTitle,
             state: state,
             errorMessage: errorMessage,
-            captureQuality: captureQuality
+            captureQuality: captureQuality,
+            options: options,
+            isHidden: suppression.isSuppressed,
+            isIdle: activity.isIdle,
+            isAwaitingFreshFrame: state == .live && !suppression.isSuppressed && currentCycle?.hasCompleteFrame != true
         )
     }
 
     func startInitialCapture(with target: ResolvedTarget) async throws {
+        let initialRevision = suppression.revision
         do {
             try transition(.targetResolved)
             createPresentationIfNeeded()
+            guard !suppression.isSuppressed else { notifyChange(); return }
             try await beginCapture(
                 with: target,
                 preservingFrozenImage: false,
                 resumingFrom: nil
             )
         } catch {
+            if case PinSessionError.captureStartInterrupted = error,
+               suppression.revision != initialRevision,
+               state == .starting || state == .live || snapshot.canResume { return }
             await handleStartFailure(error)
             throw error
         }
@@ -160,6 +188,10 @@ final class PinSession {
         guard let captureView else {
             throw PinSessionError.freezeFailed("The capture view is unavailable.")
         }
+        if reason == .manual, snapshot.isAwaitingFreshFrame {
+            throw PinSessionError.freezeFailed(FrozenFrameError.noCompleteFrame.localizedDescription)
+        }
+        dismissCropSelection()
 
         let image: CGImage
         do {
@@ -169,6 +201,15 @@ final class PinSession {
         }
 
         captureView.presentFrozen(image)
+        // Failure can retain the preceding picture while a new crop starts.
+        // Its saved coordinates must describe those pixels, not the request.
+        if options.captureRegion != lastCompleteCaptureRegion {
+            options.captureRegion = lastCompleteCaptureRegion
+            if lastCompleteCaptureRegion != nil { options.presentationMode = .reference }
+            onOptionsChanged?(options)
+            updatePresentationBehavior()
+            updatePanelFrame(to: descriptor.bounds)
+        }
         // A transient source can close in the small gap between receiving the
         // first frame and the deferred live reveal. A valid frozen frame must
         // always make its presentation visible independently of the old stream.
@@ -191,12 +232,20 @@ final class PinSession {
             )
         }
 
+        let initialRevision = suppression.revision
         do {
             try transition(.resume)
             updateTarget(target)
             missingObservationCount = 0
             isHandlingMissingSource = false
             errorMessage = nil
+            if suppression.isSuppressed {
+                // While hidden, state records the user's live intent. Pixels
+                // remain hidden and capture starts only after exact restoration.
+                try transition(.firstCompleteFrame)
+                notifyChange()
+                return
+            }
             captureView?.prepareForResumeKeepingFrozenImage()
             notifyChange()
             try await beginCapture(
@@ -205,6 +254,13 @@ final class PinSession {
                 resumingFrom: previousFreezeReason
             )
         } catch {
+            if case PinSessionError.captureStartInterrupted = error,
+               suppression.revision != initialRevision,
+               state == .starting || state == .live {
+                if state == .starting { try? transition(.firstCompleteFrame) }
+                notifyChange()
+                return
+            }
             if state == .starting {
                 let detachedCycle = detachCurrentCycle()
                 try? transition(.resumeFailed(previousFreezeReason))
@@ -213,6 +269,180 @@ final class PinSession {
             errorMessage = error.localizedDescription
             notifyChange()
             throw error
+        }
+    }
+
+    func setOptions(_ proposed: PinOptions) {
+        guard state != .stopping, state != .stopped else { return }
+        var updated = proposed
+        updated.captureRegion = CaptureReferenceGeometry.sanitized(updated.captureRegion)
+        let isPaused: Bool
+        if case .frozen = state { isPaused = true } else { isPaused = false }
+        if isPaused || suppression.isSuppressed || snapshot.isAwaitingFreshFrame {
+            // A retained crop cannot recreate the omitted source pixels. Keep
+            // its truthful region until live capture is available again, while
+            // allowing unrelated visibility and performance choices to change.
+            updated.captureRegion = options.captureRegion
+            if updated.presentationMode == .followSource, options.captureRegion != nil {
+                updated.presentationMode = .reference
+            }
+        }
+        // Cropping is an independent reference workflow; the source-following
+        // overlay always covers the source's complete bounds.
+        if updated.presentationMode == .followSource { updated.captureRegion = nil }
+        guard updated != options else { return }
+        let previous = options
+        options = updated
+        if previous.captureRegion != options.captureRegion || previous.presentationMode != options.presentationMode {
+            dismissCropSelection()
+            updatePresentationBehavior()
+            updatePanelFrame(to: descriptor.bounds)
+        }
+        updateSpaceMembership()
+        effectiveFrameRate = activity.isIdle && options.reducesFrameRateWhenIdle ? .one : options.frameRate
+        if previous.captureRegion != options.captureRegion, state == .live, !suppression.isSuppressed {
+            restartCaptureForRegionChange()
+        } else {
+            scheduleCaptureResize(to: descriptor.bounds.size)
+        }
+        onOptionsChanged?(options)
+        notifyChange()
+    }
+
+    func beginCropSelection() {
+        if let cropPanel { cropPanel.makeKeyAndOrderFront(nil); return }
+        guard snapshot.canChooseArea, let panel,
+              let image = try? captureView?.makeFrozenImage() else { return }
+        let revision = suppression.revision
+        let chooser = CaptureRegionSelectionPanel(
+            image: image, previousRegion: options.captureRegion, sourceFrame: panel.frame,
+            copy: presentationModel?.copy ?? FuwaCopy(language: .automatic()),
+            onSelection: { [weak self] region in
+                guard let self else { return }
+                self.cropPanel = nil
+                guard self.suppression.allowsRestore(revision: revision), self.state == .live else { return }
+                var updated = self.options
+                updated.captureRegion = region
+                updated.presentationMode = .reference
+                self.setOptions(updated)
+            }, onCancellation: { [weak self] in self?.cropPanel = nil }
+        )
+        cropPanel = chooser
+        chooser.makeKeyAndOrderFront(nil)
+    }
+
+    private func dismissCropSelection() {
+        cropPanel?.dismissForTeardown()
+        cropPanel = nil
+    }
+
+    private func restartCaptureForRegionChange() {
+        // A sourceRect update has no frame token, and equal-sized crops can
+        // contain entirely different pixels. A new stream generation makes
+        // the first complete frame unambiguously belong to this region.
+        if let image = try? captureView?.makeFrozenImage() { captureView?.presentFrozen(image) }
+        let detached = detachCurrentCycle()
+        let revision = suppression.revision
+        let previousRestart = regionRestartTask
+        previousRestart?.cancel()
+        regionRestartTask = Task { @MainActor [weak self] in
+            await previousRestart?.value
+            await Self.stopCaptureCycle(detached)
+            guard !Task.isCancelled, let self,
+                  self.suppression.allowsRestore(revision: revision), self.state == .live else { return }
+            do {
+                let target = try await TargetResolver().resolveExact(matching: self.descriptor)
+                guard !Task.isCancelled, self.suppression.allowsRestore(revision: revision),
+                      self.state == .live else { return }
+                self.captureView?.prepareForResumeKeepingFrozenImage()
+                try await self.beginCapture(with: target, preservingFrozenImage: true, resumingFrom: nil)
+            } catch {
+                guard !Task.isCancelled, self.suppression.allowsRestore(revision: revision),
+                      self.state == .live else { return }
+                if case TargetResolutionError.screenRecordingPermissionDenied = error {
+                    self.onScreenRecordingRevoked?()
+                } else if case TargetResolutionError.intentDisappeared = error {
+                    await self.markSourceUnavailable()
+                } else {
+                    try? await self.freeze(reason: .captureInterrupted)
+                    self.errorMessage = error.localizedDescription
+                    self.notifyChange()
+                    self.onFailure?(error)
+                }
+            }
+        }
+    }
+
+    /// Temporary visibility is independent of the user's manual pause intent.
+    /// Detaching the stream before suspension invalidates all queued callbacks.
+    func preparePresentationSuppression() {
+        guard state != .stopping, state != .stopped else { return }
+        hidePresentation()
+        cropPanel?.dismissForTeardown()
+        cropPanel = nil
+        guard !suppression.isSuppressed else { return }
+        _ = suppression.change(to: true)
+        if let image = try? captureView?.makeFrozenImage() { captureView?.presentFrozen(image) }
+        let detached = detachCurrentCycle()
+        let previousStop = suppressionStopTask
+        let pendingRegionRestart = regionRestartTask
+        pendingRegionRestart?.cancel()
+        regionRestartTask = nil
+        suppressionStopGeneration &+= 1
+        let stopGeneration = suppressionStopGeneration
+        suppressionStopTask = Task { @MainActor [weak self] in
+            await previousStop?.value
+            await pendingRegionRestart?.value
+            await Self.stopCaptureCycle(detached)
+            if self?.suppressionStopGeneration == stopGeneration { self?.suppressionStopTask = nil }
+        }
+        notifyChange()
+    }
+
+    func setPresentationSuppressed(_ suppressed: Bool) async throws {
+        guard state != .stopping, state != .stopped else { return }
+        if suppressed {
+            preparePresentationSuppression()
+            await suppressionStopTask?.value
+            return
+        }
+        guard suppressed != suppression.isSuppressed else {
+            return
+        }
+        let revision = suppression.change(to: suppressed)
+        notifyChange()
+        await suppressionStopTask?.value
+        guard suppression.allowsRestore(revision: revision) else { return }
+        switch state {
+        case .frozen:
+            updatePresentationBehavior()
+            updatePanelFrame(to: descriptor.bounds)
+            showPresentation()
+        case .starting, .live:
+            do {
+                let target = try await TargetResolver().resolveExact(matching: descriptor)
+                guard suppression.allowsRestore(revision: revision), state == .starting || state == .live else { return }
+                captureView?.prepareForResumeKeepingFrozenImage()
+                try await beginCapture(with: target, preservingFrozenImage: true, resumingFrom: nil)
+            } catch {
+                guard suppression.allowsRestore(revision: revision) else { return }
+                if case TargetResolutionError.screenRecordingPermissionDenied = error {
+                    onScreenRecordingRevoked?()
+                } else if case TargetResolutionError.intentDisappeared = error {
+                    await markSourceUnavailable()
+                } else {
+                    if state == .live, (try? captureView?.makeFrozenImage()) != nil {
+                        try? await freeze(reason: .captureInterrupted)
+                        errorMessage = error.localizedDescription
+                    } else {
+                        await failAndHide(reason: .captureFailed, message: error.localizedDescription)
+                    }
+                }
+                notifyChange()
+                throw error
+            }
+        default:
+            break
         }
     }
 
@@ -267,6 +497,9 @@ final class PinSession {
     /// panel is hidden, every retained frame is cleared, and all callbacks are
     /// detached before any potentially slow ScreenCaptureKit stop is awaited.
     func prepareForStop() {
+        suppression.stop()
+        cropPanel?.dismissForTeardown()
+        cropPanel = nil
         cancelFirstFrameWatchdog()
 
         if state == .stopped {
@@ -298,7 +531,14 @@ final class PinSession {
         captureView = nil
         notifyChange()
 
+        let pendingSuppressionStop = suppressionStopTask
+        suppressionStopTask = nil
+        let pendingRegionRestart = regionRestartTask
+        pendingRegionRestart?.cancel()
+        regionRestartTask = nil
         teardownTask = Task { @MainActor [weak self, detachedCycle] in
+            await pendingSuppressionStop?.value
+            await pendingRegionRestart?.value
             await Self.stopCaptureCycle(detachedCycle)
             guard let self else { return }
             if self.state == .stopping {
@@ -322,6 +562,9 @@ final class PinSession {
     ) {
         guard isCurrent(streamID: streamID, generation: generation) else { return }
         guard let receipt = captureView?.consume(sampleBuffer) else { return }
+        if let currentCycle { currentCycle.hasCompleteFrame = true }
+        lastCompleteCaptureRegion = options.captureRegion
+        samplePictureActivity()
 
         // A desktop-independent filter retains its initial pointPixelScale.
         // Complete frames carry the current display scale after a window moves.
@@ -332,14 +575,16 @@ final class PinSession {
         }
 
         missingObservationCount = 0
-        guard receipt == .firstCompleteFrame, state == .starting else { return }
+        guard receipt == .firstCompleteFrame, state == .starting || state == .live else { return }
 
-        do {
-            try transition(.firstCompleteFrame)
-        } catch {
-            errorMessage = error.localizedDescription
-            onFailure?(error)
-            return
+        if state == .starting {
+            do {
+                try transition(.firstCompleteFrame)
+            } catch {
+                errorMessage = error.localizedDescription
+                onFailure?(error)
+                return
+            }
         }
 
         cancelFirstFrameWatchdog()
@@ -394,6 +639,9 @@ final class PinSession {
         preservingFrozenImage: Bool,
         resumingFrom previousFreezeReason: PinFreezeReason?
     ) async throws {
+        guard !suppression.isSuppressed, state != .stopping, state != .stopped else {
+            throw PinSessionError.captureStartInterrupted
+        }
         updateTarget(target)
         createPresentationIfNeeded()
         updatePanelFrame(to: target.descriptor.bounds)
@@ -403,13 +651,18 @@ final class PinSession {
 
         let filter = SCContentFilter(desktopIndependentWindow: target.window)
         let pointScale = max(1, CGFloat(filter.pointPixelScale))
+        activity.reset()
+        lastActivitySampleTime = -.infinity
+        effectiveFrameRate = options.frameRate
         let configuration = Self.makeConfiguration(
             pointSize: Self.capturePointSize(
                 filter: filter,
                 fallback: target.descriptor.bounds.size
             ),
             pointScale: pointScale,
-            captureQuality: captureQuality
+            captureQuality: captureQuality,
+            captureRegion: options.captureRegion,
+            frameRate: effectiveFrameRate
         )
 
         nextGeneration &+= 1
@@ -433,6 +686,7 @@ final class PinSession {
             previousFreezeReason: previousFreezeReason
         )
         currentCycle = cycle
+        startPictureActivityTracking(for: cycle)
 
         do {
             try stream.addStreamOutput(
@@ -440,7 +694,9 @@ final class PinSession {
                 type: .screen,
                 sampleHandlerQueue: .main
             )
-            try await stream.startCapture()
+            let startup = Task { @MainActor in try await stream.startCapture() }
+            cycle.startupTask = startup
+            try await startup.value
         } catch {
             guard currentCycle === cycle else {
                 // Another operation detached this cycle and exclusively owns
@@ -459,7 +715,7 @@ final class PinSession {
     }
 
     private func scheduleFirstFrameWatchdog(for cycle: CaptureCycle) {
-        guard currentCycle === cycle, state == .starting else { return }
+        guard currentCycle === cycle, !cycle.hasCompleteFrame, state == .starting || state == .live else { return }
 
         cancelFirstFrameWatchdog()
         let streamID = cycle.streamID
@@ -486,7 +742,18 @@ final class PinSession {
         resumingFrom previousFreezeReason: PinFreezeReason?
     ) async {
         guard isCurrent(streamID: streamID, generation: generation),
-              state == .starting else {
+              currentCycle?.hasCompleteFrame == false,
+              state == .starting || state == .live else {
+            return
+        }
+
+        if state == .live {
+            do {
+                try await freeze(reason: .captureInterrupted)
+                onFailure?(PinSessionError.captureResumeTimedOut)
+            } catch {
+                await failAndHide(reason: .captureFailed, message: error.localizedDescription)
+            }
             return
         }
 
@@ -695,19 +962,20 @@ final class PinSession {
 
         self.panel = panel
         captureView = view
+        view.onReferenceFrameChanged = { [weak self] in
+            guard let self else { return }
+            self.referenceFrame = self.panel?.frame
+            self.positionControls()
+        }
+        updatePresentationBehavior()
+        updateSpaceMembership()
         if let presentationModel {
             let controls = PinControlsPanel(
                 contentRect: NSRect(x: frame.minX, y: frame.maxY, width: 380, height: controlsHeight),
                 styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false
             )
-            controls.contentView = NSHostingView(rootView: PinControlsView(
-                model: presentationModel, pinID: id,
-                onHeightChanged: { [weak self] height in
-                    guard let self, height > 0, abs(height - controlsHeight) > 0.5 else { return }
-                    controlsHeight = height
-                    positionControls()
-                }
-            ))
+            controlsMaxHeight = maximumControlsHeight(for: panel.frame)
+            controls.contentView = NSHostingView(rootView: makeControlsView(model: presentationModel))
             controls.title = "Fuwa — \(windowTitle)"
             controls.level = .floating
             controls.isReleasedWhenClosed = false
@@ -715,16 +983,21 @@ final class PinSession {
             controls.sharingType = .none
             controls.collectionBehavior = panel.collectionBehavior
             controlsPanel = controls
+            view.onRequestControls = { [weak self] in self?.focusControls() }
         }
+        updatePanelFrame(to: descriptor.bounds)
     }
 
     func reconcileDisplayArrangement() {
         guard let panel else { return }
-        if case .frozen = state {
+        if options.presentationMode == .reference || snapshot.canShowControls {
             let recovered = FloatingControlsLayout.recoveredFrame(
                 source: panel.frame, visibleScreens: NSScreen.screens.map(\.visibleFrame)
             )
-            if recovered != panel.frame { panel.setFrame(recovered, display: true) }
+            if recovered != panel.frame {
+                panel.setFrame(recovered, display: true)
+                if options.presentationMode == .reference { referenceFrame = recovered }
+            }
         }
         positionControls()
     }
@@ -737,20 +1010,34 @@ final class PinSession {
     }
 
     private func showPresentation() {
+        guard !suppression.isSuppressed, state != .stopping, state != .stopped else { return }
         panel?.orderFrontRegardless()
     }
 
     private func hidePresentation() {
-        controlsPanel?.orderOut(nil)
+        dismissCropSelection()
+        dismissControls()
         panel?.orderOut(nil)
+    }
+
+    private func dismissControls() {
+        guard let controlsPanel else { return }
+        controlsPanel.parent?.removeChildWindow(controlsPanel)
+        controlsPanel.orderOut(nil)
     }
 
     private func positionControls() {
         guard let panel, let controlsPanel else { return }
         let screens = NSScreen.screens
         guard let index = FloatingControlsLayout.screenIndex(source: panel.frame, screens: screens.map(\.frame)) else { return }
+        let maxHeight = max(120, min(460, screens[index].visibleFrame.height - 16))
+        if abs(controlsMaxHeight - maxHeight) > 0.5,
+           let host = controlsPanel.contentView as? NSHostingView<PinControlsView>, let presentationModel {
+            controlsMaxHeight = maxHeight
+            host.rootView = makeControlsView(model: presentationModel)
+        }
         let frame = FloatingControlsLayout.frame(source: panel.frame, visible: screens[index].visibleFrame,
-                                                 size: CGSize(width: 380, height: controlsHeight))
+                                                 size: CGSize(width: 380, height: min(controlsHeight, maxHeight)))
         if controlsPanel.frame != frame { controlsPanel.setFrame(frame, display: true) }
     }
 
@@ -767,11 +1054,98 @@ final class PinSession {
     }
 
     private func updatePanelFrame(to quartzFrame: CGRect) {
+        if options.presentationMode == .reference, let panel {
+            let aspect = presentationAspect
+            // Native dragging can run a nested AppKit loop. Read the current
+            // frame so tracker callbacks cannot snap an in-progress drag back
+            // to a cached position from before the drag began.
+            let initial = panel.frame
+            let resized = CaptureReferenceGeometry.resizedFrame(initial, requestedWidth: initial.width, aspect: aspect,
+                                                                maximumSize: maximumReferenceSize(for: initial))
+            let recovered = FloatingControlsLayout.recoveredFrame(source: resized,
+                                                                 visibleScreens: NSScreen.screens.map(\.visibleFrame))
+            if panel.frame != recovered { panel.setFrame(recovered, display: true) }
+            referenceFrame = recovered
+            captureView?.referenceAspect = aspect
+            positionControls()
+            return
+        }
         let appKitFrame = coordinateSpace.appKitFrame(fromQuartzFrame: quartzFrame)
         guard appKitFrame.width > 0, appKitFrame.height > 0 else { return }
         if panel?.frame != appKitFrame { panel?.setFrame(appKitFrame, display: true) }
         // Screen usable bounds can change even when the source window does not.
         positionControls()
+    }
+
+    private var presentationAspect: CGSize {
+        if case .frozen = state, let image = try? captureView?.makeFrozenImage() {
+            return CGSize(width: image.width, height: image.height)
+        }
+        return CaptureReferenceGeometry.sourceRect(pointSize: descriptor.bounds.size, region: options.captureRegion).size
+    }
+
+    private func updatePresentationBehavior() {
+        guard let panel, let captureView else { return }
+        let reference = options.presentationMode == .reference
+        let wasReference = captureView.isReferencePresentation
+        if reference && !wasReference {
+            let saved = referenceFrame ?? CaptureReferenceGeometry.resizedFrame(
+                panel.frame, requestedWidth: min(640, panel.frame.width), aspect: presentationAspect,
+                maximumSize: maximumReferenceSize(for: panel.frame)
+            )
+            let restored = CaptureReferenceGeometry.resizedFrame(saved, requestedWidth: saved.width,
+                                                                 aspect: presentationAspect,
+                                                                 maximumSize: maximumReferenceSize(for: saved))
+            let recovered = FloatingControlsLayout.recoveredFrame(source: restored,
+                                                                 visibleScreens: NSScreen.screens.map(\.visibleFrame))
+            panel.setFrame(recovered, display: true)
+            referenceFrame = recovered
+        } else if !reference && wasReference {
+            referenceFrame = panel.frame
+        }
+        panel.ignoresMouseEvents = !reference
+        panel.isMovable = reference
+        panel.isMovableByWindowBackground = reference
+        captureView.isReferencePresentation = reference
+        captureView.referenceAspect = presentationAspect
+        let copy = presentationModel?.copy ?? FuwaCopy(language: .automatic())
+        captureView.toolTip = reference ? copy.text(.referenceInstructions) : nil
+        captureView.controlsTitle = copy.text(.showControls)
+    }
+
+    private func updateSpaceMembership() {
+        var membership: NSWindow.CollectionBehavior = [.canJoinAllApplications, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        if options.spaceScope == .allSpaces { membership.insert(.canJoinAllSpaces) }
+        panel?.collectionBehavior = membership
+        controlsPanel?.collectionBehavior = membership
+    }
+
+    private func maximumControlsHeight(for frame: CGRect) -> CGFloat {
+        guard let index = FloatingControlsLayout.screenIndex(source: frame, screens: NSScreen.screens.map(\.frame)) else { return 460 }
+        return max(120, min(460, NSScreen.screens[index].visibleFrame.height - 16))
+    }
+
+    private func maximumReferenceSize(for frame: CGRect) -> CGSize? {
+        guard let index = FloatingControlsLayout.screenIndex(source: frame, screens: NSScreen.screens.map(\.frame)) else { return nil }
+        return NSScreen.screens[index].visibleFrame.insetBy(dx: 8, dy: 8).size
+    }
+
+    func refreshPresentationCopy() {
+        updatePresentationBehavior()
+        updateIdleIndicator()
+        // An open selector uses a static source image and localized instructions.
+        // Close it on a language switch so reopening uses the selected language.
+        cropPanel?.dismissForTeardown()
+        cropPanel = nil
+    }
+
+    private func makeControlsView(model: AppModel) -> PinControlsView {
+        PinControlsView(model: model, pinID: id, maximumHeight: controlsMaxHeight,
+                        onHeightChanged: { [weak self] height in
+            guard let self, height > 0, abs(height - self.controlsHeight) > 0.5 else { return }
+            self.controlsHeight = height
+            self.positionControls()
+        }, onDismiss: { [weak self] in self?.dismissControls() })
     }
 
     private func scheduleCaptureResize(to pointSize: CGSize) {
@@ -781,7 +1155,9 @@ final class PinSession {
         let configuration = Self.makeConfiguration(
             pointSize: pointSize,
             pointScale: latestScale,
-            captureQuality: captureQuality
+            captureQuality: captureQuality,
+            captureRegion: options.captureRegion,
+            frameRate: effectiveFrameRate
         )
         let generation = currentCycle.generation
         let streamID = currentCycle.streamID
@@ -816,24 +1192,68 @@ final class PinSession {
         notifyChange()
     }
 
+    private func startPictureActivityTracking(for cycle: CaptureCycle) {
+        activityTask?.cancel()
+        let streamID = cycle.streamID, generation = cycle.generation
+        activityTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+                guard let self, self.isCurrent(streamID: streamID, generation: generation) else { return }
+                if self.activity.evaluate(at: ProcessInfo.processInfo.systemUptime) {
+                    self.applyPictureActivityChange()
+                }
+            }
+        }
+    }
+
+    private func samplePictureActivity() {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastActivitySampleTime >= 0.5, let sampled = captureView?.activitySamples() else { return }
+        lastActivitySampleTime = now
+        let wasIdle = activity.isIdle
+        _ = activity.observe(samples: sampled.samples, dimensions: sampled.dimensions, at: now)
+        if wasIdle != activity.isIdle { applyPictureActivityChange() }
+    }
+
+    private func applyPictureActivityChange() {
+        let desired: PinFrameRate = activity.isIdle && options.reducesFrameRateWhenIdle ? .one : options.frameRate
+        if desired != effectiveFrameRate {
+            effectiveFrameRate = desired
+            scheduleCaptureResize(to: descriptor.bounds.size)
+        }
+        notifyChange()
+    }
+
+    private func updateIdleIndicator() {
+        let show = state == .live && options.notifiesWhenIdle && activity.isIdle && !suppression.isSuppressed
+        let copy = presentationModel?.copy ?? FuwaCopy(language: .automatic())
+        captureView?.setIdleIndicator(title: show ? copy.text(.pictureIdle) : nil,
+                                     explanation: show ? copy.text(.pictureIdleNote) : nil)
+    }
+
     static func makeConfiguration(
         pointSize: CGSize,
         pointScale: CGFloat,
-        captureQuality: CaptureQuality = .default
+        captureQuality: CaptureQuality = .default,
+        captureRegion: NormalizedCaptureRegion? = nil,
+        frameRate: PinFrameRate = .thirty
     ) -> SCStreamConfiguration {
         let configuration = SCStreamConfiguration()
+        let sourceRect = CaptureReferenceGeometry.sourceRect(pointSize: pointSize, region: captureRegion)
+        let sizingSize = CaptureReferenceGeometry.pixelStablePointSize(sourceRect.size, pointScale: pointScale)
         let dimensions = LiveCaptureSizing.fittedDimensions(
-            pointWidth: Double(pointSize.width),
-            pointHeight: Double(pointSize.height),
+            pointWidth: Double(sizingSize.width),
+            pointHeight: Double(sizingSize.height),
             pointScale: Double(pointScale),
             quality: captureQuality
         ) ?? PixelDimensions(width: 2, height: 2)
         configuration.width = dimensions.width
         configuration.height = dimensions.height
+        if CaptureReferenceGeometry.sanitized(captureRegion) != nil { configuration.sourceRect = sourceRect }
         if captureQuality == .native { configuration.captureResolution = .best }
         // Fill the canvas while a cross-display resize is being applied.
         configuration.scalesToFit = true
-        configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
+        configuration.minimumFrameInterval = CMTime(value: 1, timescale: Int32(frameRate.rawValue))
         configuration.queueDepth = 3
         configuration.pixelFormat = kCVPixelFormatType_32BGRA
         configuration.colorSpaceName = CGColorSpace.sRGB
@@ -853,6 +1273,10 @@ final class PinSession {
 
     private func detachCurrentCycle() -> CaptureTeardown? {
         cancelFirstFrameWatchdog()
+        activityTask?.cancel()
+        activityTask = nil
+        activity.reset()
+        lastActivitySampleTime = -.infinity
         let detachedResizeTask = resizeTask
         detachedResizeTask?.cancel()
         resizeTask = nil
@@ -874,6 +1298,10 @@ final class PinSession {
         guard let teardown else { return }
         await teardown.resizeTask?.value
         let cycle = teardown.cycle
+        // A stop issued before asynchronous startup finishes can return early
+        // and leave a detached stream running. The sole teardown owner waits
+        // for startup (success or failure) before removing output and stopping.
+        _ = await cycle.startupTask?.result
         try? cycle.stream.removeStreamOutput(cycle.bridge, type: .screen)
         try? await cycle.stream.stopCapture()
     }
@@ -884,6 +1312,7 @@ final class PinSession {
     }
 
     private func notifyChange() {
+        updateIdleIndicator()
         onChange?()
     }
 
@@ -923,6 +1352,8 @@ private final class CaptureCycle {
     let filter: SCContentFilter
     let previousFreezeReason: PinFreezeReason?
     var pointScale: CGFloat
+    var hasCompleteFrame = false
+    var startupTask: Task<Void, Error>?
 
     init(
         generation: UInt64,

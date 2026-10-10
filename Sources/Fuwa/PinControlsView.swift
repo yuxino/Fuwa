@@ -11,7 +11,8 @@ extension PinSnapshot {
     }
 
     var stateColor: Color {
-        switch state {
+        if isAwaitingFreshFrame { return FuwaAppearance.secondaryText }
+        return switch state {
         case .live: FuwaAppearance.success
         case .frozen(.sourceClosed), .frozen(.captureInterrupted): FuwaAppearance.warning
         case .failed: FuwaAppearance.error
@@ -19,11 +20,27 @@ extension PinSnapshot {
         }
     }
 
+    func statusTitle(_ copy: FuwaCopy) -> String {
+        var parts = [stateTitle(copy)]
+        if isHidden { parts.append(copy.text(.hidden)) }
+        if state == .live, !isAwaitingFreshFrame, options.notifiesWhenIdle, isIdle { parts.append(copy.text(.pictureIdle)) }
+        return parts.joined(separator: " · ")
+    }
+
+    func statusText(_ copy: FuwaCopy) -> Text {
+        var text = Text(stateTitle(copy)).foregroundColor(stateColor)
+        if isHidden { text = text + Text(" · \(copy.text(.hidden))").foregroundColor(FuwaAppearance.secondaryText) }
+        if state == .live, !isAwaitingFreshFrame, options.notifiesWhenIdle, isIdle {
+            text = text + Text(" · \(copy.text(.pictureIdle))").foregroundColor(FuwaAppearance.secondaryText)
+        }
+        return text
+    }
+
     func stateTitle(_ copy: FuwaCopy) -> String {
         switch state {
         case .resolving: copy.text(.resolving)
         case .starting: copy.text(.starting)
-        case .live: copy.text(.live)
+        case .live: copy.text(isAwaitingFreshFrame ? .restoringPicture : .live)
         case .frozen(.manual): copy.text(.frozen)
         case .frozen(.sourceClosed): copy.text(.sourceClosed)
         case .frozen(.captureInterrupted): copy.text(.captureInterrupted)
@@ -49,7 +66,7 @@ struct PinPlaybackButton: View {
             }
             .font(.caption)
             .buttonStyle(FuwaQuietButtonStyle(focusColor: FuwaAppearance.ink.opacity(0.4)))
-            .disabled(model.busyPinIDs.contains(pin.id) || model.isClearingAll)
+            .disabled(model.busyPinIDs.contains(pin.id) || model.isClearingAll || pin.isAwaitingFreshFrame)
             .help(model.copy.text(pin.canFreeze ? .freezeNote : .resumeNote))
             .accessibilityHint(model.copy.text(pin.canFreeze ? .freezeNote : .resumeNote))
         }
@@ -71,7 +88,7 @@ struct PinActionsView: View {
                 model.unpin(pin.id)
             } label: {
                 if compact {
-                    Image(systemName: "xmark")
+                    Image(systemName: "pin.slash")
                 } else {
                     Label(model.copy.text(.unpin), systemImage: "pin.slash")
                 }
@@ -89,30 +106,56 @@ struct PinActionsView: View {
 struct PinControlsView: View {
     @ObservedObject var model: AppModel
     let pinID: UUID
+    var maximumHeight: CGFloat = 460
+    var initialSection: PinOptionsSection = .picture
     var onHeightChanged: (CGFloat) -> Void = { _ in }
+    var onDismiss: () -> Void = {}
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         if let pin = model.pins.first(where: { $0.id == pinID }) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Image(systemName: pin.canFreeze ? "pin.fill" : "pause.circle")
-                    Text(pin.windowTitle).lineLimit(1).truncationMode(.middle)
-                    Spacer(minLength: 4)
-                    if model.busyPinIDs.contains(pin.id) { ProgressView().controlSize(.mini) }
-                    Text(pin.stateTitle(model.copy)).foregroundStyle(pin.stateColor)
+                HStack(alignment: .top, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(pin.windowTitle).font(.caption.weight(.semibold))
+                            .lineLimit(1).truncationMode(.middle)
+                            .help(pin.windowTitle)
+                        pinStatus(pin)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    if model.busyPinIDs.contains(pin.id) || pin.isAwaitingFreshFrame {
+                        ProgressView().controlSize(.mini)
+                            .accessibilityLabel(model.copy.text(.restoringPicture))
+                    }
+                    Button {
+                        onDismiss()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark").font(.caption.weight(.medium))
+                    }
+                    .buttonStyle(FuwaQuietButtonStyle())
+                    .accessibilityLabel(model.copy.text(.closeControls))
+                    .help(model.copy.text(.closeControls))
                 }
-                .font(.caption.weight(.medium))
                 PinActionsView(model: model, pin: pin, compact: true)
                 Divider().opacity(0.5).padding(.vertical, 4)
-                PinQualityControls(model: model, pin: pin)
+                PinReferenceOptionsView(model: model, pin: pin, initialSection: initialSection)
+                    .frame(maxHeight: .infinity)
             }
             .padding(12)
+            .frame(height: maximumHeight)
             .fixedSize(horizontal: false, vertical: true)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { onHeightChanged($0) }
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(FuwaAppearance.border, lineWidth: 1))
             .fuwaLightSurface()
             .accessibilityElement(children: .contain)
         }
+    }
+    private func pinStatus(_ pin: PinSnapshot) -> some View {
+        pin.statusText(model.copy)
+            .font(.caption2)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityLabel(pin.statusTitle(model.copy))
     }
 }
 

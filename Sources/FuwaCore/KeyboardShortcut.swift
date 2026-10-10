@@ -47,6 +47,14 @@ public struct KeyboardShortcut: Codable, Equatable, Hashable, Sendable {
         modifiers: [.option, .command]
     )
 
+    public static let defaultVisibility = Self(
+        keyCode: 35, keyLabel: "P", modifiers: [.option, .shift, .command]
+    )
+
+    public func hasSameKeyCombination(as other: Self) -> Bool {
+        keyCode == other.keyCode && modifiers == other.modifiers
+    }
+
     public let keyCode: UInt32
     public let keyLabel: String
     public let modifiers: Modifiers

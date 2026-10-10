@@ -19,14 +19,15 @@ final class GlobalHotKey {
     }
 
     private static let signature: OSType = 0x4655_5741 // FUWA
-    private static let identifier: UInt32 = 1
+    private let identifier: UInt32
 
     private let action: () -> Void
     private var hotKeyReference: EventHotKeyRef?
     private var handlerReference: EventHandlerRef?
     private(set) var currentShortcut: KeyboardShortcut?
 
-    init(action: @escaping () -> Void) {
+    init(identifier: UInt32 = 1, action: @escaping () -> Void) {
+        self.identifier = identifier
         self.action = action
     }
 
@@ -100,17 +101,17 @@ final class GlobalHotKey {
                     &identifier
                 )
 
+                let hotKey = Unmanaged<GlobalHotKey>
+                    .fromOpaque(userData)
+                    .takeUnretainedValue()
                 guard
                     parameterStatus == noErr,
                     identifier.signature == GlobalHotKey.signature,
-                    identifier.id == GlobalHotKey.identifier
+                    identifier.id == hotKey.identifier
                 else {
                     return OSStatus(eventNotHandledErr)
                 }
 
-                let hotKey = Unmanaged<GlobalHotKey>
-                    .fromOpaque(userData)
-                    .takeUnretainedValue()
                 MainActor.assumeIsolated {
                     hotKey.action()
                 }
@@ -131,7 +132,7 @@ final class GlobalHotKey {
     private func register(_ shortcut: KeyboardShortcut) -> OSStatus {
         let identifier = EventHotKeyID(
             signature: Self.signature,
-            id: Self.identifier
+            id: self.identifier
         )
         return RegisterEventHotKey(
             shortcut.keyCode,
