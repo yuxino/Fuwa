@@ -40,10 +40,12 @@ struct WindowPickerView: View {
     @State private var loading = true
     @State private var search = ""
     @State private var error: String?
+    @FocusState private var searchFocused: Bool
     private var copy: FuwaCopy { model.copy }
 
     private var filtered: [FuwaWindowChoice] {
-        choices.filter { search.isEmpty || "\($0.applicationName) \($0.title)".localizedCaseInsensitiveContains(search) }
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        return choices.filter { query.isEmpty || "\($0.applicationName) \($0.title)".localizedCaseInsensitiveContains(query) }
     }
 
     var body: some View {
@@ -56,6 +58,7 @@ struct WindowPickerView: View {
             }
             TextField(copy.text(.searchWindows), text: $search)
                 .textFieldStyle(.roundedBorder)
+                .focused($searchFocused)
             if loading {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error {
@@ -105,7 +108,7 @@ struct WindowPickerView: View {
         .padding(24)
         .frame(width: 480, height: 400)
         .fuwaLightSurface()
-        .task { await refresh() }
+        .task { searchFocused = true; await refresh() }
     }
 
     private func refresh() async {

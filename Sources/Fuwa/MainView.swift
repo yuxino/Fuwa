@@ -46,7 +46,7 @@ struct MainView: View {
                         Text(copy.text(settingsSelected ? .settings : .manageWindows))
                             .font(.system(size: 18, weight: .semibold))
                         Spacer()
-                        if !settingsSelected {
+                        if !settingsSelected && !model.pins.isEmpty {
                             Button(action: model.chooseWindow) {
                                 Label(copy.text(.chooseWindow), systemImage: "plus")
                             }
@@ -54,17 +54,6 @@ struct MainView: View {
                             .keyboardShortcut("o", modifiers: .command)
                             .disabled(model.isPinningFrontWindow || model.isClearingAll)
                         }
-                    }
-                    if !settingsSelected {
-                        Text(copy.text(.noPinsBody))
-                            .font(.callout).foregroundStyle(.secondary)
-                        Text(model.shortcutIsActive ? model.shortcut.displayString : copy.text(.shortcutInactive))
-                            .font(.system(.callout, design: .monospaced).weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(FuwaAppearance.sidebar, in: RoundedRectangle(cornerRadius: 6))
-                            .textSelection(.enabled)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -78,17 +67,19 @@ struct MainView: View {
                     SettingsView(model: model)
                 } else {
                     PinsView(model: model)
-                    Spacer(minLength: 0)
-                    Divider()
-                    HStack {
-                        Text(copy.text(.removeExplanation))
-                            .font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Button(copy.text(.clearAll), action: model.clearAll)
-                            .buttonStyle(FuwaQuietButtonStyle())
-                            .disabled(model.pins.isEmpty || model.isClearingAll)
+                    if !model.pins.isEmpty {
+                        Divider()
+                        HStack {
+                            Text(copy.text(.removeExplanation))
+                                .font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                            Button(copy.text(.clearAll), action: model.clearAll)
+                                .buttonStyle(FuwaPlainButtonStyle())
+                                .disabled(model.isClearingAll)
+                        }
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
                     }
-                    .padding(16)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

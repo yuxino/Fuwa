@@ -13,30 +13,41 @@ struct PinsView: View {
                     .font(.system(size: 42, weight: .ultraLight))
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
-                Text(copy.text(.emptyTitle)).font(.title3.weight(.semibold))
-                    .help(copy.text(.noPinsBody))
+                VStack(spacing: 8) {
+                    Text(copy.text(.emptyTitle)).font(.title3.weight(.semibold))
+                    Text(copy.text(.noPinsBody)).font(.callout).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Button(action: model.chooseWindow) {
+                    Label(copy.text(.chooseWindow), systemImage: "plus")
+                }
+                .buttonStyle(FuwaPrimaryButtonStyle(expands: false))
+                .keyboardShortcut("o", modifiers: .command)
+                .disabled(model.isPinningFrontWindow || model.isClearingAll)
+                Text(model.shortcutIsActive ? model.shortcut.displayString : copy.text(.shortcutInactive))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .help(copy.text(.shortcutNote))
             }
             .padding(28)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack(spacing: 0) {
-                HStack {
-                    Text(copy.text(.pins)).font(.caption.weight(.medium))
-                    Spacer()
-                    Text(copy.pinsCount(model.pins.count))
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
                 VStack(alignment: .leading, spacing: 6) {
-                    Button(action: model.togglePinsVisibility) {
-                        Label(copy.text(model.arePinsHidden ? .showAllPins : .hideAllPins),
-                              systemImage: model.arePinsHidden ? "eye" : "eye.slash")
-                            .fixedSize(horizontal: false, vertical: true)
+                    HStack {
+                        Text(copy.pinsCount(model.pins.count))
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button(action: model.togglePinsVisibility) {
+                            Label(copy.text(model.arePinsHidden ? .showAllPins : .hideAllPins),
+                                  systemImage: model.arePinsHidden ? "eye" : "eye.slash")
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .buttonStyle(FuwaPlainButtonStyle())
+                        .disabled(model.isClearingAll || model.isTogglingVisibility)
+                        .help(copy.text(.visibilityShortcutNote))
                     }
-                    .buttonStyle(FuwaQuietButtonStyle())
-                    .disabled(model.isClearingAll)
-                    .help(copy.text(.visibilityShortcutNote))
                     if model.arePinsHidden {
                         Text(copy.text(.pinsHiddenNote)).font(.caption)
                             .foregroundStyle(FuwaAppearance.secondaryText)
@@ -44,7 +55,7 @@ struct PinsView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16).padding(.bottom, 8)
+                .padding(.horizontal, 16).padding(.vertical, 8)
                 Divider().opacity(0.5)
                 ScrollView {
                     LazyVStack(spacing: 0) {

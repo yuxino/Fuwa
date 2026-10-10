@@ -12,14 +12,17 @@ struct PinQualityControls: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Text(copy.text(.captureQuality)).font(.caption.weight(.medium))
-                FuwaHelpIcon(title: copy.text(.captureQuality), text: copy.text(.captureQualityHelp))
-                Spacer(minLength: 6)
-                Text(copy.captureQualityLabel(pin.captureQuality))
-                    .font(.caption).monospacedDigit()
-                    .foregroundStyle(FuwaAppearance.secondaryText)
+        VStack(alignment: .leading, spacing: 6) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 4) {
+                    qualityHeading
+                    Spacer(minLength: 6)
+                    qualityValue
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    qualityHeading
+                    qualityValue
+                }
             }
             Slider(value: Binding(
                 get: { Double(pin.captureQuality.percentage) },
@@ -44,5 +47,20 @@ struct PinQualityControls: View {
             .foregroundStyle(FuwaAppearance.secondaryText)
             .accessibilityHidden(true)
         }
+    }
+
+    private var qualityHeading: some View {
+        HStack(spacing: 4) {
+            Text(copy.text(.captureQuality)).font(.caption.weight(.medium))
+                .fixedSize(horizontal: false, vertical: true)
+            FuwaHelpIcon(title: copy.text(.captureQuality), text: copy.text(.captureQualityHelp))
+        }
+    }
+
+    private var qualityValue: some View {
+        Text(copy.captureQualityLabel(pin.captureQuality))
+            .font(.caption).monospacedDigit()
+            .foregroundStyle(FuwaAppearance.secondaryText)
+            .fixedSize()
     }
 }
