@@ -6,7 +6,8 @@ set -euo pipefail
 
 readonly FUWA_SCRIPT_DIR="${0:A:h}"
 readonly FUWA_PROJECT_DIR="${FUWA_SCRIPT_DIR:h}"
-readonly FUWA_BUILD_APP="${FUWA_PROJECT_DIR}/dist/Fuwa.app"
+readonly FUWA_BUILD_DIR="${FUWA_OUTPUT_DIR:-${FUWA_PROJECT_DIR}/dist}"
+readonly FUWA_BUILD_APP="${FUWA_BUILD_DIR:A}/Fuwa.app"
 readonly FUWA_EXPECTED_IDENTIFIER="app.yuxino.fuwa"
 FUWA_INSTALL_APP="${FUWA_INSTALL_PATH:-/Applications/Fuwa.app}"
 FUWA_SHOULD_LAUNCH=1
@@ -17,6 +18,7 @@ Usage: ./scripts/install-app.sh [--no-build] [--no-launch]
 
 Builds and installs Fuwa at /Applications/Fuwa.app with one stable identity.
 Set FUWA_INSTALL_PATH only to choose another permanent absolute .app path.
+Set FUWA_OUTPUT_DIR to use a separately staged build, including with --no-build.
 EOF
     exit 2
 }

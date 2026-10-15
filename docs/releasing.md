@@ -37,16 +37,21 @@ not part of this release contract.
 
 ```sh
 git switch --detach "v<public-version>"
+export FUWA_OUTPUT_DIR="$PWD/dist/release-<public-version>"
 ./scripts/package-app.sh
-codesign --verify --deep --strict --verbose=2 dist/Fuwa.app
-lipo dist/Fuwa.app/Contents/MacOS/Fuwa -verify_arch arm64 x86_64
-(cd dist && shasum -a 256 -c "Fuwa-<public-version>.dmg.sha256")
+codesign --verify --deep --strict --verbose=2 "$FUWA_OUTPUT_DIR/Fuwa.app"
+lipo "$FUWA_OUTPUT_DIR/Fuwa.app/Contents/MacOS/Fuwa" -verify_arch arm64 x86_64
+(cd "$FUWA_OUTPUT_DIR" && shasum -a 256 -c "Fuwa-<public-version>.dmg.sha256")
 ```
 
 Replace the placeholders with the actual version. Confirm the full designated
 requirement matches the previous stable package. Stop if identity changes.
 The current package has no Apple Developer ID signature or notarization; the
 Release notes must say so. Do not substitute an ad-hoc-signed hosted build.
+Use a separate output directory for each release so packaging preserves any
+running development bundle. Packaging refuses to replace an app whose executable
+is in use. Without `FUWA_OUTPUT_DIR`, the existing local-install output remains
+`dist/Fuwa.app`; `scripts/install-app.sh` continues to use that default.
 
 Packaging creates a compressed DMG with the application and an Applications
 shortcut. It checks the image, mounts it read-only, verifies the installer layout

@@ -41,7 +41,7 @@ final class SoftwareUpdateController {
 }
 
 @MainActor
-private final class FuwaUpdateUserDriver: NSObject, SPUUserDriver {
+final class FuwaUpdateUserDriver: NSObject, SPUUserDriver {
     private weak var model: AppModel?
     private var cancellation: (() -> Void)?
     private var choiceContinuation: CheckedContinuation<SPUUserUpdateChoice, Never>?
@@ -115,10 +115,27 @@ private final class FuwaUpdateUserDriver: NSObject, SPUUserDriver {
     func showUpdateNotFoundWithError(_ error: any Error) async {
         cancellation = nil
         guard let model else { return }
+        let error = error as NSError
+        let reason = (error.userInfo[SPUNoUpdateFoundReasonKey] as? NSNumber)?.int32Value
+        let isCurrent = reason == SPUNoUpdateFoundReason.onLatestVersion.rawValue
+            || reason == SPUNoUpdateFoundReason.onNewerThanLatestVersion.rawValue
+        let isIncompatible = reason == SPUNoUpdateFoundReason.systemIsTooOld.rawValue
+            || reason == SPUNoUpdateFoundReason.systemIsTooNew.rawValue
+            || reason == SPUNoUpdateFoundReason.hardwareDoesNotSupportARM64.rawValue
+        // Sparkle also reports incompatible updates through this callback. Only
+        // an explicit current-version reason confirms that Fuwa is up to date.
+        let errorMessage: String? = if isCurrent {
+            nil
+        } else if isIncompatible {
+            error.localizedRecoverySuggestion ?? error.localizedDescription
+        } else {
+            model.copy.text(.updateFailedMessage)
+        }
         model.setSoftwareUpdateState(
             SoftwareUpdateState(
-                phase: .current,
-                currentVersion: model.version
+                phase: isCurrent ? .current : .failed,
+                currentVersion: model.version,
+                errorMessage: errorMessage
             )
         )
     }
