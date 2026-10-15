@@ -129,7 +129,7 @@ private struct ShortcutCaptureHost: NSViewRepresentable {
 }
 
 @MainActor
-private final class ShortcutCaptureNSView: NSView {
+final class ShortcutCaptureNSView: NSView {
     var onCapture: ((FuwaCore.KeyboardShortcut) -> Void)?
     var onInvalid: (() -> Void)?
     var onCancel: (() -> Void)?
@@ -162,6 +162,16 @@ private final class ShortcutCaptureNSView: NSView {
             onCancel?()
         }
         return didResign
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard isRecording, window?.firstResponder === self else {
+            return super.performKeyEquivalent(with: event)
+        }
+        // AppKit tries menu shortcuts before keyDown. A recorded Command-Q
+        // must become the proposed shortcut instead of invoking Quit.
+        keyDown(with: event)
+        return true
     }
 
     override func keyDown(with event: NSEvent) {

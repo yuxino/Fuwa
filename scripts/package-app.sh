@@ -3,7 +3,9 @@ set -euo pipefail
 
 FUWA_SCRIPT_DIR="${0:A:h}"
 FUWA_PROJECT_DIR="${FUWA_SCRIPT_DIR:h}"
-FUWA_APP_DIR="${FUWA_PROJECT_DIR}/dist/Fuwa.app"
+FUWA_OUTPUT_DIR="${FUWA_OUTPUT_DIR:-${FUWA_PROJECT_DIR}/dist}"
+FUWA_OUTPUT_DIR="${FUWA_OUTPUT_DIR:A}"
+FUWA_APP_DIR="${FUWA_OUTPUT_DIR}/Fuwa.app"
 FUWA_CONTENTS_DIR="${FUWA_APP_DIR}/Contents"
 FUWA_MACOS_DIR="${FUWA_CONTENTS_DIR}/MacOS"
 FUWA_RESOURCES_DIR="${FUWA_CONTENTS_DIR}/Resources"
@@ -27,6 +29,20 @@ case "${FUWA_BUILD_UNIVERSAL}" in
         ;;
 esac
 
+refuse_running_bundle() {
+    local FUWA_EXECUTABLE="${FUWA_MACOS_DIR}/Fuwa"
+    local FUWA_USING_PIDS=""
+    if [[ -f "${FUWA_EXECUTABLE}" ]]; then
+        FUWA_USING_PIDS="$(/usr/sbin/lsof -t "${FUWA_EXECUTABLE}" 2>/dev/null || true)"
+    fi
+    if [[ -n "${FUWA_USING_PIDS}" ]]; then
+        print -u2 -r -- "error: package output is in use: ${FUWA_APP_DIR} (PID ${FUWA_USING_PIDS//$'\n'/, })"
+        print -u2 -r -- "Set FUWA_OUTPUT_DIR to a separate release directory before packaging."
+        exit 1
+    fi
+}
+
+refuse_running_bundle
 FUWA_CODESIGN_IDENTITY="$("${FUWA_SCRIPT_DIR}/codesign-identity.sh")"
 
 if [[ -d "${FUWA_SDK_15}" ]]; then
@@ -102,8 +118,9 @@ FUWA_VERSION="$(/usr/libexec/PlistBuddy \
     -c 'Print :CFBundleShortVersionString' \
     "${FUWA_PROJECT_DIR}/Resources/Info.plist")"
 FUWA_ARCHIVE_NAME="Fuwa-${FUWA_VERSION}.dmg"
-FUWA_ARCHIVE_PATH="${FUWA_PROJECT_DIR}/dist/${FUWA_ARCHIVE_NAME}"
+FUWA_ARCHIVE_PATH="${FUWA_OUTPUT_DIR}/${FUWA_ARCHIVE_NAME}"
 
+refuse_running_bundle
 rm -rf "${FUWA_APP_DIR}"
 rm -f "${FUWA_ARCHIVE_PATH}" "${FUWA_ARCHIVE_PATH}.sha256"
 mkdir -p "${FUWA_MACOS_DIR}" "${FUWA_RESOURCES_DIR}" "${FUWA_FRAMEWORKS_DIR}"

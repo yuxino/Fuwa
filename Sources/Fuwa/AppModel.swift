@@ -534,6 +534,10 @@ final class AppModel: ObservableObject {
     }
 
     private func presentError(_ error: Error) {
+        // Clearing pins or superseding work normally cancels in-flight actions.
+        // Their late completion must not create a failure or replace a newer notice.
+        if error is CancellationError { return }
+        if case PinCoordinatorError.operationCancelled = error { return }
         notice = FuwaNotice(
             kind: .error,
             message: FuwaErrorMessage.localizedDescription(

@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-15
+
+### English
+
+- Record shortcuts such as Command-Q without triggering Fuwa's menu commands while recording.
+- Clearing pinned windows no longer reports normal cancellation as an error or replaces a newer error message.
+- Pause Picture in the menu waits until a newly selected capture area is ready, matching the window controls.
+- Update checks explain when a newer release is incompatible with your Mac instead of saying Fuwa is up to date.
+- Requires macOS 14 or later. Update in Settings, or quit Fuwa and replace it using the DMG. The universal app retains its existing project signature; it is not Apple Developer ID signed or notarized. macOS may require approval in Privacy & Security on first launch. Intel hardware and a complete updater installation were not rechecked.
+
+### 中文
+
+- 录制 Command-Q 等快捷键时，不再意外触发 Fuwa 的菜单命令。
+- 清空固定窗口时，正常取消不再被误报为错误，也不会覆盖较新的错误提示。
+- 菜单中的“暂停画面”会等待新选择的捕获区域准备好，与窗口内按钮保持一致。
+- 新版与当前 Mac 不兼容时，更新检查会说明原因，不再误报“已是最新版本”。
+- 需要 macOS 14 或更新版本。可在设置中更新，或退出 Fuwa 后使用 DMG 替换旧版。通用包沿用现有项目签名，未使用 Apple Developer ID 签名或 Apple 公证；首次打开时，macOS 可能要求在“隐私与安全性”中批准。本次未重新验证 Intel 实机及完整更新安装流程。
+
 ## [1.2.1] - 2026-10-11
 
 ### English

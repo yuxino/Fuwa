@@ -74,6 +74,7 @@ jobs:
 
       - name: Check macOS scripts and signing guard
         run: |
+          python3 scripts/test-package-output.py
           for script in scripts/*.sh; do
             case "$(head -n 1 "$script")" in
               '#!/bin/zsh') zsh -n "$script" ;;

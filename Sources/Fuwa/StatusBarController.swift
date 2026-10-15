@@ -119,7 +119,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             submenu.addItem(heading(pin.statusTitle(model.copy)))
             submenu.addItem(item(.showControls, #selector(showControls(_:)), enabled: pin.canShowControls, id: pin.id))
             let available = !model.busyPinIDs.contains(pin.id) && !model.isClearingAll
-            if pin.canFreeze { submenu.addItem(item(.freeze, #selector(pause(_:)), enabled: available, id: pin.id)) }
+            if pin.canFreeze {
+                submenu.addItem(item(.freeze, #selector(pause(_:)),
+                                     enabled: available && !pin.isAwaitingFreshFrame, id: pin.id))
+            }
             if pin.canResume { submenu.addItem(item(.resume, #selector(resume(_:)), enabled: available, id: pin.id)) }
             submenu.addItem(.separator())
             submenu.addItem(item(.unpin, #selector(unpin(_:)), enabled: available, id: pin.id))
