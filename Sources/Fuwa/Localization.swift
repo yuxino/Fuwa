@@ -107,6 +107,9 @@ enum FuwaString: String, CaseIterable, Sendable {
     case onlyWhenAppActive, activeApplication, applicationScopeHelp, noApplicationsAvailable
     case frameRate, frameRateValue, frameRateHelp, reduceRateWhenIdle, reduceRateWhenIdleHelp
     case notifyWhenIdle, notifyWhenIdleHelp, notifyWhenIdleNote, reduceRateWhenIdleNote
+    case openSourceApplication, openSourceApplicationHelp, hoverPreview, hoverPreviewHelp, opacity, opacityHelp
+    case referenceSize, referenceSizeSmall, referenceSizeMedium, referenceSizeLarge
+    case holdToHide, holdToHideNote
     case settings
     case general
     case keyboardShortcuts, startupAndDock, rechooseArea, captureArea
@@ -204,6 +207,7 @@ struct FuwaCopy: Sendable {
         base.merging(referenceTranslations(language)) { _, new in new }
             .merging(settingsInteractionTranslations(language)) { _, new in new }
             .merging(pinInteractionTranslations(language)) { _, new in new }
+            .merging(referenceConvenienceTranslations(language)) { _, new in new }
     }
 
     func hasTranslation(for key: FuwaString) -> Bool { translations[key] != nil }

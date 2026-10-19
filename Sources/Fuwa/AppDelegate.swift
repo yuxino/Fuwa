@@ -22,6 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let privacyLifecycle = PrivacyLifecycle()
     private let settingsStore = AppSettingsStore()
     private let launchAtLoginController = LaunchAtLoginController()
+    private let holdToHideController = HoldToHideController(isShortcutRecording: {
+        NSApp?.keyWindow?.firstResponder is ShortcutCaptureNSView
+    })
 
     private var hotKey: GlobalHotKey?
     private var visibilityHotKey: GlobalHotKey?
@@ -83,6 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let model = AppModel(
             languagePreference: settingsStore.language,
             keepInDock: settingsStore.keepInDock,
+            holdToHideEnabled: settingsStore.holdToHideEnabled,
             version: Self.version,
             shortcut: activeShortcut,
             shortcutIsActive: hotKey.currentShortcut != nil,
@@ -102,6 +106,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             settingsStore.keepInDock = enabled
             updateDockPresence()
+        }
+        model.onHoldToHideEnabledChanged = { [weak self] enabled in
+            guard let self else { return }
+            settingsStore.holdToHideEnabled = enabled
+            updateHoldToHideMonitoring()
+        }
+        holdToHideController.onHiddenChanged = { [weak self] hidden in
+            self?.pinCoordinator.setPinsTemporarilyHidden(hidden)
         }
         pinCoordinator.presentationModel = model
         pinCoordinator.frameRateForApplication = { [weak self] bundleIdentifier in
@@ -184,6 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         discardMenuIntent()
         hotKey?.stop()
         visibilityHotKey?.stop()
+        holdToHideController.stop()
         privacyLifecycle.stop()
         pinCoordinator.clearAllImmediately()
         statusBarController?.invalidate()
@@ -383,8 +396,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func configureCoordinatorCallbacks(model: AppModel) {
-        pinCoordinator.onPinsChanged = { [weak model] snapshots in
+        pinCoordinator.onPinsChanged = { [weak self, weak model] snapshots in
             model?.updatePins(snapshots)
+            self?.updateHoldToHideMonitoring()
         }
         pinCoordinator.onFailure = { [weak model] error in
             model?.report(error)
@@ -394,6 +408,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         model.updatePins(pinCoordinator.snapshots)
         model.updatePinsVisibility(pinCoordinator.arePinsHidden)
+        updateHoldToHideMonitoring()
+    }
+
+    private func updateHoldToHideMonitoring() {
+        holdToHideController.configure(
+            isEnabled: !isTerminating && settingsStore.holdToHideEnabled,
+            hasPins: pinCoordinator.pinCount > 0
+        )
     }
 
     private func configurePrivacyLifecycle() {

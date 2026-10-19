@@ -49,6 +49,7 @@ final class CaptureView: NSView {
             referenceBorderLayer.isHidden = !isReferencePresentation
             layer?.backgroundColor = isReferencePresentation ? NSColor.windowBackgroundColor.cgColor : NSColor.clear.cgColor
             window?.invalidateCursorRects(for: self)
+            updateTrackingAreas()
             needsLayout = true
         }
     }
@@ -56,6 +57,15 @@ final class CaptureView: NSView {
     var onReferenceFrameChanged: (() -> Void)?
     var onRequestControls: (() -> Void)?
     var controlsTitle = ""
+    var onReferenceHoverChanged: ((Bool) -> Void)?
+    var onOpenSourceApplication: (() -> Void)?
+    var sourceApplicationTitle = ""
+    var sourceApplicationHelp = ""
+    var canOpenSourceApplication = true
+    var onReferenceSizeSelected: ((CGFloat) -> Void)?
+    var referenceSizeTitle = ""
+    var referenceSizeTitles: [String] = []
+    private var referenceTrackingArea: NSTrackingArea?
     private var resizeStart: (location: NSPoint, frame: NSRect)?
 
     override init(frame frameRect: NSRect) {
@@ -137,6 +147,23 @@ final class CaptureView: NSView {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { isReferencePresentation }
 
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let referenceTrackingArea { removeTrackingArea(referenceTrackingArea) }
+        referenceTrackingArea = nil
+        guard isReferencePresentation else { return }
+        let area = NSTrackingArea(rect: .zero,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        referenceTrackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        if isReferencePresentation { onReferenceHoverChanged?(true) }
+    }
+
+    override func mouseExited(with event: NSEvent) { onReferenceHoverChanged?(false) }
+
     var resizeHandleRect: CGRect {
         CGRect(x: max(bounds.minX, bounds.maxX - 24), y: bounds.minY,
                width: min(24, bounds.width), height: min(24, bounds.height))
@@ -153,22 +180,57 @@ final class CaptureView: NSView {
 
     override func menu(for event: NSEvent) -> NSMenu? {
         guard isReferencePresentation, onRequestControls != nil else { return nil }
+        onReferenceHoverChanged?(false)
         let menu = NSMenu()
+        menu.autoenablesItems = false
         let controls = NSMenuItem(title: controlsTitle, action: #selector(requestControls), keyEquivalent: "")
         controls.target = self
         menu.addItem(controls)
+        if onReferenceSizeSelected != nil, referenceSizeTitles.count == 3 {
+            let sizes = NSMenu(title: referenceSizeTitle)
+            for (index, title) in referenceSizeTitles.enumerated() {
+                let item = NSMenuItem(title: title, action: #selector(selectReferenceSize(_:)), keyEquivalent: "")
+                item.target = self
+                item.tag = index
+                sizes.addItem(item)
+            }
+            let item = NSMenuItem(title: referenceSizeTitle, action: nil, keyEquivalent: "")
+            item.submenu = sizes
+            menu.addItem(item)
+        }
+        if onOpenSourceApplication != nil {
+            menu.addItem(.separator())
+            let item = NSMenuItem(title: sourceApplicationTitle, action: #selector(openSourceApplication), keyEquivalent: "")
+            item.target = self
+            item.isEnabled = canOpenSourceApplication
+            item.toolTip = sourceApplicationHelp
+            menu.addItem(item)
+        }
         return menu
     }
 
     @objc private func requestControls() { onRequestControls?() }
 
+    @objc private func openSourceApplication() { onOpenSourceApplication?() }
+
+    @objc private func selectReferenceSize(_ sender: NSMenuItem) {
+        let fractions: [CGFloat] = [0.2, 0.35, 0.5]
+        guard fractions.indices.contains(sender.tag) else { return }
+        onReferenceSizeSelected?(fractions[sender.tag])
+    }
+
     override func mouseDown(with event: NSEvent) {
         guard isReferencePresentation, let window else { return }
+        onReferenceHoverChanged?(false)
         if event.modifierFlags.contains(.control), let menu = menu(for: event) {
             NSMenu.popUpContextMenu(menu, with: event, for: self)
             return
         }
         let point = convert(event.locationInWindow, from: nil)
+        if event.clickCount == 2, canOpenSourceApplication, !resizeHandleRect.contains(point) {
+            onOpenSourceApplication?()
+            return
+        }
         if resizeHandleRect.contains(point) {
             resizeStart = (NSEvent.mouseLocation, window.frame)
         } else {

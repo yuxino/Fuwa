@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### English
+
+- Independent references can show an enlarged preview on hover and adjust opacity separately.
+- Right-click a reference for small, medium and large sizes, or double-click to bring its source app forward.
+- Optionally hold Control and Option to hide pictures temporarily; releasing either key restores their previous visibility.
+
+### 中文
+
+- 独立参考窗支持悬停放大预览，并可单独调整不透明度。
+- 右键可选择小、中、大尺寸；双击可将来源应用切到前台。
+- 可在设置中启用按住 Control 和 Option 暂时隐藏画面，松开任一键后恢复原来的显示状态。
+
 ## [1.2.2] - 2026-10-15
 
 ### English
