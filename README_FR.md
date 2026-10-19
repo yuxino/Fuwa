@@ -23,33 +23,33 @@
   </p>
 </div>
 
-Fuwa permet d’épingler des fenêtres sur macOS. Gardez une vue en direct d’une image, d’un document ou d’un tutoriel au premier plan pendant que vous travaillez dans une autre application. Les clics traversent la vue épinglée pour atteindre l’application située dessous.
+Fuwa permet d’épingler des fenêtres sur macOS. Gardez une image, un document ou un tutoriel en vue pendant que vous travaillez dans une autre application. L’image peut suivre sa fenêtre source ou prendre place où vous le souhaitez dans une fenêtre de référence indépendante.
 
 ## Utilisation
 
-1. Lancez Fuwa et placez la fenêtre souhaitée au premier plan.
-2. Appuyez sur `⌥⌘P` pour l’épingler. Appuyez à nouveau lorsque la même fenêtre source est au premier plan pour la détacher.
-3. Gérez les fenêtres épinglées et mettez leur image en pause ou reprenez la lecture depuis la barre des menus.
+1. Lancez Fuwa et suivez « Premiers pas » pour autoriser l’enregistrement de l’écran. Vous pouvez ignorer le guide et le rouvrir plus tard depuis la barre latérale.
+2. Choisissez une fenêtre dans la liste avec vignettes, ou placez la fenêtre souhaitée au premier plan et appuyez sur `⌥⌘P` pour l’épingler.
+3. Gérez les images et mettez leur lecture en pause ou reprenez-la depuis la barre des menus. Ouvrez les commandes avec la roue dentée pour passer en mode fenêtre de référence.
 
 ## Fonctionnalités
 
-- Épinglez plusieurs fenêtres et mettez leur image en pause sans interrompre les fenêtres d’origine.
-- Prise en charge des fenêtres d’applications et des aperçus système d’images et de documents.
-- Raccourci clavier personnalisable.
+- Épinglez plusieurs fenêtres d’applications ou aperçus système d’images et de documents. Mettre leur image en pause n’interrompt pas les fenêtres d’origine.
+- Les vues qui suivent leur fenêtre source laissent passer les clics. Les références indépendantes peuvent être déplacées, redimensionnées, recadrées et rangées dans un coin de leur écran.
+- Réglez l’opacité d’une référence ; elle redevient entièrement opaque au survol. Avec l’agrandissement au survol activé, un aperçu plus grand apparaît à côté si l’espace le permet.
+- Masquez ou affichez toutes les images à tout moment. Vous pouvez aussi activer le masquage en maintenant `⌃⌥` dans les réglages ; relâcher les touches rétablit l’état d’affichage précédent. Cette option est désactivée par défaut.
+- Personnalisez les raccourcis pour épingler les fenêtres et masquer ou afficher les images.
 - Interface en chinois simplifié, chinois traditionnel, anglais, japonais, coréen, français et allemand. Suivez la langue du système ou choisissez-en une dans les réglages.
 - Chaque fenêtre conserve sa qualité d’origine au départ. Cliquez sur sa roue dentée pour réduire sa qualité et sa consommation de mémoire.
-- Épinglez ou choisissez une fenêtre et mettez son image en pause depuis la barre des menus. Les réglages s’ouvrent dans la fenêtre principale.
-- Choisissez d’afficher ou non l’icône dans le Dock. Ce réglage ne ferme pas les fenêtres ouvertes.
-- Les vues qui suivent leur fenêtre source laissent passer les clics. Les fenêtres de référence indépendantes peuvent être déplacées, redimensionnées et recadrées séparément.
-- Les images et les métadonnées des fenêtres restent sur votre ordinateur, sans envoi, analyse ni télémétrie.
+- Les actions courantes sont accessibles dans la barre des menus ; les réglages s’ouvrent dans la fenêtre principale. Choisissez d’afficher ou non l’icône dans le Dock sans fermer les fenêtres ouvertes.
+- Les images et les métadonnées des fenêtres restent sur votre ordinateur, sans envoi, analyse ni télémétrie. L’autorisation d’accessibilité n’est pas nécessaire.
 - Vérifiez, téléchargez et installez les mises à jour après vérification de leur signature Ed25519 depuis les réglages. Aucune vérification ni installation automatique en arrière-plan.
+
+Consultez le [guide d’utilisation (anglais et chinois simplifié)](docs/floating-reference.md) pour les tailles des références, le double-clic permettant de revenir à l’application source, les conditions de visibilité et les autres commandes.
 
 ## Configuration requise
 
-Fuwa 1.2.0 propose des fenêtres de référence indépendantes, la sélection d’une zone, le masquage et l’affichage ainsi que des conditions de visibilité. Consultez le [guide d’utilisation (anglais et chinois simplifié)](docs/floating-reference.md).
-
 - macOS 14 ou version ultérieure. Le paquet distribué inclut arm64 (Apple Silicon) et x86_64 (Intel). La validation sur un Mac Intel physique reste à effectuer.
-- Autorisation d’enregistrement de l’écran, demandée uniquement lors de la première tentative d’épinglage.
+- Autorisation d’enregistrement de l’écran, demandée lorsque vous choisissez de l’accorder dans « Premiers pas » ou lors de votre première tentative d’épinglage. Le simple lancement de Fuwa ne déclenche pas de demande.
 
 ## Installation
 

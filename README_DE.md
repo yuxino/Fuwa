@@ -23,33 +23,33 @@
   </p>
 </div>
 
-Fuwa hält Fenster auf macOS im Vordergrund. Behalten Sie ein Livebild einer Abbildung, eines Dokuments oder einer Anleitung im Blick, während Sie in einer anderen App arbeiten. Klicks werden durch das angeheftete Bild an die darunterliegende App weitergegeben.
+Fuwa hält Fenster auf macOS im Vordergrund. Behalten Sie ein Bild, ein Dokument oder eine Anleitung im Blick, während Sie in einer anderen App arbeiten. Das Bild kann seinem Quellfenster folgen oder als unabhängiges Referenzfenster dort stehen, wo Sie es brauchen.
 
 ## Verwendung
 
-1. Starten Sie Fuwa und bringen Sie das gewünschte Fenster in den Vordergrund.
-2. Drücken Sie `⌥⌘P`, um es anzuheften. Drücken Sie das Tastenkürzel erneut, während dasselbe Quellfenster im Vordergrund ist, um es zu lösen.
-3. Verwalten Sie angeheftete Fenster über die Menüleiste und pausieren Sie deren Bild oder setzen Sie die Wiedergabe fort.
+1. Starten Sie Fuwa und erlauben Sie die Bildschirmaufnahme über „Erste Schritte“. Sie können die Anleitung überspringen und später über die Seitenleiste wieder öffnen.
+2. Wählen Sie ein Fenster aus der Liste mit Vorschaubildern oder bringen Sie es in den Vordergrund und drücken Sie `⌥⌘P`, um es anzuheften.
+3. Verwalten Sie die Bilder über die Menüleiste und pausieren Sie die Wiedergabe oder setzen Sie sie fort. Öffnen Sie die Steuerelemente über das Zahnrad, um zum Referenzfenster zu wechseln.
 
 ## Funktionen
 
-- Mehrere Fenster gleichzeitig anheften und ihre Bilder pausieren, während die ursprünglichen Fenster weiterlaufen.
-- Unterstützung für App-Fenster und die Systemvorschau von Bildern und Dokumenten.
-- Anpassbares Tastenkürzel.
+- Mehrere App-Fenster oder Systemvorschauen von Bildern und Dokumenten anheften. Beim Pausieren ihrer Bilder laufen die ursprünglichen Fenster weiter.
+- Bilder, die ihrem Quellfenster folgen, lassen Klicks durch. Unabhängige Referenzfenster lassen sich verschieben, skalieren, zuschneiden und in einer Ecke ihres jeweiligen Bildschirms anordnen.
+- Passen Sie die Deckkraft einer Referenz an; unter dem Mauszeiger wird sie vollständig deckend. Bei aktivierter Vergrößerung erscheint daneben eine größere Vorschau, sofern genug Platz vorhanden ist.
+- Alle Bilder jederzeit aus- oder einblenden. In den Einstellungen können Sie das Ausblenden beim Gedrückthalten von `⌃⌥` aktivieren; beim Loslassen gilt wieder der vorherige Sichtbarkeitszustand. Diese Option ist standardmäßig aus.
+- Tastenkürzel zum Anheften sowie zum Aus- und Einblenden anpassen.
 - Oberfläche auf vereinfachtem Chinesisch, traditionellem Chinesisch, Englisch, Japanisch, Koreanisch, Französisch und Deutsch. Folgen Sie der Systemsprache oder wählen Sie eine Sprache in den Einstellungen.
 - Jedes Fenster startet mit der ursprünglichen Bildqualität. Über das Zahnrad daneben können Sie die Qualität dieses Fensters und damit den Speicherbedarf verringern.
-- Fenster über die Menüleiste anheften oder auswählen und deren Bild pausieren. Die Einstellungen öffnen sich im Hauptfenster.
-- Wählen Sie, ob Fuwa im Dock erscheint. Der Schalter ändert nur das Symbol und schließt keine geöffneten Fenster.
-- Bilder, die ihrem Quellfenster folgen, lassen Klicks durch. Unabhängige Referenzfenster lassen sich separat verschieben, skalieren und auf einen Bildausschnitt begrenzen.
-- Fensterbilder und Metadaten bleiben auf Ihrem Computer. Es gibt keine Uploads, Analysen oder Telemetrie.
+- Häufige Aktionen sind über die Menüleiste erreichbar; die Einstellungen öffnen sich im Hauptfenster. Wählen Sie, ob Fuwa im Dock erscheint, ohne geöffnete Fenster zu schließen.
+- Fensterbilder und Metadaten bleiben auf Ihrem Computer. Es gibt keine Uploads, Analysen oder Telemetrie. Eine Berechtigung für Bedienungshilfen ist nicht erforderlich.
 - Updates in den Einstellungen suchen, herunterladen und nach Prüfung der Ed25519-Signatur installieren. Keine automatische Suche oder Installation im Hintergrund.
+
+Größen für Referenzfenster, die Rückkehr zur Quell-App per Doppelklick, Sichtbarkeitsregeln und weitere Steuerelemente beschreibt die [Anleitung (Englisch und vereinfachtes Chinesisch)](docs/floating-reference.md).
 
 ## Voraussetzungen
 
-Fuwa 1.2.0 bietet unabhängige Referenzfenster, Bereichsauswahl, Ein- und Ausblenden sowie Sichtbarkeitsregeln. Einzelheiten finden Sie in der [Anleitung (Englisch und vereinfachtes Chinesisch)](docs/floating-reference.md).
-
 - macOS 14 oder neuer. Das veröffentlichte Paket enthält arm64 (Apple Silicon) und x86_64 (Intel). Die Prüfung auf einem physischen Intel-Mac steht noch aus.
-- Berechtigung zur Bildschirmaufnahme, die erst beim ersten Versuch, ein Fenster anzuheften, angefordert wird.
+- Berechtigung zur Bildschirmaufnahme. Sie wird angefordert, wenn Sie sie unter „Erste Schritte“ erlauben oder erstmals ein Fenster anheften möchten. Beim bloßen Starten von Fuwa erscheint keine Berechtigungsanfrage.
 
 ## Installation
 

@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-20
+
 ### English
 
 - A compact Getting Started guide explains permission, window selection and reference controls, and remains available in the sidebar.
@@ -13,14 +15,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Independent references can show an adjacent enlarged preview on hover and adjust opacity separately. Hovering makes a translucent reference clear again.
 - Right-click a reference for small, medium and large sizes, or double-click to bring its source app forward.
 - Optionally hold Control and Option to hide pictures temporarily; releasing either key restores their previous visibility.
+- Requires macOS 14 or later. Update from Settings or install the DMG. The universal app retains its project signature and is not Apple Developer ID signed or notarized. Capture and reference controls were checked on Apple Silicon; Intel hardware, physical multi-display use, hover and held-key interactions, and a complete updater installation were not fully revalidated.
 
 ### 中文
 
-- 新增简洁的使用指南，说明授权、选窗和参考窗操作，可随时从侧栏重新打开。
+- 简洁的使用指南说明授权、选窗和参考窗操作，可随时从侧栏重新打开。
 - 选窗列表显示缩略图，参考窗可按各自屏幕整理到任意角落。
 - 独立参考窗支持悬停时在旁边放大预览，并可单独调整不透明度；鼠标移入时恢复清晰。
 - 右键可选择小、中、大尺寸；双击可将来源应用切到前台。
 - 可在设置中启用按住 Control 和 Option 暂时隐藏画面，松开任一键后恢复原来的显示状态。
+- 需要 macOS 14 或更新版本。可在设置中更新，或使用 DMG 安装。通用包沿用项目签名，未使用 Apple Developer ID 签名或 Apple 公证。已在 Apple Silicon 上检查捕获及参考窗操作；Intel 实机、实体多屏、悬停与按住快捷键的交互，以及完整更新安装流程未全部重新验证。
 
 ## [1.2.2] - 2026-10-15
 

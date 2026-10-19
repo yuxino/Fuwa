@@ -23,34 +23,33 @@
   </p>
 </div>
 
-Fuwa is a macOS window pinning app. Keep a live view of an image, document, or tutorial on top while you work in another app. The pinned view lets clicks pass through to the app underneath.
+Fuwa is a macOS window pinning app. Keep an image, document, or tutorial in view while you work in another app. The picture can follow its source window or sit wherever you need it as an independent reference.
 
 ## Use
 
-1. Launch Fuwa and bring the target window to the front.
-2. Press `⌥⌘P` to pin it. Press the shortcut again while the same source is in front to unpin.
-3. Manage pins and pause or resume their pictures from the menu bar.
+1. Launch Fuwa and follow Getting Started to allow Screen Recording. You can skip the guide and reopen it from the sidebar later.
+2. Choose a window from the thumbnail list, or bring the target window to the front and press `⌥⌘P` to pin it.
+3. Manage pictures and pause or resume playback from the menu bar. Open the gear controls to switch a picture to Reference Window mode.
 
 ## Features
 
-- Pin multiple windows and pause their pictures while the original windows keep running.
-- Support for application windows and system previews of images and documents.
-- Customizable keyboard shortcut.
+- Pin multiple app windows or system previews of images and documents. Pausing their pictures leaves the original windows running.
+- Pictures that follow their source let clicks pass through. Independent references can be moved, resized, cropped, and arranged in a corner of their current display.
+- Adjust a reference’s opacity; pointing at it restores full clarity. With hover enlargement enabled, a larger preview appears beside it when there is enough room.
+- Hide or show all pictures whenever needed. Optionally enable **Hold ⌃⌥ to hide pictures** in Settings; releasing the keys restores the previous visibility. This setting is off by default.
+- Customize the shortcuts for pinning windows and hiding or showing pictures.
 - Interface languages: English, Simplified Chinese, Traditional Chinese, Japanese, Korean, French, and German. Follow the system language or choose one in Settings.
 - Each pinned window starts at original quality. Click its gear to lower that window’s quality and use less memory.
-- Pin or choose a window and pause its pinned picture from the menu bar. Settings open in the main window.
-- Choose whether Fuwa appears in the Dock. The switch only changes the icon and keeps open windows visible.
-- Pictures that follow their source let clicks pass through. Independent references can be moved, resized and cropped separately.
-- Window pixels and metadata stay on your computer, with no uploads, analytics, or telemetry.
+- Common actions are available from the menu bar; Settings open in the main window. Choose whether Fuwa appears in the Dock without closing open windows.
+- Window pixels and metadata stay on your computer, with no uploads, analytics, or telemetry. Accessibility permission is not required.
 - Check, download, and install Ed25519-verified updates from Settings. No automatic background checks or installs.
+
+See the [workflow guide](docs/floating-reference.md) for reference sizes, double-clicking to return to the source app, visibility rules, and other controls.
 
 ## Requirements
 
-Fuwa 1.2.0 includes independent references, region capture, hide/show and visibility
-options. See the [workflow guide](docs/floating-reference.md).
-
 - macOS 14 or later; the release archive includes arm64 (Apple silicon) and x86_64 (Intel). Physical Intel Mac acceptance is still pending.
-- Screen Recording permission, requested only on the first pin attempt.
+- Screen Recording permission, requested when you choose to authorize it in Getting Started or first try to pin a window. Launching Fuwa does not automatically prompt for permission.
 
 ## Install
 

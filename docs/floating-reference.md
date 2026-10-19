@@ -1,6 +1,6 @@
 # Floating references / 参考窗口
 
-Available in Fuwa 1.2.0 / Fuwa 1.2.0 起提供。
+Reference workflows in Fuwa 1.3.0 / Fuwa 1.3.0 参考窗使用说明。
 
 ## English
 
@@ -39,7 +39,7 @@ playback and group navigation remain visible when the options need scrolling.
   about 15 seconds without detected changes. It disappears when the picture
   changes. Check task progress in the original app.
 
-### Upcoming reference controls
+### Reference controls
 
 In **Reference Window** mode, Visibility controls include **Opacity** (20–100%)
 and an optional **Enlarge on hover** setting. Hover for a moment to see a larger
@@ -103,7 +103,7 @@ content; pin it again after those privacy boundaries.
 - 开启**显示画面未变化提示**后，约 15 秒未检测到变化时，浮窗左上角显示
   「画面未变化」。画面变化后提示消失；任务进度请到原应用确认。
 
-### 即将提供的参考窗控件
+### 参考窗控件
 
 在**独立参考窗**模式下，显示控件提供 **20–100% 不透明度**和可选的
 **悬停时放大预览**。鼠标停留片刻后，在同一屏幕、参考窗旁边显示更大的预览，
