@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import Testing
 import FuwaCore
@@ -43,23 +44,41 @@ struct PresentationTests {
         #expect(!liveMenu.items.contains(where: { $0.title == "Go to Original Window" }))
     }
 
-    @Test func clearAllPreventsConcurrentPinCommands() async {
+    @Test func clearAllPreventsConcurrentPinCommands() async throws {
         let model = AppModel()
         model.updatePins([pin(.live)])
+        let clearStarted = AsyncStream<CheckedContinuation<Void, Never>>.makeStream()
+        let clearFinished = AsyncStream<Void>.makeStream()
+        let observation = model.$isClearingAll.dropFirst().filter { !$0 }.sink { _ in
+            clearFinished.continuation.yield(())
+            clearFinished.continuation.finish()
+        }
+        defer { observation.cancel() }
         var requestedPin = false
         var actions = FuwaAppActions()
         actions.beginPinFrontWindow = { requestedPin = true; return {} }
-        actions.clearAll = { try await Task.sleep(for: .milliseconds(20)) }
+        actions.clearAll = {
+            await withCheckedContinuation { continuation in
+                clearStarted.continuation.yield(continuation)
+                clearStarted.continuation.finish()
+            }
+        }
         model.configure(actions: actions)
         model.clearAll()
+        #expect(model.isClearingAll)
         model.pinFrontWindow()
         #expect(!requestedPin)
-        // Wait for completion rather than assuming the main actor has run
-        // both tasks within 40 ms on a loaded CI runner.
-        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
-        while model.isClearingAll && ContinuousClock.now < deadline {
-            try? await Task.sleep(for: .milliseconds(10))
-        }
+
+        // Hold the action open explicitly, then observe the model's completion
+        // instead of putting a wall-clock deadline on main-actor scheduling.
+        var started = clearStarted.stream.makeAsyncIterator()
+        let finishClear = try #require(await started.next())
+        #expect(model.isClearingAll)
+        model.pinFrontWindow()
+        #expect(!requestedPin)
+        finishClear.resume()
+        var finished = clearFinished.stream.makeAsyncIterator()
+        await finished.next()
         #expect(!model.isClearingAll)
     }
 
