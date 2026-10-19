@@ -22,11 +22,11 @@ struct ReferenceInteractionTests {
         view.sourceApplicationTitle = "Open Source App"
         var controls = 0, source = 0
         var sizes: [CGFloat] = []
-        var hover: [Bool] = []
+        var interactions = 0
         view.onRequestControls = { controls += 1 }
         view.onOpenSourceApplication = { source += 1 }
         view.onReferenceSizeSelected = { sizes.append($0) }
-        view.onReferenceHoverChanged = { hover.append($0) }
+        view.onReferenceInteraction = { interactions += 1 }
         let click = try #require(NSEvent.mouseEvent(with: .rightMouseDown, location: CGPoint(x: 100, y: 100),
             modifierFlags: [], timestamp: 0, windowNumber: panel.windowNumber, context: nil,
             eventNumber: 1, clickCount: 1, pressure: 1))
@@ -38,7 +38,7 @@ struct ReferenceInteractionTests {
         menu.performActionForItem(at: 3)
         #expect(controls == 1 && source == 1)
         #expect(sizes == [0.2, 0.35, 0.5])
-        #expect(hover.last == false)
+        #expect(interactions == 1)
         let doubleClick = try #require(NSEvent.mouseEvent(with: .leftMouseDown,
             location: CGPoint(x: 100, y: 100), modifierFlags: [], timestamp: 0,
             windowNumber: panel.windowNumber, context: nil, eventNumber: 2, clickCount: 2, pressure: 1))
@@ -49,6 +49,56 @@ struct ReferenceInteractionTests {
         #expect(!unavailableMenu.items[3].isEnabled)
         #expect(!panel.isVisible)
         #expect(app.keyWindow !== panel)
+    }
+
+    @Test func hoverRestoresOpacityIndependentlyOfPreviewAndResetsWithPresentation() throws {
+        _ = NSApplication.shared
+        let panel = NSPanel(contentRect: CGRect(x: 0, y: 0, width: 320, height: 180),
+            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.isReleasedWhenClosed = false
+        let view = CaptureView(frame: panel.contentLayoutRect)
+        panel.contentView = view
+        defer { panel.contentView = nil; panel.close() }
+        view.referenceOpacity = 0.35
+        view.isReferencePresentation = true
+        view.referenceHoverEnabled = true
+        #expect(abs(panel.alphaValue - 0.35) < 0.00001)
+        let event = try #require(NSEvent.enterExitEvent(with: .mouseEntered,
+            location: .zero, modifierFlags: [], timestamp: 0, windowNumber: panel.windowNumber,
+            context: nil, eventNumber: 0, trackingNumber: 0, userData: nil))
+        // No preview callback is installed: hover clarity is an independent behavior.
+        view.mouseEntered(with: event)
+        #expect(view.isReferenceHovered)
+        #expect(panel.alphaValue == 1)
+        view.referenceOpacity = 0.6
+        #expect(panel.alphaValue == 1)
+        view.mouseExited(with: event)
+        #expect(abs(panel.alphaValue - 0.6) < 0.00001)
+
+        view.mouseEntered(with: event)
+        view.onRequestControls = {}
+        _ = view.menu(for: event)
+        #expect(panel.alphaValue == 1)
+        view.referenceHoverEnabled = false
+        #expect(!view.isReferenceHovered)
+        #expect(abs(panel.alphaValue - 0.6) < 0.00001)
+        view.mouseEntered(with: event)
+        #expect(abs(panel.alphaValue - 0.6) < 0.00001)
+
+        view.referenceHoverEnabled = true
+        view.mouseEntered(with: event)
+        view.isReferencePresentation = false
+        #expect(!view.isReferenceHovered)
+        #expect(panel.alphaValue == 1)
+        view.mouseEntered(with: event)
+        #expect(!view.isReferenceHovered)
+        view.isReferencePresentation = true
+        #expect(abs(panel.alphaValue - 0.6) < 0.00001)
+        view.mouseEntered(with: event)
+        #expect(panel.alphaValue == 1)
+        panel.contentView = nil
+        #expect(!view.isReferenceHovered)
+        #expect(abs(panel.alphaValue - 0.6) < 0.00001)
     }
 
     @Test func dismissedPreviewClearsPixelsAndCannotCaptureInput() throws {

@@ -12,6 +12,7 @@ final class AppSettingsStore {
         static let holdToHideEnabled = "holdToHideEnabled"
         static let applicationFrameRates = "applicationFrameRates"
         static let didRequestScreenRecording = "didRequestScreenRecording"
+        static let hasSeenGuide = "hasSeenGuide"
     }
 
     private let defaults: UserDefaults
@@ -61,6 +62,11 @@ final class AppSettingsStore {
     var didRequestScreenRecording: Bool {
         get { defaults.bool(forKey: Key.didRequestScreenRecording) }
         set { defaults.set(newValue, forKey: Key.didRequestScreenRecording) }
+    }
+
+    var hasSeenGuide: Bool {
+        get { defaults.bool(forKey: Key.hasSeenGuide) }
+        set { defaults.set(newValue, forKey: Key.hasSeenGuide) }
     }
 
     var visibilityShortcut: KeyboardShortcut {

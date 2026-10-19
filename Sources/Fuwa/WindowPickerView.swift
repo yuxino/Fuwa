@@ -16,6 +16,10 @@ struct FuwaWindowChoice: Identifiable, Sendable {
             throw TargetResolutionError.screenRecordingPermissionDenied
         }
         let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
+        try Task.checkCancellation()
+        guard CGPreflightScreenCaptureAccess() else {
+            throw TargetResolutionError.screenRecordingPermissionDenied
+        }
         let inventory = try WindowInventory.capture()
         let context = SelectionContext(selfProcessID: ProcessInfo.processInfo.processIdentifier,
                                        displayBounds: inventory.activeDisplayBounds)
@@ -40,8 +44,16 @@ struct WindowPickerView: View {
     @State private var loading = true
     @State private var search = ""
     @State private var error: String?
+    @ObservedObject private var thumbnails: WindowThumbnailController
+    @State private var refreshTask: Task<Void, Never>?
+    @State private var refreshRevision = UUID()
     @FocusState private var searchFocused: Bool
     private var copy: FuwaCopy { model.copy }
+
+    init(model: AppModel) {
+        self.model = model
+        self.thumbnails = model.windowThumbnails
+    }
 
     private var filtered: [FuwaWindowChoice] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -53,7 +65,7 @@ struct WindowPickerView: View {
             HStack {
                 Text(copy.text(.chooseWindow)).font(.title3.weight(.semibold))
                 Spacer()
-                Button(copy.text(.cancel)) { dismiss() }
+                Button(copy.text(.cancel)) { stopPickerWork(); dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
             TextField(copy.text(.searchWindows), text: $search)
@@ -67,7 +79,7 @@ struct WindowPickerView: View {
                     if model.screenRecordingPermission != .granted {
                         Button(copy.text(.openSettings), action: model.openScreenRecordingSettings)
                     }
-                    Button(copy.text(.refreshWindows)) { Task { await refresh() } }
+                    Button(copy.text(.refreshWindows), action: refresh)
                 }
                 .frame(maxHeight: .infinity, alignment: .top)
             } else {
@@ -76,11 +88,20 @@ struct WindowPickerView: View {
                         ForEach(filtered) { choice in
                             let pinned = model.pins.contains { $0.sourceWindowID == choice.id }
                             Button {
+                                stopPickerWork()
                                 model.pinWindow(choice)
                                 dismiss()
                             } label: {
                                 HStack(spacing: 12) {
-                                    FuwaApplicationIcon(bundleIdentifier: choice.bundleIdentifier, applicationName: choice.applicationName)
+                                    ZStack {
+                                        FuwaApplicationIcon(bundleIdentifier: choice.bundleIdentifier, applicationName: choice.applicationName, size: 24)
+                                        WindowThumbnailView(controller: thumbnails, descriptor: choice.intent.descriptor)
+                                    }
+                                    .frame(width: 96, height: 60)
+                                    .background(FuwaAppearance.sidebar)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(FuwaAppearance.border))
+                                    .accessibilityHidden(true)
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(choice.title).font(.body.weight(.medium)).lineLimit(1)
                                         Text(choice.applicationName).font(.caption).foregroundStyle(.secondary)
@@ -95,6 +116,8 @@ struct WindowPickerView: View {
                             .buttonStyle(FuwaRowButtonStyle(selected: pinned))
                             .accessibilityAddTraits(pinned ? .isSelected : [])
                             .disabled(pinned || model.isPinningFrontWindow || model.isClearingAll)
+                            .onAppear { thumbnails.request(choice.intent.descriptor) }
+                            .onDisappear { thumbnails.release(choice.intent.descriptor) }
                             Divider()
                         }
                         if filtered.isEmpty {
@@ -102,26 +125,50 @@ struct WindowPickerView: View {
                         }
                     }
                 }
-                Button(copy.text(.refreshWindows)) { Task { await refresh() } }
+                Button(copy.text(.refreshWindows), action: refresh)
             }
         }
         .padding(24)
         .frame(width: 480, height: 400)
         .fuwaLightSurface()
-        .task { searchFocused = true; await refresh() }
+        .onAppear {
+            searchFocused = true
+            thumbnails.start()
+            refresh()
+        }
+        .onDisappear(perform: stopPickerWork)
+        .onChange(of: thumbnails.privacyInvalidated) { _, invalidated in
+            if invalidated { stopPickerWork(); dismiss() }
+        }
     }
 
-    private func refresh() async {
-        guard !Task.isCancelled else { return }
+    private func refresh() {
+        guard thumbnails.isActive else { return }
+        refreshTask?.cancel()
+        let revision = UUID()
+        refreshRevision = revision
+        thumbnails.reset()
+        choices = []
         loading = true
         error = nil
-        defer { loading = false }
-        do {
-            let result = try await FuwaWindowChoice.available()
-            guard !Task.isCancelled else { return }
-            choices = result
-        } catch {
-            self.error = FuwaErrorMessage.localizedDescription(for: error, language: copy.language)
+        refreshTask = Task { @MainActor in
+            defer { if refreshRevision == revision { loading = false } }
+            do {
+                let result = try await FuwaWindowChoice.available()
+                guard !Task.isCancelled, thumbnails.isActive, refreshRevision == revision else { return }
+                choices = result
+            } catch {
+                guard !Task.isCancelled, thumbnails.isActive, refreshRevision == revision else { return }
+                self.error = FuwaErrorMessage.localizedDescription(for: error, language: copy.language)
+            }
         }
+    }
+
+    private func stopPickerWork() {
+        refreshRevision = UUID()
+        refreshTask?.cancel()
+        refreshTask = nil
+        thumbnails.stop()
+        choices = []
     }
 }

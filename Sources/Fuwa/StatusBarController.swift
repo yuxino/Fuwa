@@ -1,4 +1,5 @@
 import AppKit
+import FuwaCore
 
 @MainActor
 final class StatusBarController: NSObject, NSMenuDelegate {
@@ -107,6 +108,19 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             if model.visibilityShortcutIsActive { visibility.title += "  \(model.visibilityShortcut.displayString)" }
             visibility.toolTip = model.copy.text(.visibilityShortcutNote)
             menu.addItem(visibility)
+            if model.canArrangeReferences {
+                let arrange = NSMenuItem(title: model.copy.text(.arrangeReferences), action: nil, keyEquivalent: "")
+                arrange.identifier = NSUserInterfaceItemIdentifier(FuwaString.arrangeReferences.rawValue)
+                let corners = NSMenu()
+                for corner in ReferenceArrangementCorner.allCases {
+                    let option = NSMenuItem(title: model.copy.arrangementTitle(corner), action: #selector(arrangeReferences(_:)), keyEquivalent: "")
+                    option.target = self
+                    option.representedObject = corner.rawValue
+                    corners.addItem(option)
+                }
+                arrange.submenu = corners
+                menu.addItem(arrange)
+            }
         }
         menu.addItem(.separator())
         menu.addItem(heading(model.pins.isEmpty ? model.copy.text(.emptyTitle) : model.copy.pinsCount(model.pins.count)))
@@ -140,6 +154,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         settings.keyEquivalentModifierMask = .command
         menu.addItem(settings)
         menu.addItem(item(.about, #selector(about)))
+        menu.addItem(item(.gettingStarted, #selector(openGuide)))
         menu.addItem(.separator())
         let quit = item(.quit, #selector(quit))
         quit.keyEquivalent = "q"
@@ -170,6 +185,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func openSettings() { model.showSettings(); model.openMainWindow() }
     @objc private func openNotice() { model.openMainWindow() }
     @objc private func about() { model.showAbout() }
+    @objc private func openGuide() { model.showGuide(); model.openMainWindow() }
+    @objc private func arrangeReferences(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? String, let corner = ReferenceArrangementCorner(rawValue: value) else { return }
+        model.arrangeReferences(in: corner)
+    }
     @objc private func clearAll() { model.clearAll() }
     @objc private func togglePinsVisibility() { model.togglePinsVisibility() }
     @objc private func quit() { model.quit() }

@@ -6,6 +6,7 @@ import FuwaCore
 enum FuwaMainRoute: Equatable {
     case pins
     case settings
+    case guide
 }
 
 enum FuwaPermissionState: Equatable {
@@ -43,6 +44,7 @@ struct FuwaAppActions {
     var updateCaptureQuality: @MainActor (UUID, CaptureQuality) -> Void = { _, _ in }
     var updatePinOptions: @MainActor (UUID, PinOptions) -> Void = { _, _ in }
     var beginCropSelection: @MainActor (UUID) -> Void = { _ in }
+    var arrangeReferences: @MainActor (ReferenceArrangementCorner) -> Void = { _ in }
     var togglePinsVisibility: @MainActor () async throws -> Void = {}
     var unpin: @MainActor (UUID) async throws -> Void = { _ in }
     var clearAll: @MainActor () async throws -> Void = {}
@@ -53,6 +55,7 @@ struct FuwaAppActions {
     var updateLaunchAtLogin: @MainActor (Bool) async throws
         -> FuwaLaunchAtLoginState = { _ in .disabled }
     var openScreenRecordingSettings: @MainActor () -> Void = {}
+    var requestScreenRecordingPermission: @MainActor () -> Void = {}
     var openLoginItemsSettings: @MainActor () -> Void = {}
     var checkForUpdates: @MainActor () -> Void = {}
     var downloadUpdate: @MainActor () -> Void = {}
@@ -66,6 +69,7 @@ struct FuwaAppActions {
 
 @MainActor
 final class AppModel: ObservableObject {
+    let windowThumbnails = WindowThumbnailController()
     @Published private(set) var copy: FuwaCopy
     @Published private(set) var languagePreference: FuwaLanguagePreference
     @Published private(set) var keepInDock: Bool
@@ -112,6 +116,7 @@ final class AppModel: ObservableObject {
     var onHoldToHideEnabledChanged: ((Bool) -> Void)?
     var onLanguageChanged: ((FuwaLanguagePreference) -> Void)?
     var onStatusPresentationChanged: (() -> Void)?
+    var onGuideDismissed: (() -> Void)?
 
     private var actions: FuwaAppActions
     private var visibilityOperationCount = 0
@@ -184,6 +189,15 @@ final class AppModel: ObservableObject {
         actions.beginCropSelection(id)
     }
 
+    var canArrangeReferences: Bool {
+        !isClearingAll && pins.contains { $0.options.presentationMode == .reference }
+    }
+
+    func arrangeReferences(in corner: ReferenceArrangementCorner) {
+        guard canArrangeReferences else { return }
+        actions.arrangeReferences(corner)
+    }
+
     func updatePinsVisibility(_ hidden: Bool) { arePinsHidden = hidden }
 
     func togglePinsVisibility() {
@@ -239,12 +253,19 @@ final class AppModel: ObservableObject {
     }
 
     func showPins() {
+        if route == .guide { onGuideDismissed?() }
         route = .pins
     }
 
     func showSettings() {
+        if route == .guide { onGuideDismissed?() }
         isChoosingWindow = false
         route = .settings
+    }
+
+    func showGuide() {
+        isChoosingWindow = false
+        route = .guide
     }
 
     func dismissNotice() {
@@ -268,6 +289,11 @@ final class AppModel: ObservableObject {
 
     func openScreenRecordingSettings() {
         actions.openScreenRecordingSettings()
+    }
+
+    func requestScreenRecordingPermission() {
+        guard screenRecordingPermission != .granted else { return }
+        actions.requestScreenRecordingPermission()
     }
 
     func openLoginItemsSettings() {

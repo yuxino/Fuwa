@@ -96,6 +96,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             screenRecordingPermission: screenRecordingPermissionState
         )
         self.model = model
+        model.onGuideDismissed = { [weak self] in self?.settingsStore.hasSeenGuide = true }
+        // Existing users who have already set up capture keep their usual entry point.
+        if !settingsStore.hasSeenGuide && !settingsStore.didRequestScreenRecording
+            && model.screenRecordingPermission != .granted {
+            model.showGuide()
+        }
         model.onLanguageChanged = { [weak self, weak model] preference in
             self?.settingsStore.language = preference
             self?.pinCoordinator.refreshPresentationCopy()
@@ -246,6 +252,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             beginCropSelection: { [weak self] id in
                 self?.pinCoordinator.beginCropSelection(id)
             },
+            arrangeReferences: { [weak self] corner in
+                self?.pinCoordinator.arrangeReferences(in: corner)
+            },
             togglePinsVisibility: { [weak self] in
                 guard let self else { throw FuwaApplicationError.unavailable }
                 try await pinCoordinator.togglePinsVisibility()
@@ -283,6 +292,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             openScreenRecordingSettings: { [weak self] in
                 self?.openPrivacySettings(anchor: "Privacy_ScreenCapture")
+            },
+            requestScreenRecordingPermission: { [weak self] in
+                guard let self, !isTerminating else { return }
+                if !CGPreflightScreenCaptureAccess() {
+                    if SystemPermissionRequestPolicy.action(hasRequestedBefore: settingsStore.didRequestScreenRecording) == .requestSystemPrompt {
+                        settingsStore.didRequestScreenRecording = true
+                        _ = CGRequestScreenCaptureAccess()
+                    } else {
+                        openPrivacySettings(anchor: "Privacy_ScreenCapture")
+                    }
+                }
+                refreshPermissions()
             },
             openLoginItemsSettings: { [weak self] in
                 self?.launchAtLoginController.openSettings()

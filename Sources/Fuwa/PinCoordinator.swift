@@ -145,6 +145,22 @@ final class PinCoordinator {
         sessionsByID[id]?.focusControls()
     }
 
+    func arrangeReferences(in corner: ReferenceArrangementCorner) {
+        let screens = NSScreen.screens.map(\.visibleFrame)
+        var groups: [Int: [(PinSession, CGRect)]] = [:]
+        for id in insertionOrder {
+            guard let session = sessionsByID[id], let frame = session.referenceArrangementFrame,
+                  let screen = FloatingControlsLayout.screenIndex(source: frame, screens: screens) else { continue }
+            groups[screen, default: []].append((session, frame))
+        }
+        for (screen, references) in groups {
+            let frames = ReferenceArrangementGeometry.frames(references.map { $0.1 }, in: screens[screen], corner: corner)
+            for ((session, _), frame) in zip(references, frames) {
+                session.applyReferenceArrangementFrame(frame)
+            }
+        }
+    }
+
     func refreshPresentationCopy() {
         for session in sessionsByID.values { session.refreshPresentationCopy() }
     }

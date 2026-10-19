@@ -22,8 +22,9 @@ Topit and its authors do not sponsor, endorse, or participate in Fuwa.
 
 ## Other product research
 
-PipNow's public website and promotional video were also reviewed as product
-research for reference-window conveniences. Fuwa's implementation, tests,
+PipNow's public website, complete two-minute promotional video, and ordinary
+trial-app onboarding were also reviewed as product research for reference-window
+conveniences. Fuwa's implementation, tests,
 wording and controls were written for this repository. No PipNow source code,
 assets or branding were used. Fuwa keeps its existing shortcuts and uses an
 optional Control–Option hold gesture, without interactive input forwarding.
@@ -44,6 +45,7 @@ Topit 仅用于了解“让窗口内容保持可见”这一通用产品需求�
 
 Fuwa 在 macOS 通过公开 ScreenCaptureKit API 创建自有镜像面板；显示源窗口的操作只调用公开的平台激活 API，不注入输入，也不改变源窗口的真实层级。Topit 及其作者不赞助、背书或参与 Fuwa。
 
-PipNow 的公开官网和宣传视频也用于参考窗便利功能的产品研究。相关实现、测试、
+PipNow 的公开官网、完整两分钟宣传视频及试用版的普通新人引导，也用于参考窗
+便利功能的产品研究。相关实现、测试、
 文案和控件均为本项目独立编写，未使用 PipNow 的源码、素材或品牌元素。
 Fuwa 保留原有快捷键，以可选的 Control–Option 按住手势暂时隐藏画面，不转发输入。

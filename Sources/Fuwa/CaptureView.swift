@@ -44,20 +44,32 @@ final class CaptureView: NSView {
     private var firstFrameBridgeLifecycle = FirstFrameBridgeLifecycle()
     var isReferencePresentation = false {
         didSet {
+            guard oldValue != isReferencePresentation else { return }
+            if !isReferencePresentation { resetReferenceHover() }
             referenceHandleLayer.isHidden = !isReferencePresentation
             referenceHandleBackgroundLayer.isHidden = !isReferencePresentation
             referenceBorderLayer.isHidden = !isReferencePresentation
             layer?.backgroundColor = isReferencePresentation ? NSColor.windowBackgroundColor.cgColor : NSColor.clear.cgColor
             window?.invalidateCursorRects(for: self)
             updateTrackingAreas()
+            updateReferenceOpacity()
             needsLayout = true
         }
     }
+    var referenceOpacity: CGFloat = 1 {
+        didSet { updateReferenceOpacity() }
+    }
+    var referenceHoverEnabled = false {
+        didSet { if !referenceHoverEnabled { resetReferenceHover() } }
+    }
+    private(set) var isReferenceHovered = false
+    private(set) var isReferenceInteracting = false
     var referenceAspect = CGSize(width: 1, height: 1)
     var onReferenceFrameChanged: (() -> Void)?
     var onRequestControls: (() -> Void)?
     var controlsTitle = ""
     var onReferenceHoverChanged: ((Bool) -> Void)?
+    var onReferenceInteraction: (() -> Void)?
     var onOpenSourceApplication: (() -> Void)?
     var sourceApplicationTitle = ""
     var sourceApplicationHelp = ""
@@ -147,22 +159,55 @@ final class CaptureView: NSView {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { isReferencePresentation }
 
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow !== window { resetReferenceHover() }
+        super.viewWillMove(toWindow: newWindow)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        updateReferenceOpacity()
+    }
+
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let referenceTrackingArea { removeTrackingArea(referenceTrackingArea) }
         referenceTrackingArea = nil
         guard isReferencePresentation else { return }
         let area = NSTrackingArea(rect: .zero,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect, .enabledDuringMouseDrag], owner: self)
         addTrackingArea(area)
         referenceTrackingArea = area
     }
 
     override func mouseEntered(with event: NSEvent) {
-        if isReferencePresentation { onReferenceHoverChanged?(true) }
+        setReferenceHovered(true)
     }
 
-    override func mouseExited(with event: NSEvent) { onReferenceHoverChanged?(false) }
+    override func mouseExited(with event: NSEvent) { setReferenceHovered(false) }
+
+    func resetReferenceHover() {
+        isReferenceInteracting = false
+        resizeStart = nil
+        setReferenceHovered(false)
+    }
+
+    func refreshReferenceHover() {
+        let inside = window?.isVisible == true && window?.frame.contains(NSEvent.mouseLocation) == true
+        setReferenceHovered(inside, notifyEvenIfUnchanged: true)
+    }
+
+    private func setReferenceHovered(_ hovering: Bool, notifyEvenIfUnchanged: Bool = false) {
+        let hovering = hovering && isReferencePresentation && referenceHoverEnabled
+        let changed = hovering != isReferenceHovered
+        isReferenceHovered = hovering
+        updateReferenceOpacity()
+        if changed || notifyEvenIfUnchanged { onReferenceHoverChanged?(hovering) }
+    }
+
+    private func updateReferenceOpacity() {
+        window?.alphaValue = isReferencePresentation && !isReferenceHovered ? referenceOpacity : 1
+    }
 
     var resizeHandleRect: CGRect {
         CGRect(x: max(bounds.minX, bounds.maxX - 24), y: bounds.minY,
@@ -180,7 +225,7 @@ final class CaptureView: NSView {
 
     override func menu(for event: NSEvent) -> NSMenu? {
         guard isReferencePresentation, onRequestControls != nil else { return nil }
-        onReferenceHoverChanged?(false)
+        onReferenceInteraction?()
         let menu = NSMenu()
         menu.autoenablesItems = false
         let controls = NSMenuItem(title: controlsTitle, action: #selector(requestControls), keyEquivalent: "")
@@ -221,14 +266,18 @@ final class CaptureView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         guard isReferencePresentation, let window else { return }
-        onReferenceHoverChanged?(false)
+        onReferenceInteraction?()
+        isReferenceInteracting = true
         if event.modifierFlags.contains(.control), let menu = menu(for: event) {
             NSMenu.popUpContextMenu(menu, with: event, for: self)
+            isReferenceInteracting = false
+            refreshReferenceHover()
             return
         }
         let point = convert(event.locationInWindow, from: nil)
         if event.clickCount == 2, canOpenSourceApplication, !resizeHandleRect.contains(point) {
             onOpenSourceApplication?()
+            isReferenceInteracting = false
             return
         }
         if resizeHandleRect.contains(point) {
@@ -238,6 +287,8 @@ final class CaptureView: NSView {
             defer { NSCursor.pop() }
             window.performDrag(with: event)
             onReferenceFrameChanged?()
+            isReferenceInteracting = false
+            refreshReferenceHover()
         }
     }
 
@@ -255,7 +306,11 @@ final class CaptureView: NSView {
         onReferenceFrameChanged?()
     }
 
-    override func mouseUp(with event: NSEvent) { resizeStart = nil }
+    override func mouseUp(with event: NSEvent) {
+        resizeStart = nil
+        isReferenceInteracting = false
+        refreshReferenceHover()
+    }
 
     func setIdleIndicator(title: String?, explanation: String? = nil) {
         idleIndicator.stringValue = title ?? ""
