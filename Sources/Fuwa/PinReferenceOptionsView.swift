@@ -93,6 +93,7 @@ struct PinReferenceOptionsView: View {
                         .padding(.trailing, 3)
                 }
                 .scrollIndicators(.visible)
+                .scrollIndicatorsFlash(onAppear: true)
             }
             .frame(maxHeight: max(0, maximumHeight - tabsHeight - 12))
         }
@@ -157,7 +158,33 @@ struct PinReferenceOptionsView: View {
     }
 
     private var visibilityOptions: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
+            if pin.options.presentationMode == .reference {
+                HStack(spacing: 6) {
+                    Text(copy.text(.opacity)).font(.caption.weight(.medium))
+                    FuwaHelpIcon(title: copy.text(.opacity), text: copy.text(.opacityHelp))
+                    Slider(value: Binding(
+                        get: { pin.options.opacity },
+                        set: { value in change { $0.opacity = value } }
+                    ), in: 0.2...1, step: 0.05)
+                    .controlSize(.small)
+                    .accessibilityLabel(copy.text(.opacity))
+                    .accessibilityHint(copy.text(.opacityHelp))
+                    .help(copy.text(.opacityHelp))
+                    .accessibilityValue(opacityTitle)
+                    .accessibilityIdentifier("pin-reference-opacity")
+                    .frame(minWidth: 64)
+                    Text(opacityTitle).font(.caption).monospacedDigit()
+                        .foregroundStyle(FuwaAppearance.secondaryText)
+                        .frame(minWidth: 32, alignment: .trailing)
+                }
+                helpToggle(.hoverPreview, help: .hoverPreviewHelp, isOn: Binding(
+                    get: { pin.options.previewsOnHover },
+                    set: { value in change { $0.previewsOnHover = value } }
+                ))
+                .accessibilityIdentifier("pin-reference-hover-preview")
+                Divider().opacity(0.5)
+            }
             optionRow(title: .showInSpaces, help: .spaceScopeHelp) {
                 HStack(spacing: 5) {
                     ForEach(PinSpaceScope.allCases, id: \.self) { scope in
@@ -245,6 +272,8 @@ struct PinReferenceOptionsView: View {
     private func frameRateTitle(_ rate: PinFrameRate) -> String {
         copy.formatted(.frameRateValue, values: ["count": String(rate.rawValue)])
     }
+
+    private var opacityTitle: String { "\(Int((pin.options.opacity * 100).rounded()))%" }
 
     private func refreshApplications() {
         let selectedIdentifier = pin.options.applicationScopeBundleIdentifier

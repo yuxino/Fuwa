@@ -22,6 +22,12 @@ struct OffscreenPresentationTests {
             try save(SettingsView(model: model).frame(width: 364, height: 520).fuwaLightSurface(), to: "\(output)/\(language)-settings-compact.png")
             try save(SettingsView(model: model).frame(width: 436, height: 660).environment(\.dynamicTypeSize, .accessibility3).fuwaLightSurface(), to: "\(output)/\(language)-settings-large-text.png")
             let ungranted = AppModel(copy: FuwaCopy(language: language), version: "1.2.0", screenRecordingPermission: .unknown)
+            ungranted.showGuide()
+            try save(MainView(model: ungranted).frame(width: 720, height: 540), to: "\(output)/\(language)-guide.png")
+            try save(MainView(model: ungranted).frame(width: 640, height: 460), to: "\(output)/\(language)-guide-compact.png")
+            model.showGuide()
+            try save(MainView(model: model).frame(width: 720, height: 640), to: "\(output)/\(language)-guide-ready.png")
+            model.showPins()
             try save(SettingsView(model: ungranted).frame(width: 364, height: 920).fuwaLightSurface(), to: "\(output)/\(language)-permissions-compact.png")
             try save(MainView(model: model).frame(width: 720, height: 540), to: "\(output)/\(language)-empty.png")
             let pin = PinSnapshot(id: UUID(), sourceWindowID: 123, applicationName: "Reference",

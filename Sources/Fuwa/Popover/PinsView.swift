@@ -1,4 +1,5 @@
 import SwiftUI
+import FuwaCore
 
 @MainActor
 struct PinsView: View {
@@ -39,6 +40,20 @@ struct PinsView: View {
                         Text(copy.pinsCount(model.pins.count))
                             .font(.caption).foregroundStyle(.secondary)
                         Spacer()
+                        if model.canArrangeReferences {
+                            Menu {
+                                ForEach(ReferenceArrangementCorner.allCases, id: \.self) { corner in
+                                    Button(copy.arrangementTitle(corner)) { model.arrangeReferences(in: corner) }
+                                }
+                            } label: {
+                                Image(systemName: "rectangle.3.group")
+                                    .frame(width: 24, height: 24)
+                            }
+                            .menuStyle(.borderlessButton)
+                            .fixedSize()
+                            .help(copy.text(.arrangeReferences))
+                            .accessibilityLabel(copy.text(.arrangeReferences))
+                        }
                         Button(action: model.togglePinsVisibility) {
                             Label(copy.text(model.arePinsHidden ? .showAllPins : .hideAllPins),
                                   systemImage: model.arePinsHidden ? "eye" : "eye.slash")

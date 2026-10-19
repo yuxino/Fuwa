@@ -21,6 +21,9 @@ struct SettingsView: View {
                     rowDivider
                     visibilityShortcutControls
                         .padding(.vertical, 10)
+                    rowDivider
+                    holdToHideControls
+                        .padding(.vertical, 10)
                 }
 
                 settingsGroup(copy.text(.startupAndDock)) {
@@ -126,6 +129,27 @@ struct SettingsView: View {
             .controlSize(.small)
             .help(copy.text(.keepInDockNote))
             .accessibilityHint(copy.text(.keepInDockNote))
+        }
+    }
+
+    private var holdToHideControls: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 4) {
+                Text(copy.text(.holdToHide))
+                    .font(FuwaTypography.settingTitle)
+                    .fixedSize(horizontal: false, vertical: true)
+                FuwaHelpIcon(title: copy.text(.holdToHide), text: copy.text(.holdToHideNote))
+            }
+            Spacer(minLength: 8)
+            Toggle(copy.text(.holdToHide), isOn: Binding(
+                get: { model.holdToHideEnabled },
+                set: { model.setHoldToHideEnabled($0) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .help(copy.text(.holdToHideNote))
+            .accessibilityHint(copy.text(.holdToHideNote))
         }
     }
 

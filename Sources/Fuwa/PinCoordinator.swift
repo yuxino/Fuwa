@@ -118,6 +118,14 @@ final class PinCoordinator {
         try await reconcileVisibility()
     }
 
+    func setPinsTemporarilyHidden(_ hidden: Bool) {
+        let hidden = hidden && !sessionsByID.isEmpty
+        guard visibilityPolicy.arePinsTemporarilyHidden != hidden else { return }
+        visibilityPolicy.arePinsTemporarilyHidden = hidden
+        if hidden { prepareRequiredSuppression() }
+        requestVisibilityUpdate()
+    }
+
     func setOptions(_ options: PinOptions, for id: UUID) {
         guard let session = sessionsByID[id] else { return }
         session.setOptions(options)
@@ -135,6 +143,22 @@ final class PinCoordinator {
 
     func focusControls(_ id: UUID) {
         sessionsByID[id]?.focusControls()
+    }
+
+    func arrangeReferences(in corner: ReferenceArrangementCorner) {
+        let screens = NSScreen.screens.map(\.visibleFrame)
+        var groups: [Int: [(PinSession, CGRect)]] = [:]
+        for id in insertionOrder {
+            guard let session = sessionsByID[id], let frame = session.referenceArrangementFrame,
+                  let screen = FloatingControlsLayout.screenIndex(source: frame, screens: screens) else { continue }
+            groups[screen, default: []].append((session, frame))
+        }
+        for (screen, references) in groups {
+            let frames = ReferenceArrangementGeometry.frames(references.map { $0.1 }, in: screens[screen], corner: corner)
+            for ((session, _), frame) in zip(references, frames) {
+                session.applyReferenceArrangementFrame(frame)
+            }
+        }
     }
 
     func refreshPresentationCopy() {
@@ -280,7 +304,7 @@ final class PinCoordinator {
         pendingSessionOperations.remove(id)
         sessionIDByWindowID.removeValue(forKey: session.sourceWindowID)
         insertionOrder.removeAll(where: { $0 == id })
-        if sessionsByID.isEmpty { setPinsHidden(false) }
+        resetVisibilityIfEmpty()
         session.onChange = nil
         session.onGeometryChanged = nil
         session.onFailure = nil
@@ -316,6 +340,7 @@ final class PinCoordinator {
         insertionOrder.removeAll()
         pendingPinRequests.clear()
         pendingSessionOperations.removeAll()
+        visibilityPolicy.arePinsTemporarilyHidden = false
         setPinsHidden(false)
         tracker.stop()
 
@@ -396,7 +421,7 @@ final class PinCoordinator {
         sessionsByID.removeValue(forKey: session.id)
         sessionIDByWindowID.removeValue(forKey: session.sourceWindowID)
         insertionOrder.removeAll(where: { $0 == session.id })
-        if sessionsByID.isEmpty { setPinsHidden(false) }
+        resetVisibilityIfEmpty()
         session.onChange = nil
         session.onGeometryChanged = nil
         session.onFailure = nil
@@ -410,6 +435,12 @@ final class PinCoordinator {
 
     private func publishSnapshots() {
         onPinsChanged?(snapshots)
+    }
+
+    private func resetVisibilityIfEmpty() {
+        guard sessionsByID.isEmpty else { return }
+        visibilityPolicy.arePinsTemporarilyHidden = false
+        setPinsHidden(false)
     }
 
     private func setPinsHidden(_ hidden: Bool) {

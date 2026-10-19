@@ -9,8 +9,10 @@ final class AppSettingsStore {
         static let keepInDock = "keepInDock"
         static let shortcut = "shortcut"
         static let visibilityShortcut = "visibilityShortcut"
+        static let holdToHideEnabled = "holdToHideEnabled"
         static let applicationFrameRates = "applicationFrameRates"
         static let didRequestScreenRecording = "didRequestScreenRecording"
+        static let hasSeenGuide = "hasSeenGuide"
     }
 
     private let defaults: UserDefaults
@@ -30,6 +32,11 @@ final class AppSettingsStore {
     var keepInDock: Bool {
         get { defaults.object(forKey: Key.keepInDock) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Key.keepInDock) }
+    }
+
+    var holdToHideEnabled: Bool {
+        get { defaults.bool(forKey: Key.holdToHideEnabled) }
+        set { defaults.set(newValue, forKey: Key.holdToHideEnabled) }
     }
 
     var shortcut: KeyboardShortcut {
@@ -55,6 +62,11 @@ final class AppSettingsStore {
     var didRequestScreenRecording: Bool {
         get { defaults.bool(forKey: Key.didRequestScreenRecording) }
         set { defaults.set(newValue, forKey: Key.didRequestScreenRecording) }
+    }
+
+    var hasSeenGuide: Bool {
+        get { defaults.bool(forKey: Key.hasSeenGuide) }
+        set { defaults.set(newValue, forKey: Key.hasSeenGuide) }
     }
 
     var visibilityShortcut: KeyboardShortcut {

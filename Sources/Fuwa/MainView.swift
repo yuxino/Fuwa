@@ -17,7 +17,7 @@ struct MainView: View {
                     Text("Fuwa").font(.system(size: 18, weight: .semibold))
                 }
                 VStack(spacing: 4) {
-                    navigation(copy.text(.pins), symbol: "pin", selected: !settingsSelected) {
+                    navigation(copy.text(.pins), symbol: "pin", selected: model.route == .pins) {
                         model.showPins()
                     }
                     navigation(copy.text(.settings), symbol: "gearshape", selected: settingsSelected) {
@@ -26,6 +26,9 @@ struct MainView: View {
                     .keyboardShortcut(",", modifiers: .command)
                 }
                 Spacer()
+                navigation(copy.text(.gettingStarted), symbol: "questionmark.circle", selected: model.route == .guide) {
+                    model.showGuide()
+                }
                 VStack(alignment: .leading, spacing: 6) {
                     Text(copy.pinsCount(model.pins.count))
                         .font(.caption).foregroundStyle(.secondary)
@@ -43,10 +46,10 @@ struct MainView: View {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(copy.text(settingsSelected ? .settings : .manageWindows))
+                        Text(copy.text(model.route == .guide ? .gettingStarted : settingsSelected ? .settings : .manageWindows))
                             .font(.system(size: 18, weight: .semibold))
                         Spacer()
-                        if !settingsSelected && !model.pins.isEmpty {
+                        if model.route == .pins && !model.pins.isEmpty {
                             Button(action: model.chooseWindow) {
                                 Label(copy.text(.chooseWindow), systemImage: "plus")
                             }
@@ -63,7 +66,9 @@ struct MainView: View {
                         .padding(.horizontal, 24).padding(.bottom, 16)
                 }
                 Divider()
-                if settingsSelected {
+                if model.route == .guide {
+                    GettingStartedView(model: model)
+                } else if settingsSelected {
                     SettingsView(model: model)
                 } else {
                     PinsView(model: model)

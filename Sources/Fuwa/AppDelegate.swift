@@ -22,6 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let privacyLifecycle = PrivacyLifecycle()
     private let settingsStore = AppSettingsStore()
     private let launchAtLoginController = LaunchAtLoginController()
+    private let holdToHideController = HoldToHideController(isShortcutRecording: {
+        NSApp?.keyWindow?.firstResponder is ShortcutCaptureNSView
+    })
 
     private var hotKey: GlobalHotKey?
     private var visibilityHotKey: GlobalHotKey?
@@ -83,6 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let model = AppModel(
             languagePreference: settingsStore.language,
             keepInDock: settingsStore.keepInDock,
+            holdToHideEnabled: settingsStore.holdToHideEnabled,
             version: Self.version,
             shortcut: activeShortcut,
             shortcutIsActive: hotKey.currentShortcut != nil,
@@ -92,6 +96,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             screenRecordingPermission: screenRecordingPermissionState
         )
         self.model = model
+        model.onGuideDismissed = { [weak self] in self?.settingsStore.hasSeenGuide = true }
+        // Existing users who have already set up capture keep their usual entry point.
+        if !settingsStore.hasSeenGuide && !settingsStore.didRequestScreenRecording
+            && model.screenRecordingPermission != .granted {
+            model.showGuide()
+        }
         model.onLanguageChanged = { [weak self, weak model] preference in
             self?.settingsStore.language = preference
             self?.pinCoordinator.refreshPresentationCopy()
@@ -102,6 +112,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             settingsStore.keepInDock = enabled
             updateDockPresence()
+        }
+        model.onHoldToHideEnabledChanged = { [weak self] enabled in
+            guard let self else { return }
+            settingsStore.holdToHideEnabled = enabled
+            updateHoldToHideMonitoring()
+        }
+        holdToHideController.onHiddenChanged = { [weak self] hidden in
+            self?.pinCoordinator.setPinsTemporarilyHidden(hidden)
         }
         pinCoordinator.presentationModel = model
         pinCoordinator.frameRateForApplication = { [weak self] bundleIdentifier in
@@ -184,6 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         discardMenuIntent()
         hotKey?.stop()
         visibilityHotKey?.stop()
+        holdToHideController.stop()
         privacyLifecycle.stop()
         pinCoordinator.clearAllImmediately()
         statusBarController?.invalidate()
@@ -233,6 +252,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             beginCropSelection: { [weak self] id in
                 self?.pinCoordinator.beginCropSelection(id)
             },
+            arrangeReferences: { [weak self] corner in
+                self?.pinCoordinator.arrangeReferences(in: corner)
+            },
             togglePinsVisibility: { [weak self] in
                 guard let self else { throw FuwaApplicationError.unavailable }
                 try await pinCoordinator.togglePinsVisibility()
@@ -270,6 +292,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             openScreenRecordingSettings: { [weak self] in
                 self?.openPrivacySettings(anchor: "Privacy_ScreenCapture")
+            },
+            requestScreenRecordingPermission: { [weak self] in
+                guard let self, !isTerminating else { return }
+                if !CGPreflightScreenCaptureAccess() {
+                    if SystemPermissionRequestPolicy.action(hasRequestedBefore: settingsStore.didRequestScreenRecording) == .requestSystemPrompt {
+                        settingsStore.didRequestScreenRecording = true
+                        _ = CGRequestScreenCaptureAccess()
+                    } else {
+                        openPrivacySettings(anchor: "Privacy_ScreenCapture")
+                    }
+                }
+                refreshPermissions()
             },
             openLoginItemsSettings: { [weak self] in
                 self?.launchAtLoginController.openSettings()
@@ -383,8 +417,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func configureCoordinatorCallbacks(model: AppModel) {
-        pinCoordinator.onPinsChanged = { [weak model] snapshots in
+        pinCoordinator.onPinsChanged = { [weak self, weak model] snapshots in
             model?.updatePins(snapshots)
+            self?.updateHoldToHideMonitoring()
         }
         pinCoordinator.onFailure = { [weak model] error in
             model?.report(error)
@@ -394,6 +429,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         model.updatePins(pinCoordinator.snapshots)
         model.updatePinsVisibility(pinCoordinator.arePinsHidden)
+        updateHoldToHideMonitoring()
+    }
+
+    private func updateHoldToHideMonitoring() {
+        holdToHideController.configure(
+            isEnabled: !isTerminating && settingsStore.holdToHideEnabled,
+            hasPins: pinCoordinator.pinCount > 0
+        )
     }
 
     private func configurePrivacyLifecycle() {

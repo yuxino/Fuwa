@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### English
+
+- A compact Getting Started guide explains permission, window selection and reference controls, and remains available in the sidebar.
+- Window selection includes thumbnails; reference windows can be arranged in any corner of each display.
+- Independent references can show an adjacent enlarged preview on hover and adjust opacity separately. Hovering makes a translucent reference clear again.
+- Right-click a reference for small, medium and large sizes, or double-click to bring its source app forward.
+- Optionally hold Control and Option to hide pictures temporarily; releasing either key restores their previous visibility.
+
+### 中文
+
+- 新增简洁的使用指南，说明授权、选窗和参考窗操作，可随时从侧栏重新打开。
+- 选窗列表显示缩略图，参考窗可按各自屏幕整理到任意角落。
+- 独立参考窗支持悬停时在旁边放大预览，并可单独调整不透明度；鼠标移入时恢复清晰。
+- 右键可选择小、中、大尺寸；双击可将来源应用切到前台。
+- 可在设置中启用按住 Control 和 Option 暂时隐藏画面，松开任一键后恢复原来的显示状态。
+
 ## [1.2.2] - 2026-10-15
 
 ### English

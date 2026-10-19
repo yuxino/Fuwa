@@ -37,7 +37,7 @@ extension FuwaCopy {
         case .simplifiedChinese: [
             .restoringPicture: "正在恢复画面…",
             .pictureOptions: "画面",
-            .visibilityOptions: "显示条件",
+            .visibilityOptions: "显示",
             .performanceOptions: "性能",
             .closeControls: "关闭控制面板",
             .pinShortcut: "固定／取消固定快捷键",
@@ -68,7 +68,7 @@ extension FuwaCopy {
         case .traditionalChinese: [
             .restoringPicture: "正在恢復畫面…",
             .pictureOptions: "畫面",
-            .visibilityOptions: "顯示條件",
+            .visibilityOptions: "顯示",
             .performanceOptions: "效能",
             .closeControls: "關閉控制面板",
             .pinShortcut: "固定／取消固定快捷鍵",
@@ -99,7 +99,7 @@ extension FuwaCopy {
         case .japanese: [
             .restoringPicture: "映像を復元中…",
             .pictureOptions: "映像",
-            .visibilityOptions: "表示条件",
+            .visibilityOptions: "表示",
             .performanceOptions: "負荷",
             .closeControls: "操作パネルを閉じる",
             .pinShortcut: "固定／解除ショートカット",
@@ -130,7 +130,7 @@ extension FuwaCopy {
         case .korean: [
             .restoringPicture: "화면 복원 중…",
             .pictureOptions: "화면",
-            .visibilityOptions: "표시 조건",
+            .visibilityOptions: "표시",
             .performanceOptions: "성능",
             .closeControls: "조작 패널 닫기",
             .pinShortcut: "고정 / 해제 단축키",

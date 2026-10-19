@@ -1,14 +1,15 @@
 import Foundation
 import FuwaCore
 
-/// Global hiding and a pin's application rule are independent. Restoring the
-/// group must never make a reference appear over an unrelated application.
+/// Manual hiding, a temporary gesture and application rules are independent.
+/// Releasing the gesture must not reveal a manually or application-hidden pin.
 struct PinVisibilityPolicy {
     var arePinsHidden = false {
         didSet {
             if arePinsHidden != oldValue { globalVisibilityRevision &+= 1 }
         }
     }
+    var arePinsTemporarilyHidden = false
     private(set) var globalVisibilityRevision: UInt64 = 0
     private(set) var activeApplicationBundleIdentifier: String?
     private let ownBundleIdentifier: String?
@@ -32,7 +33,7 @@ struct PinVisibilityPolicy {
     }
 
     func suppresses(_ options: PinOptions) -> Bool {
-        if arePinsHidden { return true }
+        if arePinsHidden || arePinsTemporarilyHidden { return true }
         guard let application = options.applicationScopeBundleIdentifier else { return false }
         return application != activeApplicationBundleIdentifier
     }

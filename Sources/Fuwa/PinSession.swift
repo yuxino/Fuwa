@@ -107,6 +107,10 @@ final class PinSession {
     private var lastActivitySampleTime: TimeInterval = -.infinity
     private var effectiveFrameRate = PinFrameRate.thirty
     private var referenceFrame: CGRect?
+    // Arrangement may use smaller frames than the manual resize handle allows.
+    private var keepsArrangedReferenceSize = false
+    private var hoverPreviewTask: Task<Void, Never>?
+    private var hoverPreview: ReferencePreviewController?
 
     init(id: UUID = UUID(), target: ResolvedTarget) {
         self.id = id
@@ -192,6 +196,7 @@ final class PinSession {
             throw PinSessionError.freezeFailed(FrozenFrameError.noCompleteFrame.localizedDescription)
         }
         dismissCropSelection()
+        dismissHoverPreview()
 
         let image: CGImage
         do {
@@ -235,6 +240,7 @@ final class PinSession {
         let initialRevision = suppression.revision
         do {
             try transition(.resume)
+            dismissHoverPreview()
             updateTarget(target)
             missingObservationCount = 0
             isHandlingMissingSource = false
@@ -293,16 +299,19 @@ final class PinSession {
         guard updated != options else { return }
         let previous = options
         options = updated
+        dismissHoverPreview()
         if previous.captureRegion != options.captureRegion || previous.presentationMode != options.presentationMode {
             dismissCropSelection()
             updatePresentationBehavior()
             updatePanelFrame(to: descriptor.bounds)
         }
+        if previous.opacity != options.opacity { updatePresentationBehavior() }
         updateSpaceMembership()
         effectiveFrameRate = activity.isIdle && options.reducesFrameRateWhenIdle ? .one : options.frameRate
         if previous.captureRegion != options.captureRegion, state == .live, !suppression.isSuppressed {
             restartCaptureForRegionChange()
-        } else {
+        } else if previous.frameRate != options.frameRate
+                    || previous.reducesFrameRateWhenIdle != options.reducesFrameRateWhenIdle {
             scheduleCaptureResize(to: descriptor.bounds.size)
         }
         onOptionsChanged?(options)
@@ -310,6 +319,7 @@ final class PinSession {
     }
 
     func beginCropSelection() {
+        dismissHoverPreview()
         if let cropPanel { cropPanel.makeKeyAndOrderFront(nil); return }
         guard snapshot.canChooseArea, let panel,
               let image = try? captureView?.makeFrozenImage() else { return }
@@ -562,6 +572,7 @@ final class PinSession {
     ) {
         guard isCurrent(streamID: streamID, generation: generation) else { return }
         guard let receipt = captureView?.consume(sampleBuffer) else { return }
+        hoverPreview?.consume(sampleBuffer)
         if let currentCycle { currentCycle.hasCompleteFrame = true }
         lastCompleteCaptureRegion = options.captureRegion
         samplePictureActivity()
@@ -964,9 +975,16 @@ final class PinSession {
         captureView = view
         view.onReferenceFrameChanged = { [weak self] in
             guard let self else { return }
+            if self.referenceFrame?.size != self.panel?.frame.size {
+                self.keepsArrangedReferenceSize = false
+            }
             self.referenceFrame = self.panel?.frame
             self.positionControls()
         }
+        view.onReferenceHoverChanged = { [weak self] hovering in self?.setReferenceHovered(hovering) }
+        view.onReferenceInteraction = { [weak self] in self?.dismissHoverPreview() }
+        view.onOpenSourceApplication = { [weak self] in self?.openSourceApplication() }
+        view.onReferenceSizeSelected = { [weak self] fraction in self?.resizeReference(widthFraction: fraction) }
         updatePresentationBehavior()
         updateSpaceMembership()
         if let presentationModel {
@@ -990,6 +1008,8 @@ final class PinSession {
     }
 
     func reconcileDisplayArrangement() {
+        captureView?.referenceHoverEnabled = false
+        dismissHoverPreview()
         guard let panel else { return }
         if options.presentationMode == .reference || snapshot.canShowControls {
             let recovered = FloatingControlsLayout.recoveredFrame(
@@ -1001,9 +1021,12 @@ final class PinSession {
             }
         }
         positionControls()
+        captureView?.referenceHoverEnabled = panel.isVisible && !suppression.isSuppressed
+        captureView?.refreshReferenceHover()
     }
 
     func focusControls() {
+        dismissHoverPreview()
         guard let panel, panel.isVisible, let controlsPanel else { return }
         reconcileDisplayArrangement()
         if controlsPanel.parent == nil { panel.addChildWindow(controlsPanel, ordered: .above) }
@@ -1013,9 +1036,13 @@ final class PinSession {
     private func showPresentation() {
         guard !suppression.isSuppressed, state != .stopping, state != .stopped else { return }
         panel?.orderFrontRegardless()
+        captureView?.referenceHoverEnabled = true
+        captureView?.refreshReferenceHover()
     }
 
     private func hidePresentation() {
+        captureView?.referenceHoverEnabled = false
+        dismissHoverPreview()
         dismissCropSelection()
         dismissControls()
         panel?.orderOut(nil)
@@ -1062,11 +1089,16 @@ final class PinSession {
             // frame so tracker callbacks cannot snap an in-progress drag back
             // to a cached position from before the drag began.
             let initial = panel.frame
-            let resized = CaptureReferenceGeometry.resizedFrame(initial, requestedWidth: initial.width, aspect: aspect,
-                                                                maximumSize: maximumReferenceSize(for: initial))
+            let resized = keepsArrangedReferenceSize ? initial : CaptureReferenceGeometry.resizedFrame(
+                initial, requestedWidth: initial.width, aspect: aspect,
+                maximumSize: maximumReferenceSize(for: initial))
             let recovered = FloatingControlsLayout.recoveredFrame(source: resized,
                                                                  visibleScreens: NSScreen.screens.map(\.visibleFrame))
-            if panel.frame != recovered { panel.setFrame(recovered, display: true) }
+            if panel.frame != recovered {
+                dismissHoverPreview()
+                panel.setFrame(recovered, display: true)
+                captureView?.refreshReferenceHover()
+            }
             referenceFrame = recovered
             captureView?.referenceAspect = aspect
             positionControls()
@@ -1095,9 +1127,9 @@ final class PinSession {
                 panel.frame, requestedWidth: min(640, panel.frame.width), aspect: presentationAspect,
                 maximumSize: maximumReferenceSize(for: panel.frame)
             )
-            let restored = CaptureReferenceGeometry.resizedFrame(saved, requestedWidth: saved.width,
-                                                                 aspect: presentationAspect,
-                                                                 maximumSize: maximumReferenceSize(for: saved))
+            let restored = keepsArrangedReferenceSize ? saved : CaptureReferenceGeometry.resizedFrame(
+                saved, requestedWidth: saved.width, aspect: presentationAspect,
+                maximumSize: maximumReferenceSize(for: saved))
             let recovered = FloatingControlsLayout.recoveredFrame(source: restored,
                                                                  visibleScreens: NSScreen.screens.map(\.visibleFrame))
             panel.setFrame(recovered, display: true)
@@ -1106,13 +1138,112 @@ final class PinSession {
             referenceFrame = panel.frame
         }
         panel.ignoresMouseEvents = !reference
+        captureView.referenceOpacity = options.opacity
         panel.isMovable = reference
         panel.isMovableByWindowBackground = reference
         captureView.isReferencePresentation = reference
+        captureView.referenceHoverEnabled = panel.isVisible && !suppression.isSuppressed
         captureView.referenceAspect = presentationAspect
         let copy = presentationModel?.copy ?? FuwaCopy(language: .automatic())
         captureView.toolTip = reference ? copy.text(.referenceInstructions) : nil
         captureView.controlsTitle = copy.text(.showControls)
+        captureView.sourceApplicationTitle = copy.text(.openSourceApplication)
+        captureView.sourceApplicationHelp = copy.text(.openSourceApplicationHelp)
+        captureView.canOpenSourceApplication = canOpenSourceApplication
+        captureView.referenceSizeTitle = copy.text(.referenceSize)
+        captureView.referenceSizeTitles = [.referenceSizeSmall, .referenceSizeMedium, .referenceSizeLarge].map { copy.text($0) }
+    }
+
+    private func setReferenceHovered(_ hovering: Bool) {
+        dismissHoverPreview()
+        guard hovering, canShowHoverPreview else { return }
+        hoverPreviewTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .milliseconds(450)) } catch { return }
+            guard let self, !Task.isCancelled, self.canShowHoverPreview,
+                  let panel = self.panel, panel.frame.contains(NSEvent.mouseLocation),
+                  let image = try? self.captureView?.makeFrozenImage(),
+                  let screen = panel.screen else { return }
+            let frame = ReferencePreviewGeometry.frame(reference: panel.frame,
+                aspect: CGSize(width: image.width, height: image.height), visibleFrame: screen.visibleFrame)
+            guard frame.width > 0, frame.height > 0 else { return }
+            let preview = ReferencePreviewController(image: image, frame: frame,
+                collectionBehavior: panel.collectionBehavior)
+            self.hoverPreview = preview
+            preview.show()
+        }
+    }
+
+    private var canShowHoverPreview: Bool {
+        options.presentationMode == .reference && options.previewsOnHover
+            && !suppression.isSuppressed && panel?.isVisible == true
+            && captureView?.isReferenceInteracting != true
+            && controlsPanel?.isVisible != true && cropPanel == nil
+            && !snapshot.isAwaitingFreshFrame
+            && (state == .live || snapshot.canResume || state == .frozen(.sourceClosed))
+    }
+
+    private func dismissHoverPreview() {
+        hoverPreviewTask?.cancel()
+        hoverPreviewTask = nil
+        hoverPreview?.dismiss()
+        hoverPreview = nil
+    }
+
+    private func resizeReference(widthFraction: CGFloat) {
+        guard options.presentationMode == .reference, let panel, let screen = panel.screen else { return }
+        keepsArrangedReferenceSize = false
+        dismissHoverPreview()
+        let visible = screen.visibleFrame.insetBy(dx: 8, dy: 8)
+        let resized = CaptureReferenceGeometry.resizedFrame(panel.frame,
+            requestedWidth: visible.width * widthFraction, aspect: presentationAspect, maximumSize: visible.size)
+        let recovered = FloatingControlsLayout.recoveredFrame(source: resized, visibleScreens: [visible])
+        panel.setFrame(recovered, display: true)
+        referenceFrame = recovered
+        positionControls()
+        captureView?.refreshReferenceHover()
+    }
+
+    var referenceArrangementFrame: CGRect? {
+        options.presentationMode == .reference ? panel?.frame : nil
+    }
+
+    func applyReferenceArrangementFrame(_ requestedFrame: CGRect) {
+        guard options.presentationMode == .reference, state != .stopping, state != .stopped,
+              let panel, !requestedFrame.isNull, !requestedFrame.isInfinite,
+              requestedFrame.size.width.isFinite, requestedFrame.size.height.isFinite,
+              requestedFrame.origin.x.isFinite, requestedFrame.origin.y.isFinite,
+              requestedFrame.maxX.isFinite, requestedFrame.maxY.isFinite,
+              requestedFrame.size.width > 0, requestedFrame.size.height > 0 else { return }
+        let visibleScreens = NSScreen.screens.map(\.visibleFrame)
+        guard let index = FloatingControlsLayout.screenIndex(source: requestedFrame, screens: visibleScreens) else { return }
+        captureView?.referenceHoverEnabled = false
+        dismissHoverPreview()
+        let visible = visibleScreens[index]
+        let scale = min(1, visible.width / requestedFrame.width, visible.height / requestedFrame.height)
+        let size = CGSize(width: requestedFrame.width * scale, height: requestedFrame.height * scale)
+        let recovered = CGRect(x: min(max(requestedFrame.minX, visible.minX), visible.maxX - size.width),
+                               y: min(max(requestedFrame.minY, visible.minY), visible.maxY - size.height),
+                               width: size.width, height: size.height)
+        panel.setFrame(recovered, display: true)
+        referenceFrame = recovered
+        keepsArrangedReferenceSize = true
+        positionControls()
+        captureView?.referenceHoverEnabled = panel.isVisible && !suppression.isSuppressed
+        captureView?.refreshReferenceHover()
+    }
+
+    private var canOpenSourceApplication: Bool {
+        guard state != .stopping, state != .stopped, state != .frozen(.sourceClosed),
+              let app = NSRunningApplication(processIdentifier: descriptor.ownerPID), !app.isTerminated else { return false }
+        return bundleIdentifier == nil || app.bundleIdentifier == bundleIdentifier
+    }
+
+    private func openSourceApplication() {
+        guard canOpenSourceApplication,
+              let app = NSRunningApplication(processIdentifier: descriptor.ownerPID) else { return }
+        dismissHoverPreview()
+        dismissControls()
+        app.activate(options: [])
     }
 
     private func updateSpaceMembership() {
@@ -1314,6 +1445,7 @@ final class PinSession {
     }
 
     private func notifyChange() {
+        captureView?.canOpenSourceApplication = canOpenSourceApplication
         updateIdleIndicator()
         onChange?()
     }
