@@ -85,10 +85,9 @@ class MacOSOnlyTests(unittest.TestCase):
                       read(".github/workflows/promote-release.yml"))
 
     def test_public_platform_requirements_are_consistent(self) -> None:
-        for path in ("README.md", "README_ZH.md"):
-            self.assertIn("macOS 14 或更高版本", read(path))
-        self.assertIn("macOS 14 or later", read("README_EN.md"))
-        self.assertIn("discontinued Windows builds are unsupported", read("SECURITY.md"))
+        self.assertIn("macOS 14 或更高版本", read("README.md"))
+        self.assertIn("macOS 14 or later", read("docs/readme/en.md"))
+        self.assertIn("discontinued Windows builds are unsupported", read(".github/SECURITY.md"))
 
 
 if __name__ == "__main__":

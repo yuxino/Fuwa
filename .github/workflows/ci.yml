@@ -107,7 +107,7 @@ jobs:
             echo "an invalid universal-build mode was accepted" >&2
             exit 1
           fi
-          if grep -R 'FUWA_ALLOW_AD_HOC_SIGNING' scripts README.md README_EN.md README_ZH.md; then
+          if grep -R 'FUWA_ALLOW_AD_HOC_SIGNING' scripts README.md docs/readme; then
             echo "an ad-hoc signing escape hatch was reintroduced" >&2
             exit 1
           fi

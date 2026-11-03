@@ -22,14 +22,14 @@
 
 ---
 
-[官方网站](https://fuwa.yuxino.cn) · [使用说明](docs/floating-reference.md) · [隐私](PRIVACY.md) · [LINUX DO](https://linux.do)
+[官方网站](https://fuwa.yuxino.cn) · [使用说明](docs/floating-reference.md) · [隐私](docs/privacy.md) · [LINUX DO](https://linux.do)
 
 <p>
 <strong>简体中文</strong>
-· <a href="README_ZH_TW.md">繁體中文</a>
-· <a href="README_EN.md">English</a>
-· <a href="README_JA.md">日本語</a>
-· <a href="README_KO.md">한국어</a>
-· <a href="README_FR.md">Français</a>
-· <a href="README_DE.md">Deutsch</a>
+· <a href="docs/readme/zh-TW.md">繁體中文</a>
+· <a href="docs/readme/en.md">English</a>
+· <a href="docs/readme/ja.md">日本語</a>
+· <a href="docs/readme/ko.md">한국어</a>
+· <a href="docs/readme/fr.md">Français</a>
+· <a href="docs/readme/de.md">Deutsch</a>
 </p>

@@ -43,7 +43,7 @@ Contributions must preserve these boundaries:
 - Request each macOS privacy permission at most once; after a denial, keep the user in the existing Settings guidance instead of reopening the system prompt.
 - Preserve the bundle identifier, stable signing identity, and canonical install path across rebuilds and verify the full designated requirement before replacement.
 - Clear retained pixels synchronously on lock, sleep, user switch, and quit, and clear them when Screen Recording revocation is detected.
-- Treat Topit only as product research. Do not copy its AGPL-licensed source, assets, copy, tests, file structure, or implementation details into Fuwa. See [the independent implementation statement](docs/independent-implementation.md).
+- Treat Topit only as product research. Do not copy its AGPL-licensed source, assets, copy, tests, file structure, or implementation details into Fuwa. See [the independent implementation statement](../docs/independent-implementation.md).
 
 ## Pull requests
 
@@ -61,6 +61,6 @@ Avoid unrelated formatting or refactoring. CI validates the warnings-as-errors m
 
 Fuwa supports macOS only. Do not reintroduce Windows targets, dependencies, installers, feeds, or release requirements without an explicit product-scope decision. Historical Windows code and packages remain in Git history and existing Releases, not in the maintained source tree.
 
-Tag CI runs the macOS build and tests; it does not create or publish a GitHub Release. A trusted Mac produces and verifies the stable-identity universal archive. Maintainers assemble a draft containing that archive and its checksum, then use protected manual promotion with the accepted archive hash. See [the release runbook](docs/releasing.md).
+Tag CI runs the macOS build and tests; it does not create or publish a GitHub Release. A trusted Mac produces and verifies the stable-identity universal archive. Maintainers assemble a draft containing that archive and its checksum, then use protected manual promotion with the accepted archive hash. See [the release runbook](../docs/releasing.md).
 
-By submitting a contribution, you agree that it may be distributed under the repository's [MIT License](LICENSE), and you confirm that you have the right to contribute it.
+By submitting a contribution, you agree that it may be distributed under the repository's [MIT License](../LICENSE), and you confirm that you have the right to contribute it.

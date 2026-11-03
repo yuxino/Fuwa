@@ -1,5 +1,9 @@
 # Project guidance
 
+## Documentation
+
+Keep the Simplified Chinese README at the repository root and its translations in `docs/readme/`. When moving public documents, update links on the Fuwa website before retiring the old paths.
+
 ## Release language
 
 - Write public release notes in English first, followed by Simplified Chinese, using `## English` and `## 中文` sections. Translate the same changes, installation/update requirements, and verification limits; keep links, filenames, version numbers, and checksums exact.
