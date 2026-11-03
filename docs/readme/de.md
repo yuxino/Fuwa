@@ -1,12 +1,26 @@
 <div align="center">
-<h1><img src="../images/app-icon.png" width="44" height="44" align="middle" alt="Fuwa-App-Symbol"> Fuwa</h1>
-<p>Mit Fuwa bleibt ein Fenster auf deinem Mac sichtbar, wenn du in einer anderen App arbeitest.</p>
-<p>
-<a href="https://github.com/yuxino/fuwa/releases/latest"><img src="https://img.shields.io/github/v/release/yuxino/fuwa?style=flat&amp;logo=github&amp;logoColor=white" alt="Neueste Version"></a>
-<a href="https://github.com/yuxino/fuwa/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/yuxino/fuwa/ci.yml?style=flat&amp;logo=githubactions&amp;logoColor=white&amp;branch=main&amp;event=push&amp;label=CI" alt="CI-Status auf main"></a>
-<a href="../../LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat&amp;logo=opensourceinitiative&amp;logoColor=white" alt="MIT-Lizenz"></a>
-<a href="https://github.com/yuxino/fuwa/releases/latest"><img src="https://img.shields.io/badge/macOS-14%2B-555?style=flat&amp;logo=apple&amp;logoColor=white" alt="macOS 14+"></a>
-</p>
+  <img src="../images/app-icon.png" width="112" alt="Fuwa-App-Symbol">
+  <h1>Fuwa</h1>
+  <p>Mit Fuwa bleibt ein Fenster auf deinem Mac sichtbar, wenn du in einer anderen App arbeitest.</p>
+  <p>
+    <a href="https://fuwa.yuxino.cn"><strong>Offizielle Website</strong></a>
+    · <a href="https://github.com/yuxino/fuwa/releases/latest"><strong>Fuwa herunterladen</strong></a>
+  </p>
+  <p>
+    <a href="../../README.md">简体中文</a>
+    · <a href="zh-TW.md">繁體中文</a>
+    · <a href="en.md">English</a>
+    · <a href="ja.md">日本語</a>
+    · <a href="ko.md">한국어</a>
+    · <a href="fr.md">Français</a>
+    · <strong>Deutsch</strong>
+  </p>
+  <p>
+    <a href="https://github.com/yuxino/fuwa/releases/latest"><img src="https://img.shields.io/github/v/release/yuxino/fuwa?style=flat&amp;logo=github&amp;logoColor=white" alt="Neueste Version"></a>
+    <a href="https://github.com/yuxino/fuwa/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/yuxino/fuwa/ci.yml?style=flat&amp;logo=githubactions&amp;logoColor=white&amp;branch=main&amp;event=push&amp;label=CI" alt="CI-Status auf main"></a>
+    <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat&amp;logo=opensourceinitiative&amp;logoColor=white" alt="MIT-Lizenz"></a>
+    <a href="https://github.com/yuxino/fuwa/releases/latest"><img src="https://img.shields.io/badge/macOS-14%2B-555?style=flat&amp;logo=apple&amp;logoColor=white" alt="macOS 14+"></a>
+  </p>
 </div>
 
 ## Fensteransichten
@@ -22,14 +36,4 @@
 
 ---
 
-[Offizielle Website](https://fuwa.yuxino.cn) · [Anleitung](../floating-reference.md) · [Datenschutz](../privacy.md)
-
-<p>
-<a href="../../README.md">简体中文</a>
-· <a href="zh-TW.md">繁體中文</a>
-· <a href="en.md">English</a>
-· <a href="ja.md">日本語</a>
-· <a href="ko.md">한국어</a>
-· <a href="fr.md">Français</a>
-· <strong>Deutsch</strong>
-</p>
+[Anleitung](../floating-reference.md) · [Datenschutz](../privacy.md)
