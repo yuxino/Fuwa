@@ -23,6 +23,16 @@
   </p>
 </div>
 
-Requires macOS 14 or later. Allow Screen Recording the first time you use Fuwa, then bring the window you want to pin to the front and press `⌥⌘P`.
+When following a video tutorial, keep the demonstration in a corner of your screen and try each step in your own app.
+
+## Get started
+
+1. Fuwa requires macOS 14 or later. Download and open the `.dmg`, then drag Fuwa into Applications.
+2. Open Fuwa and allow Screen Recording when prompted. Window images stay on your Mac.
+3. Bring the window you want to pin to the front and press `⌥⌘P`. To unpin it, point at the pinned picture and press the shortcut again.
+
+## Adjust the pinned view
+
+By default, the picture follows its original window and lets you click through to whatever is underneath. To keep the tutorial in a corner, click the gear in Fuwa’s window list and choose **Reference Window**. You can move or resize this view, or select just the area you want to see.
 
 [User guide](docs/floating-reference.md) · [Privacy](PRIVACY.md) · [LINUX DO](https://linux.do)

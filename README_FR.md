@@ -23,6 +23,16 @@
   </p>
 </div>
 
-Nécessite macOS 14 ou une version ultérieure. À la première utilisation, autorisez l’enregistrement de l’écran, puis placez la fenêtre à épingler au premier plan et appuyez sur `⌥⌘P`.
+Pour suivre un tutoriel vidéo, placez la démonstration dans un coin de l’écran. Vous pouvez ainsi reproduire chaque étape dans votre app tout en gardant l’exemple sous les yeux.
+
+## Premiers pas
+
+1. Fuwa nécessite macOS 14 ou une version ultérieure. Téléchargez et ouvrez le fichier `.dmg`, puis faites glisser Fuwa dans le dossier Applications.
+2. Ouvrez Fuwa et autorisez l’enregistrement de l’écran quand la demande apparaît. Les images des fenêtres restent sur votre Mac.
+3. Placez la fenêtre à épingler au premier plan et appuyez sur `⌥⌘P`. Pour la détacher, placez le pointeur sur l’image épinglée et appuyez de nouveau sur ce raccourci.
+
+## Ajuster l’image épinglée
+
+Par défaut, l’image suit sa fenêtre d’origine et laisse passer les clics vers ce qui se trouve en dessous. Pour placer le tutoriel dans un coin, cliquez sur la roue dentée dans la liste des fenêtres de Fuwa et choisissez **Fenêtre de référence**. Vous pouvez alors déplacer ou redimensionner l’image, ou sélectionner uniquement la zone à afficher.
 
 [Guide d’utilisation](docs/floating-reference.md) · [Confidentialité](PRIVACY.md)

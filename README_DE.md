@@ -23,6 +23,16 @@
   </p>
 </div>
 
-Erfordert macOS 14 oder neuer. Erlaube beim ersten Verwenden die Bildschirmaufnahme. Hole dann das gewünschte Fenster in den Vordergrund und drücke `⌥⌘P`.
+Wenn du einem Video-Tutorial folgst, kannst du die Vorführung in einer Bildschirmecke im Blick behalten und jeden Schritt in deiner eigenen App ausprobieren.
+
+## Erste Schritte
+
+1. Fuwa benötigt macOS 14 oder neuer. Lade die `.dmg`-Datei herunter, öffne sie und ziehe Fuwa in den Ordner „Programme“.
+2. Öffne Fuwa und erlaube die Bildschirmaufnahme, wenn du dazu aufgefordert wirst. Die Fensterbilder bleiben auf deinem Mac.
+3. Hole das gewünschte Fenster in den Vordergrund und drücke `⌥⌘P`. Zum Lösen bewege den Mauszeiger über das angeheftete Bild und drücke die Tastenkombination erneut.
+
+## Ansicht anpassen
+
+Standardmäßig folgt das Bild dem ursprünglichen Fenster. Du kannst durch das Bild hindurch auf die Inhalte darunter klicken. Um das Tutorial in eine Ecke zu verschieben, klicke in der Fensterliste von Fuwa auf das Zahnrad und wähle **Referenzfenster**. Du kannst die Ansicht verschieben, ihre Größe ändern oder nur den gewünschten Ausschnitt anzeigen lassen.
 
 [Anleitung](docs/floating-reference.md) · [Datenschutz](PRIVACY.md)
